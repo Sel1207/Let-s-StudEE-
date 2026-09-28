@@ -1,8 +1,18 @@
 import { ALLOWED_DURATIONS, TOPICS, type AllowedDuration, type Question, type StudyData, type StudySettings, type Topic, type TopicPreference, type TopicResult } from './studyTypes'
+import { DEFAULT_FOUNDATIONAL_QUESTIONS } from './defaultFoundationalQuestions'
+import { PREFERRED_VOICE_URI } from './speechVoice'
 
 const STORAGE_KEY = 'lets-studee-study-data-v1'
+const DEFAULTS_MIGRATION_KEY = 'lets-studee-defaults-migration-v1'
 const SPEEDS = ['slow', 'normal', 'fast'] as const
 const FILTERS = ['any', 20, 30, 60, 120] as const
+
+function createDefaultFoundationalQuestions(): Question[] {
+  return DEFAULT_FOUNDATIONAL_QUESTIONS.map((question, index) => ({
+    id: `foundational-default-${String(index + 1).padStart(2, '0')}`,
+    ...question,
+  }))
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -15,12 +25,12 @@ function topicRecord<T>(createValue: (topic: Topic) => T): Record<Topic, T> {
 export function createInitialStudyData(): StudyData {
   return {
     version: 1,
-    questionBanks: topicRecord(() => []),
+    questionBanks: topicRecord((topic) => topic === 'Foundational Math' ? createDefaultFoundationalQuestions() : []),
     topicPreferences: topicRecord(() => ({ active: true, weight: 1 })),
     settings: {
       defaultSeconds: 60,
       speechSpeed: 'normal',
-      voiceURI: '',
+      voiceURI: PREFERRED_VOICE_URI,
       announceDuration: true,
       timeFilter: 'any',
     },
@@ -120,7 +130,20 @@ export function parseStudyBackup(value: unknown): StudyData {
 export function loadStudyData(): StudyData {
   try {
     const saved = window.localStorage.getItem(STORAGE_KEY)
-    return saved ? parseStudyBackup(JSON.parse(saved) as unknown) : createInitialStudyData()
+    if (!saved) {
+      window.localStorage.setItem(DEFAULTS_MIGRATION_KEY, 'complete')
+      return createInitialStudyData()
+    }
+
+    const data = parseStudyBackup(JSON.parse(saved) as unknown)
+    if (window.localStorage.getItem(DEFAULTS_MIGRATION_KEY) !== 'complete') {
+      if (!data.questionBanks['Foundational Math'].length) {
+        data.questionBanks['Foundational Math'] = createDefaultFoundationalQuestions()
+      }
+      if (!data.settings.voiceURI) data.settings.voiceURI = PREFERRED_VOICE_URI
+      window.localStorage.setItem(DEFAULTS_MIGRATION_KEY, 'complete')
+    }
+    return data
   } catch {
     return createInitialStudyData()
   }

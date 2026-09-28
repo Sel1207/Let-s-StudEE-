@@ -1,4 +1,5 @@
 import { accuracy, formatDuration } from './questionLogic'
+import { PREFERRED_VOICE_URI } from './speechVoice'
 import { ALLOWED_DURATIONS, TOPICS, type StudyData, type StudySettings } from './studyTypes'
 
 interface SettingsScreenProps {
@@ -47,13 +48,14 @@ export default function SettingsScreen({ data, voices, onChangeSettings }: Setti
         </fieldset>
 
         <label className="setting-row" htmlFor="voice-select">
-          <span><strong>Voice</strong><small>Defaults to an available English voice.</small></span>
+          <span><strong>Voice</strong><small>Prefers Microsoft Liam in English (Canada); uses another English voice if unavailable.</small></span>
           <select
             id="voice-select"
             value={data.settings.voiceURI}
             onChange={(event) => onChangeSettings({ ...data.settings, voiceURI: event.currentTarget.value })}
           >
             <option value="">English voice (automatic)</option>
+            <option value={PREFERRED_VOICE_URI}>Microsoft Liam Online (Natural) · English (Canada) (preferred)</option>
             {voiceOptions.map((voice) => <option key={voice.voiceURI} value={voice.voiceURI}>{voice.name} · {voice.lang}</option>)}
           </select>
         </label>

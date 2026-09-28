@@ -126,6 +126,15 @@ export function questionCounts(data: StudyData): Record<Topic, number> {
   ])) as Record<Topic, number>
 }
 
+export function resetQuestionUsage(data: StudyData): StudyData {
+  const usedQuestionIds = {} as Record<Topic, string[]>
+  for (const topic of TOPICS) usedQuestionIds[topic] = []
+  return {
+    ...data,
+    usedQuestionIds,
+  }
+}
+
 export function drawQuestion(data: StudyData): { question: Question; topic: Topic; data: StudyData } | null {
   const pools = getActiveQuestionPools(data)
   let available = unusedPools(data, pools)

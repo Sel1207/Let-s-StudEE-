@@ -1,5 +1,6 @@
 import type { CSSProperties } from 'react'
-import { accuracy, applyPreset, questionCounts, topicChances } from './questionLogic'
+import { accuracy, applyPreset, formatDuration, questionCounts, topicChances } from './questionLogic'
+import type { StudySession } from './studySessions'
 import { TOPICS, type Preset, type Question, type StudyData, type Topic } from './studyTypes'
 
 type SessionPhase = 'ready' | 'speaking' | 'countdown' | 'time-up' | 'revealed' | 'rated'
@@ -15,7 +16,11 @@ interface StudyScreenProps {
   timeIsUp: boolean
   rated: boolean
   notice: string
+  isSessionActive: boolean
+  sessions: StudySession[]
   onChangeData: (data: StudyData) => void
+  onStartSession: () => void
+  onEndSession: () => void
   onRead: () => void
   onRepeat: () => void
   onStop: () => void
@@ -29,6 +34,11 @@ function formatTime(seconds: number): string {
   return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`
 }
 
+function formatSessionDate(value: string): string {
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? 'Unknown date' : date.toLocaleString()
+}
+
 export default function StudyScreen({
   data,
   phase,
@@ -39,7 +49,11 @@ export default function StudyScreen({
   timeIsUp,
   rated,
   notice,
+  isSessionActive,
+  sessions,
   onChangeData,
+  onStartSession,
+  onEndSession,
   onRead,
   onRepeat,
   onStop,
@@ -154,7 +168,13 @@ export default function StudyScreen({
           {questionVisible && currentQuestion && <p className="revealed-question">{currentQuestion.text}</p>}
           {notice && <p className="session-notice" role="status">{notice}</p>}
 
-          {!active && !ended && (
+          {!isSessionActive && !active && !ended && (
+            <button className="primary-action" type="button" disabled={selectedCount === 0} onClick={onStartSession}>
+              Start session
+            </button>
+          )}
+
+          {isSessionActive && !active && !ended && (
             <button className="primary-action" type="button" disabled={selectedCount === 0} onClick={onRead}>
               Read question
             </button>
@@ -197,9 +217,46 @@ export default function StudyScreen({
             </div>
           )}
 
+          {isSessionActive && (
+            <button className="session-end-action" type="button" onClick={onEndSession}>End session</button>
+          )}
+
           <p className="shortcut-note">Space read / next · R repeat · Q show</p>
         </div>
       </section>
+        <details className="session-history">
+          <summary>Session history <span>{sessions.length}</span></summary>
+          {sessions.length === 0 ? (
+            <p className="session-history-empty">Completed and current sessions will appear here.</p>
+          ) : (
+            <div className="session-history-list">
+              {[...sessions].reverse().map((session) => (
+                <details className="session-record" key={session.id}>
+                  <summary>
+                    <span>{session.endedAt ? 'Session' : 'Current session'}</span>
+                    <span className="session-record-count">{session.questions.length} {session.questions.length === 1 ? 'question' : 'questions'}</span>
+                    <time dateTime={session.startedAt}>{formatSessionDate(session.startedAt)}</time>
+                  </summary>
+                  {session.questions.length ? (
+                    <ol className="session-question-list">
+                      {session.questions.map((askedQuestion) => (
+                        <li key={`${session.id}-${askedQuestion.id}`}>
+                          <div className="session-question-heading">
+                            <span>{askedQuestion.topic}</span>
+                            <span>{formatDuration(askedQuestion.seconds)}</span>
+                          </div>
+                          <p>{askedQuestion.text}</p>
+                        </li>
+                      ))}
+                    </ol>
+                  ) : (
+                    <p className="session-history-empty">No questions asked in this session.</p>
+                  )}
+                </details>
+              ))}
+            </div>
+          )}
+        </details>
     </div>
   )
 }

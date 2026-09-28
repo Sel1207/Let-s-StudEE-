@@ -52,6 +52,21 @@ select, input[type='text'], textarea { min-height: 44px; padding: 8px 10px; bord
 .action-grid { flex-wrap: wrap; }
 .secondary-action:hover:not(:disabled), .text-action:hover { background: var(--accent-soft); }
 .shortcut-note { margin: 22px 0 0; color: var(--muted); font-size: 9px; }
+.session-end-action { min-height: 44px; margin-top: 10px; padding: 0 12px; border: 1px solid var(--line); background: transparent; color: var(--muted); font-size: 11px; cursor: pointer; }
+.session-end-action:hover { background: var(--accent-soft); color: var(--ink); }
+.session-history { grid-column: 1 / -1; margin-top: 8px; border-block: 1px solid var(--line); }
+.session-history > summary { min-height: 52px; display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 12px; font-weight: 600; }
+.session-history > summary span { color: var(--muted); font-size: 10px; font-weight: 400; }
+.session-history-list { padding-bottom: 8px; }
+.session-record { border-top: 1px solid var(--line); }
+.session-record > summary { min-height: 48px; display: flex; align-items: center; flex-wrap: wrap; gap: 6px 12px; cursor: pointer; color: var(--ink); font-size: 11px; }
+.session-record > summary time, .session-record-count { color: var(--muted); font-size: 10px; }
+.session-record-count { margin-left: auto; }
+.session-question-list { margin: 0; padding: 0 0 10px; list-style: none; }
+.session-question-list li { padding: 10px 0; border-top: 1px solid var(--line); }
+.session-question-heading { display: flex; justify-content: space-between; gap: 12px; color: var(--accent); font-size: 10px; }
+.session-question-list p, .session-history-empty { margin: 6px 0 0; color: var(--ink); font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
+.session-history-empty { padding: 0 0 12px; color: var(--muted); }
 
 .secondary-view { max-width: 950px; margin: 0 auto; }
 .secondary-view .view-heading { margin-bottom: 26px; }
