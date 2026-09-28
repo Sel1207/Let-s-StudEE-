@@ -1,0 +1,136 @@
+import { ALLOWED_DURATIONS, TOPICS, type AllowedDuration, type Question, type StudyData, type StudySettings, type Topic, type TopicPreference, type TopicResult } from './studyTypes'
+
+const STORAGE_KEY = 'lets-studee-study-data-v1'
+const SPEEDS = ['slow', 'normal', 'fast'] as const
+const FILTERS = ['any', 20, 30, 60, 120] as const
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function topicRecord<T>(createValue: (topic: Topic) => T): Record<Topic, T> {
+  return Object.fromEntries(TOPICS.map((topic) => [topic, createValue(topic)])) as Record<Topic, T>
+}
+
+export function createInitialStudyData(): StudyData {
+  return {
+    version: 1,
+    questionBanks: topicRecord(() => []),
+    topicPreferences: topicRecord(() => ({ active: true, weight: 1 })),
+    settings: {
+      defaultSeconds: 60,
+      speechSpeed: 'normal',
+      voiceURI: '',
+      announceDuration: true,
+      timeFilter: 'any',
+    },
+    usedQuestionIds: topicRecord(() => []),
+    results: topicRecord(() => ({ gotIt: 0, missedIt: 0 })),
+  }
+}
+
+function parseQuestionList(value: unknown, topic: Topic): Question[] {
+  if (!Array.isArray(value)) throw new Error(`The ${topic} question bank is invalid.`)
+  const ids = new Set<string>()
+  return value.map((entry, index) => {
+    if (!isRecord(entry)
+      || typeof entry.id !== 'string'
+      || typeof entry.text !== 'string'
+      || !entry.text.trim()
+      || !ALLOWED_DURATIONS.includes(entry.seconds as AllowedDuration)) {
+      throw new Error(`Question ${index + 1} in ${topic} is invalid.`)
+    }
+    if (ids.has(entry.id)) throw new Error(`Question IDs in ${topic} must be unique.`)
+    ids.add(entry.id)
+    return { id: entry.id, text: entry.text.trim(), seconds: entry.seconds as AllowedDuration }
+  })
+}
+
+function parsePreference(value: unknown, topic: Topic): TopicPreference {
+  if (!isRecord(value)
+    || typeof value.active !== 'boolean'
+    || typeof value.weight !== 'number'
+    || !Number.isInteger(value.weight)
+    || value.weight < 0
+    || value.weight > 5) {
+    throw new Error(`The ${topic} topic settings are invalid.`)
+  }
+  return { active: value.active, weight: value.weight }
+}
+
+function parseResult(value: unknown, topic: Topic): TopicResult {
+  if (!isRecord(value)
+    || !Number.isInteger(value.gotIt)
+    || !Number.isInteger(value.missedIt)
+    || Number(value.gotIt) < 0
+    || Number(value.missedIt) < 0) {
+    throw new Error(`The ${topic} study results are invalid.`)
+  }
+  return { gotIt: Number(value.gotIt), missedIt: Number(value.missedIt) }
+}
+
+function parseSettings(value: unknown): StudySettings {
+  if (!isRecord(value)
+    || !ALLOWED_DURATIONS.includes(value.defaultSeconds as AllowedDuration)
+    || !SPEEDS.includes(value.speechSpeed as typeof SPEEDS[number])
+    || typeof value.voiceURI !== 'string'
+    || typeof value.announceDuration !== 'boolean'
+    || !FILTERS.includes(value.timeFilter as typeof FILTERS[number])) {
+    throw new Error('The study settings in this backup are invalid.')
+  }
+
+  return {
+    defaultSeconds: value.defaultSeconds as AllowedDuration,
+    speechSpeed: value.speechSpeed as StudySettings['speechSpeed'],
+    voiceURI: value.voiceURI,
+    announceDuration: value.announceDuration,
+    timeFilter: value.timeFilter as StudySettings['timeFilter'],
+  }
+}
+
+export function parseStudyBackup(value: unknown): StudyData {
+  if (!isRecord(value) || value.version !== 1) throw new Error('This is not a Lets StudEE! backup file.')
+  const questionBanks = value.questionBanks
+  const topicPreferences = value.topicPreferences
+  const usedQuestionIds = value.usedQuestionIds
+  const results = value.results
+  if (!isRecord(questionBanks)
+    || !isRecord(topicPreferences)
+    || !isRecord(usedQuestionIds)
+    || !isRecord(results)) {
+    throw new Error('The backup is missing question banks or study progress.')
+  }
+
+  return {
+    version: 1,
+    questionBanks: topicRecord((topic) => parseQuestionList(questionBanks[topic], topic)),
+    topicPreferences: topicRecord((topic) => parsePreference(topicPreferences[topic], topic)),
+    settings: parseSettings(value.settings),
+    usedQuestionIds: topicRecord((topic) => {
+      const ids = usedQuestionIds[topic]
+      if (!Array.isArray(ids) || ids.some((id) => typeof id !== 'string')) {
+        throw new Error(`The ${topic} question progress is invalid.`)
+      }
+      return [...ids]
+    }),
+    results: topicRecord((topic) => parseResult(results[topic], topic)),
+  }
+}
+
+export function loadStudyData(): StudyData {
+  try {
+    const saved = window.localStorage.getItem(STORAGE_KEY)
+    return saved ? parseStudyBackup(JSON.parse(saved) as unknown) : createInitialStudyData()
+  } catch {
+    return createInitialStudyData()
+  }
+}
+
+export function saveStudyData(data: StudyData): boolean {
+  try {
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
+    return true
+  } catch {
+    return false
+  }
+}

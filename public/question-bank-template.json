@@ -1,0 +1,52 @@
+{
+  "version": 1,
+  "questionBanks": {
+    "Foundational Math": [
+      { "id": "replace-this-id", "text": "What is two plus two?", "seconds": 20 }
+    ],
+    "Calculus 1": [],
+    "Calculus 2": [],
+    "Calculus 3": [],
+    "Linear Algebra": [],
+    "Advanced Mathematics": [],
+    "Differential Equations": [],
+    "Discrete Math": []
+  },
+  "topicPreferences": {
+    "Foundational Math": { "active": true, "weight": 1 },
+    "Calculus 1": { "active": true, "weight": 1 },
+    "Calculus 2": { "active": true, "weight": 1 },
+    "Calculus 3": { "active": true, "weight": 1 },
+    "Linear Algebra": { "active": true, "weight": 1 },
+    "Advanced Mathematics": { "active": true, "weight": 1 },
+    "Differential Equations": { "active": true, "weight": 1 },
+    "Discrete Math": { "active": true, "weight": 1 }
+  },
+  "settings": {
+    "defaultSeconds": 60,
+    "speechSpeed": "normal",
+    "voiceURI": "",
+    "announceDuration": true,
+    "timeFilter": "any"
+  },
+  "usedQuestionIds": {
+    "Foundational Math": [],
+    "Calculus 1": [],
+    "Calculus 2": [],
+    "Calculus 3": [],
+    "Linear Algebra": [],
+    "Advanced Mathematics": [],
+    "Differential Equations": [],
+    "Discrete Math": []
+  },
+  "results": {
+    "Foundational Math": { "gotIt": 0, "missedIt": 0 },
+    "Calculus 1": { "gotIt": 0, "missedIt": 0 },
+    "Calculus 2": { "gotIt": 0, "missedIt": 0 },
+    "Calculus 3": { "gotIt": 0, "missedIt": 0 },
+    "Linear Algebra": { "gotIt": 0, "missedIt": 0 },
+    "Advanced Mathematics": { "gotIt": 0, "missedIt": 0 },
+    "Differential Equations": { "gotIt": 0, "missedIt": 0 },
+    "Discrete Math": { "gotIt": 0, "missedIt": 0 }
+  }
+}
