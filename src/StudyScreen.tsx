@@ -1,7 +1,7 @@
 import type { CSSProperties } from 'react'
 import { accuracy, applyPreset, formatDuration, questionCounts, topicChances } from './questionLogic'
 import type { StudySession } from './studySessions'
-import { TOPIC_GROUPS, TOPICS, type Preset, type Question, type StudyData, type Topic } from './studyTypes'
+import { TOPIC_GROUPS, TOPICS, topicsInGroup, type Preset, type Question, type StudyData, type Topic, type TopicGroup } from './studyTypes'
 
 type SessionPhase = 'ready' | 'speaking' | 'countdown' | 'time-up' | 'revealed' | 'rated'
 type Rating = 'gotIt' | 'missedIt'
@@ -17,8 +17,10 @@ interface StudyScreenProps {
   rated: boolean
   notice: string
   isSessionActive: boolean
+  selectedGroup: TopicGroup
   sessions: StudySession[]
   onChangeData: (data: StudyData) => void
+  onSelectGroup: (group: TopicGroup) => void
   onStartSession: () => void
   onEndSession: () => void
   onRead: () => void
@@ -50,8 +52,10 @@ export default function StudyScreen({
   rated,
   notice,
   isSessionActive,
+  selectedGroup,
   sessions,
   onChangeData,
+  onSelectGroup,
   onStartSession,
   onEndSession,
   onRead,
@@ -62,9 +66,10 @@ export default function StudyScreen({
   onNext,
   onRate,
 }: StudyScreenProps) {
-  const chances = topicChances(data)
-  const counts = questionCounts(data)
-  const selectedCount = TOPICS.reduce((total, topic) => {
+  const activeTopics = topicsInGroup(selectedGroup)
+  const chances = topicChances(data, activeTopics)
+  const counts = questionCounts(data, activeTopics)
+  const selectedCount = activeTopics.reduce((total, topic) => {
     const preference = data.topicPreferences[topic]
     return total + (preference.active && preference.weight > 0 ? counts[topic] : 0)
   }, 0)
@@ -77,7 +82,7 @@ export default function StudyScreen({
   }
 
   function choosePreset(preset: Preset) {
-    onChangeData(applyPreset(data, preset))
+    onChangeData(applyPreset(data, preset, activeTopics))
   }
 
   return (
@@ -91,11 +96,24 @@ export default function StudyScreen({
           </p>
         </div>
 
-        {TOPIC_GROUPS.map((group) => (
-          <section className="topic-group" key={group.name} aria-label={`${group.name} topics`}>
-            <h2 className="topic-group-heading">{group.name}</h2>
+        <div className="group-switcher study-mode" role="group" aria-label="Choose subject">
+          {TOPIC_GROUPS.map((group) => (
+            <button
+              key={group.name}
+              type="button"
+              aria-pressed={selectedGroup === group.name}
+              disabled={isSessionActive}
+              onClick={() => onSelectGroup(group.name)}
+            >
+              {group.name}
+            </button>
+          ))}
+        </div>
+
+        <section className="topic-group" aria-label={`${selectedGroup} topics`}>
+            <h2 className="topic-group-heading">{selectedGroup}</h2>
             <div className="topic-list">
-          {group.topics.map((topic) => {
+          {activeTopics.map((topic) => {
             const preference = data.topicPreferences[topic]
             const score = accuracy(data.results[topic])
             return (
@@ -135,8 +153,7 @@ export default function StudyScreen({
             )
           })}
             </div>
-          </section>
-        ))}
+        </section>
 
         <details className="study-options">
           <summary>Weights and time filter</summary>

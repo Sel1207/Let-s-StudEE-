@@ -10,6 +10,11 @@
 .view-heading { margin-bottom: 20px; }
 .view-heading h1 { margin: 0; font-size: 25px; font-weight: 600; line-height: 1.2; }
 .topic-priority-help { max-width: 58ch; margin: 8px 0 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
+.group-switcher { display: flex; gap: 4px; margin: 18px 0 20px; }
+.group-switcher button { min-height: 44px; flex: 1 1 0; padding: 4px 10px; border: 1px solid var(--line); background: transparent; color: var(--muted); font-size: 11px; cursor: pointer; }
+.group-switcher button[aria-pressed='true'] { border-color: var(--accent); background: var(--accent-soft); color: var(--ink); font-weight: 600; }
+.group-switcher button:disabled { cursor: not-allowed; opacity: .6; }
+.manage-group-switcher { max-width: 430px; margin: 24px 0 18px; }
 .study-layout { display: grid; grid-template-columns: minmax(300px, .88fr) minmax(0, 1.12fr); gap: 56px; align-items: stretch; }
 .topic-panel { min-width: 0; }
 .topic-list { border-top: 1px solid var(--line); }

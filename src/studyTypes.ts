@@ -31,6 +31,12 @@ export const TOPIC_GROUPS = [
 export const TOPICS = [...MATH_TOPICS, ...EE_TOPICS] as const
 
 export type Topic = (typeof TOPICS)[number]
+export type TopicGroup = (typeof TOPIC_GROUPS)[number]['name']
+
+export function topicsInGroup(groupName: TopicGroup): readonly Topic[] {
+  return TOPIC_GROUPS.find((group) => group.name === groupName)?.topics ?? MATH_TOPICS
+}
+
 export type SpeechSpeed = 'slow' | 'normal' | 'fast'
 export type TimeFilter = 'any' | 20 | 30 | 60 | 120
 export type Preset = 'all-equal' | 'only-selected' | 'focus-weakest'

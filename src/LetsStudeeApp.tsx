@@ -7,7 +7,7 @@ import { drawQuestion, initialQuestionSpeech, resetQuestionUsage } from './quest
 import { loadStudyData, saveStudyData } from './studyStorage'
 import { resolveSpeechVoice } from './speechVoice'
 import { loadStudySessions, saveStudySessions, type StudySession } from './studySessions'
-import type { Question, SpeechSpeed, StudyData, StudySettings, Topic } from './studyTypes'
+import { topicsInGroup, type Question, type SpeechSpeed, type StudyData, type StudySettings, type Topic, type TopicGroup } from './studyTypes'
 
 type View = 'study' | 'manage' | 'settings'
 type SessionPhase = 'ready' | 'speaking' | 'countdown' | 'time-up' | 'revealed' | 'rated'
@@ -64,6 +64,7 @@ function speakLines(
 function StudyApp() {
   const [data, setData] = useState<StudyData>(loadStudyData)
   const [sessions, setSessions] = useState<StudySession[]>(loadStudySessions)
+  const [selectedGroup, setSelectedGroup] = useState<TopicGroup>('Math')
   const [view, setView] = useState<View>('study')
   const [phase, setPhase] = useState<SessionPhase>('ready')
   const [question, setQuestion] = useState<Question | null>(null)
@@ -189,7 +190,7 @@ function StudyApp() {
       return
     }
 
-    const draw = drawQuestion(data)
+    const draw = drawQuestion(data, topicsInGroup(selectedGroup))
     if (!draw) {
       setNotice('No questions in the active pool. Add questions or adjust your topics and time filter.')
       return
@@ -414,6 +415,8 @@ function StudyApp() {
             {...activeQuestionProps}
             onChangeData={updateData}
             isSessionActive={Boolean(currentSession)}
+            selectedGroup={selectedGroup}
+            onSelectGroup={setSelectedGroup}
             sessions={sessions}
             onStartSession={startStudySession}
             onEndSession={endStudySession}

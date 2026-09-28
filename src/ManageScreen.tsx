@@ -1,7 +1,7 @@
 import { useState, type ChangeEvent } from 'react'
 import { accuracy, formatDuration, parseQuestionLines } from './questionLogic'
 import { parseStudyBackup } from './studyStorage'
-import { ALLOWED_DURATIONS, TOPIC_GROUPS, TOPICS, type Question, type StudyData, type Topic } from './studyTypes'
+import { ALLOWED_DURATIONS, TOPIC_GROUPS, TOPICS, topicsInGroup, type Question, type StudyData, type Topic, type TopicGroup } from './studyTypes'
 
 interface ManageScreenProps {
   data: StudyData
@@ -17,14 +17,24 @@ interface EditingQuestion {
 }
 
 export default function ManageScreen({ data, onChangeData, onPreview, onRestore }: ManageScreenProps) {
+  const [activeGroup, setActiveGroup] = useState<TopicGroup>('Math')
   const [activeTopic, setActiveTopic] = useState<Topic>(TOPICS[0])
   const [draft, setDraft] = useState('')
   const [editing, setEditing] = useState<EditingQuestion | null>(null)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
+  const visibleTopics = topicsInGroup(activeGroup)
   const questions = data.questionBanks[activeTopic]
   const score = accuracy(data.results[activeTopic])
   const attempts = data.results[activeTopic].gotIt + data.results[activeTopic].missedIt
+
+  function selectGroup(group: TopicGroup) {
+    setActiveGroup(group)
+    setActiveTopic(topicsInGroup(group)[0])
+    setEditing(null)
+    setMessage('')
+    setError('')
+  }
 
   function updateQuestions(nextQuestions: Question[]) {
     onChangeData({
@@ -127,11 +137,17 @@ export default function ManageScreen({ data, onChangeData, onPreview, onRestore 
       {message && <p className="manage-message" role="status">{message}</p>}
       {error && <p className="form-error" role="alert">{error}</p>}
 
-      {TOPIC_GROUPS.map((group) => (
-        <section className="topic-tab-group" key={group.name} aria-label={`${group.name} question banks`}>
-          <h2>{group.name}</h2>
-          <div className="topic-tabs" role="tablist" aria-label={`${group.name} topics`}>
-            {group.topics.map((topic) => (
+      <div className="group-switcher manage-group-switcher" role="group" aria-label="Question bank category">
+        {TOPIC_GROUPS.map((group) => (
+          <button key={group.name} type="button" aria-pressed={activeGroup === group.name} onClick={() => selectGroup(group.name)}>
+            {group.name}
+          </button>
+        ))}
+      </div>
+      <section className="topic-tab-group" aria-label={`${activeGroup} question banks`}>
+        <h2>{activeGroup}</h2>
+        <div className="topic-tabs" role="tablist" aria-label={`${activeGroup} topics`}>
+            {visibleTopics.map((topic) => (
               <button
                 key={topic}
                 type="button"
@@ -144,9 +160,8 @@ export default function ManageScreen({ data, onChangeData, onPreview, onRestore 
                 {topic} <span>{data.questionBanks[topic].length}</span>
               </button>
             ))}
-          </div>
-        </section>
-      ))}
+        </div>
+      </section>
 
       <div id="topic-panel" className="topic-panel" role="tabpanel" aria-labelledby={`topic-tab-${TOPICS.indexOf(activeTopic)}`}>
         <div className="topic-summary">

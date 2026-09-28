@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { drawQuestion, initialQuestionSpeech, parseDurationToken, parseQuestionLines, questionCounts, resetQuestionUsage, spokenDuration } from './questionLogic'
+import { applyPreset, drawQuestion, initialQuestionSpeech, parseDurationToken, parseQuestionLines, questionCounts, resetQuestionUsage, spokenDuration, topicChances } from './questionLogic'
 import { createInitialStudyData, loadStudyData, parseStudyBackup } from './studyStorage'
 import { DEFAULT_FOUNDATIONAL_QUESTIONS } from './defaultFoundationalQuestions'
 import { PREFERRED_VOICE_URI, preferredSpeechVoice, resolveSpeechVoice } from './speechVoice'
@@ -216,6 +216,22 @@ describe('weighted question draws', () => {
 
     expect(drawQuestion(data)?.topic).toBe('Foundational Math')
     expect(drawQuestion(data)?.topic).toBe('Calculus 1')
+  })
+
+  it('draws only from the selected Math or EE topic group', () => {
+    const data = bankWithTopics({
+      'Foundational Math': [{ id: 'math', text: 'Math question', seconds: 20 }],
+      'Power Plant': [{ id: 'ee', text: 'EE question', seconds: 20 }],
+    })
+    vi.spyOn(Math, 'random').mockReturnValue(0)
+
+    expect(drawQuestion(data, MATH_TOPICS)?.topic).toBe('Foundational Math')
+    expect(drawQuestion(data, EE_TOPICS)?.topic).toBe('Power Plant')
+    expect(questionCounts(data, MATH_TOPICS)['Power Plant']).toBe(0)
+    expect(topicChances(data, MATH_TOPICS)['Power Plant']).toBe(0)
+
+    const mathPreset = applyPreset(data, 'all-equal', MATH_TOPICS)
+    expect(mathPreset.topicPreferences['Power Plant']).toEqual(data.topicPreferences['Power Plant'])
   })
 
   it('filters questions by their exact time limit', () => {

@@ -82,9 +82,9 @@ export function matchesTimeFilter(question: Question, filter: TimeFilter): boole
   return filter === 'any' || question.seconds === filter
 }
 
-function getActiveQuestionPools(data: StudyData): Partial<Record<Topic, Question[]>> {
+function getActiveQuestionPools(data: StudyData, topics: readonly Topic[]): Partial<Record<Topic, Question[]>> {
   const pools: Partial<Record<Topic, Question[]>> = {}
-  for (const topic of TOPICS) {
+  for (const topic of topics) {
     const preference = data.topicPreferences[topic]
     if (!preference.active || preference.weight <= 0) continue
     const questions = data.questionBanks[topic].filter((question) => matchesTimeFilter(question, data.settings.timeFilter))
@@ -93,9 +93,9 @@ function getActiveQuestionPools(data: StudyData): Partial<Record<Topic, Question
   return pools
 }
 
-function unusedPools(data: StudyData, pools: Partial<Record<Topic, Question[]>>): Partial<Record<Topic, Question[]>> {
+function unusedPools(data: StudyData, pools: Partial<Record<Topic, Question[]>>, topics: readonly Topic[]): Partial<Record<Topic, Question[]>> {
   const unused: Partial<Record<Topic, Question[]>> = {}
-  for (const topic of TOPICS) {
+  for (const topic of topics) {
     const questions = pools[topic]
     if (!questions) continue
     const used = new Set(data.usedQuestionIds[topic])
@@ -105,15 +105,15 @@ function unusedPools(data: StudyData, pools: Partial<Record<Topic, Question[]>>)
   return unused
 }
 
-function hasQuestions(pools: Partial<Record<Topic, Question[]>>): boolean {
-  return TOPICS.some((topic) => Boolean(pools[topic]?.length))
+function hasQuestions(pools: Partial<Record<Topic, Question[]>>, topics: readonly Topic[]): boolean {
+  return topics.some((topic) => Boolean(pools[topic]?.length))
 }
 
-export function topicChances(data: StudyData): Record<Topic, number> {
-  const pools = getActiveQuestionPools(data)
-  const remaining = unusedPools(data, pools)
-  const available = hasQuestions(remaining) ? remaining : pools
-  const totalWeight = TOPICS.reduce((total, topic) => {
+export function topicChances(data: StudyData, topics: readonly Topic[] = TOPICS): Record<Topic, number> {
+  const pools = getActiveQuestionPools(data, topics)
+  const remaining = unusedPools(data, pools, topics)
+  const available = hasQuestions(remaining, topics) ? remaining : pools
+  const totalWeight = topics.reduce((total, topic) => {
     return total + (available[topic]?.length ? data.topicPreferences[topic].weight : 0)
   }, 0)
 
@@ -125,10 +125,12 @@ export function topicChances(data: StudyData): Record<Topic, number> {
   ])) as Record<Topic, number>
 }
 
-export function questionCounts(data: StudyData): Record<Topic, number> {
+export function questionCounts(data: StudyData, topics: readonly Topic[] = TOPICS): Record<Topic, number> {
   return Object.fromEntries(TOPICS.map((topic) => [
     topic,
-    data.questionBanks[topic].filter((question) => matchesTimeFilter(question, data.settings.timeFilter)).length,
+    topics.includes(topic)
+      ? data.questionBanks[topic].filter((question) => matchesTimeFilter(question, data.settings.timeFilter)).length
+      : 0,
   ])) as Record<Topic, number>
 }
 
@@ -141,22 +143,22 @@ export function resetQuestionUsage(data: StudyData): StudyData {
   }
 }
 
-export function drawQuestion(data: StudyData): { question: Question; topic: Topic; data: StudyData } | null {
-  const pools = getActiveQuestionPools(data)
-  let available = unusedPools(data, pools)
+export function drawQuestion(data: StudyData, topics: readonly Topic[] = TOPICS): { question: Question; topic: Topic; data: StudyData } | null {
+  const pools = getActiveQuestionPools(data, topics)
+  let available = unusedPools(data, pools, topics)
   let nextData = data
 
-  if (!hasQuestions(available)) {
+  if (!hasQuestions(available, topics)) {
     available = pools
     const usedQuestionIds = { ...data.usedQuestionIds }
-    for (const topic of TOPICS) {
+    for (const topic of topics) {
       const cycleIds = new Set(pools[topic]?.map((question) => question.id) ?? [])
       usedQuestionIds[topic] = data.usedQuestionIds[topic].filter((id) => !cycleIds.has(id))
     }
     nextData = { ...data, usedQuestionIds }
   }
 
-  const weightedTopics = TOPICS.filter((topic) => available[topic]?.length && nextData.topicPreferences[topic].weight > 0)
+  const weightedTopics = topics.filter((topic) => available[topic]?.length && nextData.topicPreferences[topic].weight > 0)
   const totalWeight = weightedTopics.reduce((total, topic) => total + nextData.topicPreferences[topic].weight, 0)
   if (!totalWeight) return null
 
@@ -186,18 +188,18 @@ export function accuracy(result: StudyData['results'][Topic]): number | null {
   return attempts ? result.gotIt / attempts * 100 : null
 }
 
-export function applyPreset(data: StudyData, preset: Preset): StudyData {
+export function applyPreset(data: StudyData, preset: Preset, topics: readonly Topic[] = TOPICS): StudyData {
   const topicPreferences = { ...data.topicPreferences }
 
   if (preset === 'all-equal') {
-    for (const topic of TOPICS) topicPreferences[topic] = { active: true, weight: 1 }
+    for (const topic of topics) topicPreferences[topic] = { active: true, weight: 1 }
   } else if (preset === 'only-selected') {
-    for (const topic of TOPICS) {
+    for (const topic of topics) {
       const preference = topicPreferences[topic]
       topicPreferences[topic] = { ...preference, weight: preference.active ? 1 : 0 }
     }
   } else {
-    for (const topic of TOPICS) {
+    for (const topic of topics) {
       const preference = topicPreferences[topic]
       const score = accuracy(data.results[topic])
       const weight = score === null ? 1 : Math.max(1, Math.min(5, 1 + Math.floor((100 - score) / 25)))
