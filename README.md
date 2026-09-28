@@ -17,59 +17,40 @@ If you are developing a production application, we recommend updating the config
 
 ```js
 export default defineConfig([
-  globalIgnores(['dist']),
+  # Let's StudEE!
+
+  Lets StudEE is a browser-based study timer for practicing questions across separate subject banks. Choose topics, set their relative priority, and let the app read each question before starting its matching countdown.
+
+  ## Use the app
+
+  Open [lets-studee.vercel.app](https://lets-studee.vercel.app), then choose **Manage questions** to add questions to a subject. A new browser starts with empty banks. Your banks, settings, topic priorities, and results are saved in that browser's local storage. Use the JSON backup controls to move or preserve your data.
+
+  Add one question per line. A duration prefix is optional; without one, the default from Settings is used.
+
+  ```text
+  20 | What is twelve squared?
+  1m | Explain the fundamental theorem of calculus.
+  What is the derivative of x squared?
+  ```
+
+  Available durations include 20, 30, 45, 60, and 90 seconds, and 1, 2, or 3 minutes. Write questions as you want them spoken; the app uses your browser's built-in speech synthesis.
+
+  Topic priority is relative: `1x` is standard and `5x` is five times as likely within the active question pool. `0` excludes that topic. The displayed percentage is its current share of the pool.
+
+  ## Keyboard shortcuts
+
+  - `Space`: Read a question or move to the next one
+  - `R`: Hear the question again during the countdown
+  - `Q`: Reveal the question
+
+  ## Develop
+
+  Requires Node.js and npm.
+
+  ```sh
+  npm install
+  npm run dev
+  ```
+
+  Run checks with `npm test`, `npm run lint`, and `npm run build`.
   {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-
-```
-
-You can also install [eslint-plugin-react-x](https://npmx.dev/package/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://npmx.dev/package/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-
-```
