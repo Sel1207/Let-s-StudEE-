@@ -4,7 +4,7 @@ Lets StudEE is a browser-based study timer for practicing questions across subje
 
 ## Use the app
 
-Open [lets-studee.vercel.app](https://lets-studee.vercel.app). Foundational Math comes preloaded with 30 questions; other topic banks start empty. Add or edit questions under **Manage questions**. Banks, settings, topic priorities, and results are saved in the browser's local storage. Use the JSON backup controls to preserve or transfer your data.
+Open [lets-studee.vercel.app](https://lets-studee.vercel.app). Foundational Math comes preloaded with 30 questions. Electrical Engineering has separate banks for Power Plant, Illumination, DC Circuits, AC Circuits, DC Machines, AC Machines, Transformers, Power Systems, Distribution System, BESS, and Control Systems. Other topic banks start empty. Add or edit questions under **Manage questions**. Banks, settings, topic priorities, and results are saved in the browser's local storage. Use the JSON backup controls to preserve or transfer your data.
 
 Add one question per line. A duration prefix is optional; without one, the default from Settings is used.
 

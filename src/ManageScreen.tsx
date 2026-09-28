@@ -1,7 +1,7 @@
 import { useState, type ChangeEvent } from 'react'
 import { accuracy, formatDuration, parseQuestionLines } from './questionLogic'
 import { parseStudyBackup } from './studyStorage'
-import { ALLOWED_DURATIONS, TOPICS, type Question, type StudyData, type Topic } from './studyTypes'
+import { ALLOWED_DURATIONS, TOPIC_GROUPS, TOPICS, type Question, type StudyData, type Topic } from './studyTypes'
 
 interface ManageScreenProps {
   data: StudyData
@@ -127,21 +127,26 @@ export default function ManageScreen({ data, onChangeData, onPreview, onRestore 
       {message && <p className="manage-message" role="status">{message}</p>}
       {error && <p className="form-error" role="alert">{error}</p>}
 
-      <div className="topic-tabs" role="tablist" aria-label="Question bank topics">
-        {TOPICS.map((topic, index) => (
-          <button
-            key={topic}
-            type="button"
-            role="tab"
-            aria-selected={activeTopic === topic}
-            aria-controls="topic-panel"
-            id={`topic-tab-${index}`}
-            onClick={() => { setActiveTopic(topic); setEditing(null); setMessage(''); setError('') }}
-          >
-            {topic} <span>{data.questionBanks[topic].length}</span>
-          </button>
-        ))}
-      </div>
+      {TOPIC_GROUPS.map((group) => (
+        <section className="topic-tab-group" key={group.name} aria-label={`${group.name} question banks`}>
+          <h2>{group.name}</h2>
+          <div className="topic-tabs" role="tablist" aria-label={`${group.name} topics`}>
+            {group.topics.map((topic) => (
+              <button
+                key={topic}
+                type="button"
+                role="tab"
+                aria-selected={activeTopic === topic}
+                aria-controls="topic-panel"
+                id={`topic-tab-${TOPICS.indexOf(topic)}`}
+                onClick={() => { setActiveTopic(topic); setEditing(null); setMessage(''); setError('') }}
+              >
+                {topic} <span>{data.questionBanks[topic].length}</span>
+              </button>
+            ))}
+          </div>
+        </section>
+      ))}
 
       <div id="topic-panel" className="topic-panel" role="tabpanel" aria-labelledby={`topic-tab-${TOPICS.indexOf(activeTopic)}`}>
         <div className="topic-summary">

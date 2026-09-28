@@ -1,10 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { drawQuestion, initialQuestionSpeech, parseDurationToken, parseQuestionLines, questionCounts, resetQuestionUsage, spokenDuration } from './questionLogic'
-import { createInitialStudyData, loadStudyData } from './studyStorage'
+import { createInitialStudyData, loadStudyData, parseStudyBackup } from './studyStorage'
 import { DEFAULT_FOUNDATIONAL_QUESTIONS } from './defaultFoundationalQuestions'
 import { PREFERRED_VOICE_URI, preferredSpeechVoice, resolveSpeechVoice } from './speechVoice'
 import { loadStudySessions, saveStudySessions, type StudySession } from './studySessions'
-import { TOPICS, type Question, type Topic } from './studyTypes'
+import { EE_TOPICS, MATH_TOPICS, TOPICS, type Question, type Topic } from './studyTypes'
 
 afterEach(() => {
   vi.restoreAllMocks()
@@ -44,6 +44,26 @@ describe('default study data', () => {
     values.set(storageKey, JSON.stringify(migrated))
     expect(values.get(migrationKey)).toBe('complete')
     expect(loadStudyData().questionBanks['Foundational Math']).toHaveLength(0)
+  })
+
+  it('loads older Math-only backups with empty EE banks', () => {
+    const data = createInitialStudyData()
+    const mathOnlyBackup = {
+      version: data.version,
+      settings: data.settings,
+      questionBanks: Object.fromEntries(MATH_TOPICS.map((topic) => [topic, data.questionBanks[topic]])),
+      topicPreferences: Object.fromEntries(MATH_TOPICS.map((topic) => [topic, data.topicPreferences[topic]])),
+      usedQuestionIds: Object.fromEntries(MATH_TOPICS.map((topic) => [topic, data.usedQuestionIds[topic]])),
+      results: Object.fromEntries(MATH_TOPICS.map((topic) => [topic, data.results[topic]])),
+    }
+
+    const restored = parseStudyBackup(mathOnlyBackup)
+    expect(TOPICS).toEqual([...MATH_TOPICS, ...EE_TOPICS])
+    for (const topic of EE_TOPICS) {
+      expect(restored.questionBanks[topic]).toEqual([])
+      expect(restored.topicPreferences[topic]).toEqual({ active: true, weight: 1 })
+    }
+    expect(restored.questionBanks['Foundational Math']).toHaveLength(30)
   })
 })
 

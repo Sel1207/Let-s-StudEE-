@@ -1,4 +1,4 @@
-import { ALLOWED_DURATIONS, TOPICS, type AllowedDuration, type Question, type StudyData, type StudySettings, type Topic, type TopicPreference, type TopicResult } from './studyTypes'
+import { ALLOWED_DURATIONS, EE_TOPICS, TOPICS, type AllowedDuration, type Question, type StudyData, type StudySettings, type Topic, type TopicPreference, type TopicResult } from './studyTypes'
 import { DEFAULT_FOUNDATIONAL_QUESTIONS } from './defaultFoundationalQuestions'
 import { PREFERRED_VOICE_URI } from './speechVoice'
 
@@ -20,6 +20,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function topicRecord<T>(createValue: (topic: Topic) => T): Record<Topic, T> {
   return Object.fromEntries(TOPICS.map((topic) => [topic, createValue(topic)])) as Record<Topic, T>
+}
+
+function isEETopic(topic: Topic): boolean {
+  return EE_TOPICS.some((eeTopic) => eeTopic === topic)
 }
 
 export function createInitialStudyData(): StudyData {
@@ -113,17 +117,24 @@ export function parseStudyBackup(value: unknown): StudyData {
 
   return {
     version: 1,
-    questionBanks: topicRecord((topic) => parseQuestionList(questionBanks[topic], topic)),
-    topicPreferences: topicRecord((topic) => parsePreference(topicPreferences[topic], topic)),
+    questionBanks: topicRecord((topic) => !Object.hasOwn(questionBanks, topic) && isEETopic(topic)
+      ? []
+      : parseQuestionList(questionBanks[topic], topic)),
+    topicPreferences: topicRecord((topic) => !Object.hasOwn(topicPreferences, topic) && isEETopic(topic)
+      ? { active: true, weight: 1 }
+      : parsePreference(topicPreferences[topic], topic)),
     settings: parseSettings(value.settings),
     usedQuestionIds: topicRecord((topic) => {
       const ids = usedQuestionIds[topic]
+      if (!Object.hasOwn(usedQuestionIds, topic) && isEETopic(topic)) return []
       if (!Array.isArray(ids) || ids.some((id) => typeof id !== 'string')) {
         throw new Error(`The ${topic} question progress is invalid.`)
       }
       return [...ids]
     }),
-    results: topicRecord((topic) => parseResult(results[topic], topic)),
+    results: topicRecord((topic) => !Object.hasOwn(results, topic) && isEETopic(topic)
+      ? { gotIt: 0, missedIt: 0 }
+      : parseResult(results[topic], topic)),
   }
 }
 

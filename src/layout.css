@@ -13,6 +13,8 @@
 .study-layout { display: grid; grid-template-columns: minmax(300px, .88fr) minmax(0, 1.12fr); gap: 56px; align-items: stretch; }
 .topic-panel { min-width: 0; }
 .topic-list { border-top: 1px solid var(--line); }
+.topic-group + .topic-group { margin-top: 20px; }
+.topic-group-heading { margin: 0 0 7px; color: var(--ink); font-size: 12px; font-weight: 600; }
 .topic-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(145px, .72fr); column-gap: 16px; padding: 8px 0 5px; border-bottom: 1px solid var(--line); }
 .topic-switch { min-width: 0; min-height: 36px; display: flex; align-items: center; gap: 9px; cursor: pointer; }
 .topic-switch input, .setting-row input[type='checkbox'] { width: 18px; height: 18px; flex: 0 0 auto; }
@@ -78,6 +80,9 @@ select, input[type='text'], textarea { min-height: 44px; padding: 8px 10px; bord
 .manage-message { color: var(--accent); }
 .form-error { color: #b24738; }
 .topic-tabs { display: flex; gap: 4px; margin-top: 22px; overflow-x: auto; border-bottom: 1px solid var(--line); }
+.topic-tab-group + .topic-tab-group { margin-top: 22px; }
+.topic-tab-group h2 { margin: 0 0 7px; font-size: 12px; font-weight: 600; }
+.topic-tab-group .topic-tabs { margin-top: 0; }
 .topic-tabs button { min-height: 46px; flex: 0 0 auto; display: flex; align-items: center; gap: 6px; padding: 0 11px; border: 0; border-bottom: 2px solid transparent; background: transparent; color: var(--muted); font-size: 10px; cursor: pointer; }
 .topic-tabs button[aria-selected='true'] { border-bottom-color: var(--accent); color: var(--ink); }
 .topic-tabs button span { color: var(--muted); font-variant-numeric: tabular-nums; }

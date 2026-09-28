@@ -1,4 +1,4 @@
-export const TOPICS = [
+export const MATH_TOPICS = [
   'Foundational Math',
   'Calculus 1',
   'Calculus 2',
@@ -8,6 +8,27 @@ export const TOPICS = [
   'Differential Equations',
   'Discrete Math',
 ] as const
+
+export const EE_TOPICS = [
+  'Power Plant',
+  'Illumination',
+  'DC Circuits',
+  'AC Circuits',
+  'DC Machines',
+  'AC Machines',
+  'Transformers',
+  'Power Systems',
+  'Distribution System',
+  'BESS',
+  'Control Systems',
+] as const
+
+export const TOPIC_GROUPS = [
+  { name: 'Math', topics: MATH_TOPICS },
+  { name: 'Electrical Engineering', topics: EE_TOPICS },
+] as const
+
+export const TOPICS = [...MATH_TOPICS, ...EE_TOPICS] as const
 
 export type Topic = (typeof TOPICS)[number]
 export type SpeechSpeed = 'slow' | 'normal' | 'fast'

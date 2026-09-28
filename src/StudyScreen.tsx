@@ -1,7 +1,7 @@
 import type { CSSProperties } from 'react'
 import { accuracy, applyPreset, formatDuration, questionCounts, topicChances } from './questionLogic'
 import type { StudySession } from './studySessions'
-import { TOPICS, type Preset, type Question, type StudyData, type Topic } from './studyTypes'
+import { TOPIC_GROUPS, TOPICS, type Preset, type Question, type StudyData, type Topic } from './studyTypes'
 
 type SessionPhase = 'ready' | 'speaking' | 'countdown' | 'time-up' | 'revealed' | 'rated'
 type Rating = 'gotIt' | 'missedIt'
@@ -91,8 +91,11 @@ export default function StudyScreen({
           </p>
         </div>
 
-        <div className="topic-list">
-          {TOPICS.map((topic) => {
+        {TOPIC_GROUPS.map((group) => (
+          <section className="topic-group" key={group.name} aria-label={`${group.name} topics`}>
+            <h2 className="topic-group-heading">{group.name}</h2>
+            <div className="topic-list">
+          {group.topics.map((topic) => {
             const preference = data.topicPreferences[topic]
             const score = accuracy(data.results[topic])
             return (
@@ -131,7 +134,9 @@ export default function StudyScreen({
               </div>
             )
           })}
-        </div>
+            </div>
+          </section>
+        ))}
 
         <details className="study-options">
           <summary>Weights and time filter</summary>
