@@ -72,6 +72,12 @@ export function spokenDuration(seconds: number): string {
   return remainder ? `${minuteText} ${numberWords(remainder)} seconds` : minuteText
 }
 
+export function initialQuestionSpeech(questionText: string, seconds: number, announceDuration: boolean): string[] {
+  return announceDuration
+    ? [spokenDuration(seconds), questionText, 'Again,', questionText]
+    : [questionText, 'Again,', questionText]
+}
+
 export function matchesTimeFilter(question: Question, filter: TimeFilter): boolean {
   return filter === 'any' || question.seconds === filter
 }

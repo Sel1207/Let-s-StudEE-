@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { drawQuestion, parseDurationToken, parseQuestionLines, questionCounts, resetQuestionUsage, spokenDuration } from './questionLogic'
+import { drawQuestion, initialQuestionSpeech, parseDurationToken, parseQuestionLines, questionCounts, resetQuestionUsage, spokenDuration } from './questionLogic'
 import { createInitialStudyData, loadStudyData } from './studyStorage'
 import { DEFAULT_FOUNDATIONAL_QUESTIONS } from './defaultFoundationalQuestions'
 import { PREFERRED_VOICE_URI, preferredSpeechVoice, resolveSpeechVoice } from './speechVoice'
@@ -116,6 +116,20 @@ describe('question time limits', () => {
     expect(spokenDuration(20)).toBe('twenty seconds')
     expect(spokenDuration(120)).toBe('two minutes')
     expect(spokenDuration(150)).toBe('two minutes thirty seconds')
+  })
+
+  it('says the question, then Again, then the question a second time', () => {
+    expect(initialQuestionSpeech('What is two plus two?', 120, true)).toEqual([
+      'two minutes',
+      'What is two plus two?',
+      'Again,',
+      'What is two plus two?',
+    ])
+    expect(initialQuestionSpeech('What is two plus two?', 120, false)).toEqual([
+      'What is two plus two?',
+      'Again,',
+      'What is two plus two?',
+    ])
   })
 })
 

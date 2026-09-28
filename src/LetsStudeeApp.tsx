@@ -3,7 +3,7 @@ import './layout.css'
 import ManageScreen from './ManageScreen'
 import SettingsScreen from './SettingsScreen'
 import StudyScreen from './StudyScreen'
-import { drawQuestion, resetQuestionUsage, spokenDuration } from './questionLogic'
+import { drawQuestion, initialQuestionSpeech, resetQuestionUsage } from './questionLogic'
 import { loadStudyData, saveStudyData } from './studyStorage'
 import { resolveSpeechVoice } from './speechVoice'
 import { loadStudySessions, saveStudySessions, type StudySession } from './studySessions'
@@ -225,9 +225,11 @@ function StudyApp() {
       playTimerStartCue()
     }
 
-    const speech = data.settings.announceDuration
-      ? [spokenDuration(draw.question.seconds), draw.question.text, draw.question.text]
-      : [draw.question.text, draw.question.text]
+    const speech = initialQuestionSpeech(
+      draw.question.text,
+      draw.question.seconds,
+      data.settings.announceDuration,
+    )
     const started = speakLines(speech, data.settings, voices, beginCountdown)
 
     if (!started) {
