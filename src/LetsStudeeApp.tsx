@@ -239,7 +239,7 @@ function StudyApp() {
   function repeatQuestion() {
     if (!question || phase !== 'countdown') return
     const token = ++sessionToken.current
-    const started = speakLines([question.text], data.settings, voices, () => {
+    const started = speakLines(['Again,', question.text], data.settings, voices, () => {
       if (sessionToken.current === token) setNotice('')
     })
     setNotice(started ? 'The timer keeps running.' : 'Speech synthesis is unavailable.')
