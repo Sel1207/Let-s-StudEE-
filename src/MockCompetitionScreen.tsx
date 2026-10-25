@@ -259,9 +259,9 @@ function questionChoices(question: CompetitionQuestion, spoken = false): Array<[
 function choiceSpeechParts(question: CompetitionQuestion): SpeechPart[] {
   const choices = questionChoices(question, true)
   return choices.flatMap(([letter, choice], index) => [
-    `Choice ${letter}.`,
+    { text: `Choice ${letter}.`, speed: 'normal' as const },
     { pauseMs: 400 },
-    choice,
+    { text: choice, speed: 'normal' as const },
     ...(index < choices.length - 1 ? [{ pauseMs: 250 }] : []),
   ])
 }
@@ -514,15 +514,15 @@ export default function MockCompetitionScreen({ voices }: MockCompetitionScreenP
     const questionText = question.spokenQuestion ?? question.question
     const timeLimit = `Time: ${spokenDuration(question.timeSeconds ?? (question.difficulty === 'Easy' ? storageRef.current.settings.easySeconds : storageRef.current.settings.difficultSeconds))}.`
     return [
-      { text: introduction, speed: 'fast' },
-      { text: timeLimit, speed: 'fast' },
+      { text: introduction, speed: 'normal' },
+      { text: timeLimit, speed: 'normal' },
       questionText,
       ...options,
       null,
-      'Again.',
+      { text: 'Again.', speed: 'normal' },
       questionText,
       ...options,
-      'Time starts now.',
+      { text: 'Time starts now.', speed: 'normal' },
     ]
   }
 
@@ -556,7 +556,12 @@ export default function MockCompetitionScreen({ voices }: MockCompetitionScreenP
       setNotice("Time's up!")
     }
     const started = currentQuestion
-      ? speakSequence(["Time's up!", null, 'The correct answer is', currentQuestion.answer], finishReveal)
+      ? speakSequence([
+        { text: "Time's up!", speed: 'normal' },
+        null,
+        { text: 'The correct answer is', speed: 'normal' },
+        { text: currentQuestion.answer, speed: 'normal' },
+      ], finishReveal)
       : false
     if (!started) {
       finishReveal()
@@ -633,12 +638,12 @@ export default function MockCompetitionScreen({ voices }: MockCompetitionScreenP
         questionText,
         ...options,
         null,
-        'Again.',
+        { text: 'Again.', speed: 'normal' },
         questionText,
         ...options,
         null,
-        'The correct answer is',
-        currentQuestion.answer,
+        { text: 'The correct answer is', speed: 'normal' },
+        { text: currentQuestion.answer, speed: 'normal' },
       ], () => {
         setQuestionVisible(true)
         setPhase('revealed')
@@ -659,7 +664,7 @@ export default function MockCompetitionScreen({ voices }: MockCompetitionScreenP
     }
     const options = choiceSpeechParts(currentQuestion)
     const questionText = currentQuestion.spokenQuestion ?? currentQuestion.question
-    const started = speakSequence([questionText, ...options, null, 'Again.', questionText, ...options], () => {})
+    const started = speakSequence([questionText, ...options, null, { text: 'Again.', speed: 'normal' }, questionText, ...options], () => {})
     setNotice(started ? (phase === 'countdown' ? 'The timer keeps running.' : 'Question replayed.') : 'Speech synthesis is unavailable.')
   }
 
