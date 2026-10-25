@@ -39,10 +39,9 @@ COVERAGE
 - If a scan or symbol is genuinely unclear, make the best context-based correction and record the uncertainty under Extraction Notes at the end. Do not silently guess a diagram value.
 
 CATEGORIES
-Choose the closest existing subject category when applicable.
-Math: Foundational Math; Mathematical Trivia; Algebra; Trigonometry; Analytical Geometry; Power Series & Fourier Series Analysis; Calculus 1; Calculus 2; Calculus 3; Linear Algebra; Probability and Statistics; Advanced Mathematics; Differential Equations; Discrete Math.
-Electrical Engineering: Power Plant; Illumination; DC Circuits; AC Circuits; DC Machines; AC Machines; Transformers; Power Systems; Distribution System; BESS; Control Systems.
-If none fits, use a short, accurate subject-area label from the document.
+- Use the category or subject labels stated in the source PDF or Word document. The document is authoritative; preserve its wording for each question and do not replace the category with a preset list.
+- Keep course names and subdivisions as printed, such as Differential Calculus, Integral Calculus, Analytical Geometry, or a specific Electrical Engineering subject. Do not rename them as Calculus 1, 2, or 3 unless the source itself uses those labels.
+- If the document does not state a category beside a question, use the closest category or chapter heading from its section. Only when the source gives no category or useful heading, infer a short, accurate subject-area label from the question.
 
 QUESTION FIELDS
 - difficulty must be exactly Easy or Difficult. Use Easy for identification, recall, definitions, formulas, and one-step calculations. Use Difficult for multi-step, advanced, or involved problems.
