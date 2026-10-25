@@ -10,6 +10,8 @@ import {
   saveCompetitionStorage,
   type Competition,
   type CompetitionQuestion,
+  type CompetitionScoreHistory,
+  type CompetitionScoreQuestion,
   type CompetitionSettings,
   type CompetitionStorage,
   type CompetitionVersion,
@@ -270,8 +272,52 @@ function choiceSpeechParts(question: CompetitionQuestion): SpeechPart[] {
 }
 
 function initialStorage(): CompetitionStorage {
-  if (typeof window === 'undefined') return { versions: [], settings: defaultCompetitionSettings() }
+  if (typeof window === 'undefined') return { versions: [], history: [], settings: defaultCompetitionSettings() }
   return loadCompetitionStorage()
+}
+
+function HistoryScoreboard({ entry }: { entry: CompetitionScoreHistory }) {
+  const questionLabel = (question: CompetitionScoreQuestion) => `Q${question.number}: ${question.difficulty === 'Easy' ? 'E' : 'D'}`
+  return <>
+    <section className="competition-scoreboard competition-history-scoreboard" aria-label={`Saved scoreboard for ${entry.competitionName}`}>
+      <div className="competition-scoreboard-heading"><h3>Saved scoreboard</h3><span>Question difficulty and points earned</span></div>
+      <table className="competition-scoreboard-table">
+        <thead><tr>
+          <th className="competition-scoreboard-row-label" scope="col">Tracker</th>
+          {entry.rounds.map((round) => <th key={round.round} scope="colgroup" colSpan={round.questions.length + 1}>Round {round.round}</th>)}
+          <th scope="col">Total</th>
+        </tr></thead>
+        <tbody>
+          <tr>
+            <th className="competition-scoreboard-row-label" scope="row">Question / difficulty</th>
+            {entry.rounds.map((round) => <Fragment key={round.round}>
+              {round.questions.map((question, index) => <td key={`${round.round}-${question.number}-${index}`}>{questionLabel(question)}</td>)}
+              <td className="competition-scoreboard-round-total">Round {round.round} total</td>
+            </Fragment>)}
+            <td className="competition-scoreboard-round-total">Competition total</td>
+          </tr>
+          <tr>
+            <th className="competition-scoreboard-row-label" scope="row">Points earned</th>
+            {entry.rounds.map((round) => <Fragment key={round.round}>
+              {round.questions.map((question, index) => <td key={`${round.round}-${question.number}-${index}`} className={`competition-scoreboard-points${question.earnedPoints ? ' is-correct' : ' is-wrong'}`}>{question.earnedPoints}</td>)}
+              <td className="competition-scoreboard-round-total">{round.score} / {round.maxScore}</td>
+            </Fragment>)}
+            <td className="competition-scoreboard-round-total">{entry.score} / {entry.maxScore}</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+    {entry.suddenDeath && <section className="competition-scoreboard competition-history-scoreboard" aria-label="Saved sudden death scoreboard">
+      <div className="competition-scoreboard-heading"><h3>Sudden Death</h3><span>{entry.suddenDeath.score} / {entry.suddenDeath.maxScore} points</span></div>
+      <table className="competition-scoreboard-table">
+        <thead><tr><th className="competition-scoreboard-row-label" scope="col">Tracker</th><th scope="colgroup" colSpan={entry.suddenDeath.questions.length + 1}>Sudden Death</th></tr></thead>
+        <tbody>
+          <tr><th className="competition-scoreboard-row-label" scope="row">Question / difficulty</th>{entry.suddenDeath.questions.map((question, index) => <td key={`${question.number}-${index}`}>{questionLabel(question)}</td>)}<td className="competition-scoreboard-round-total">Total</td></tr>
+          <tr><th className="competition-scoreboard-row-label" scope="row">Points earned</th>{entry.suddenDeath.questions.map((question, index) => <td key={`${question.number}-${index}`} className={`competition-scoreboard-points${question.earnedPoints ? ' is-correct' : ' is-wrong'}`}>{question.earnedPoints}</td>)}<td className="competition-scoreboard-round-total">{entry.suddenDeath.score} / {entry.suddenDeath.maxScore}</td></tr>
+        </tbody>
+      </table>
+    </section>}
+  </>
 }
 
 function formatClock(seconds: number): string {
@@ -303,6 +349,9 @@ export default function MockCompetitionScreen({ voices }: MockCompetitionScreenP
   const [remainingSeconds, setRemainingSeconds] = useState(0)
   const [outcomes, setOutcomes] = useState<Record<string, Outcome>>({})
   const [suddenOutcomes, setSuddenOutcomes] = useState<Record<string, Outcome>>({})
+  const [savedHistoryId, setSavedHistoryId] = useState<string | null>(null)
+  const [savedHistoryHasSuddenDeath, setSavedHistoryHasSuddenDeath] = useState(false)
+  const [historyNotice, setHistoryNotice] = useState('')
   const [pausedFrom, setPausedFrom] = useState<'announcing' | 'countdown' | 'answering'>('countdown')
   const storageRef = useRef(storage)
   const speechToken = useRef(0)
@@ -608,6 +657,9 @@ export default function MockCompetitionScreen({ voices }: MockCompetitionScreenP
     setCompetition(source)
     setOutcomes({})
     setSuddenOutcomes({})
+    setSavedHistoryId(null)
+    setSavedHistoryHasSuddenDeath(false)
+    setHistoryNotice('')
     setRoundIndex(0)
     setQuestionIndex(0)
     setNotice('')
@@ -735,6 +787,7 @@ export default function MockCompetitionScreen({ voices }: MockCompetitionScreenP
     if (!competition?.suddenDeath.length) return
     setQuestionIndex(0)
     setSuddenOutcomes({})
+    setSavedHistoryHasSuddenDeath(false)
     startQuestion(competition.suddenDeath[0], 'sudden-death')
   }
 
@@ -876,6 +929,56 @@ export default function MockCompetitionScreen({ voices }: MockCompetitionScreenP
     return { difficulty, score: totalScore(questions, outcomes), max: questions.reduce((total, question) => total + question.points, 0), count: questions.length }
   })
   const missedQuestions = (questions: CompetitionQuestion[], results: Record<string, Outcome>) => questions.filter((question) => results[question.id] !== 'correct')
+  const historyQuestionRows = (questions: CompetitionQuestion[], results: Record<string, Outcome>): CompetitionScoreQuestion[] => questions.map((question) => ({
+    number: question.number,
+    difficulty: question.difficulty,
+    points: question.points,
+    earnedPoints: results[question.id] === 'correct' ? question.points : 0,
+  }))
+
+  function saveScoreToHistory() {
+    if (!competition || regularQuestions.some((question) => outcomes[question.id] === undefined)) return
+    const id = savedHistoryId ?? createCompetitionId()
+    const suddenDeathComplete = competition.suddenDeath.length > 0
+      && competition.suddenDeath.every((question) => suddenOutcomes[question.id] !== undefined)
+    const entry: CompetitionScoreHistory = {
+      id,
+      competitionName: competition.competitionName,
+      savedAt: Date.now(),
+      score: cumulativeScore,
+      maxScore: maxTotal,
+      rounds: competition.rounds.map((round) => ({
+        round: round.round,
+        score: totalScore(round.questions, outcomes),
+        maxScore: round.questions.reduce((sum, question) => sum + question.points, 0),
+        questions: historyQuestionRows(round.questions, outcomes),
+      })),
+      suddenDeath: suddenDeathComplete ? {
+        score: totalScore(competition.suddenDeath, suddenOutcomes),
+        maxScore: competition.suddenDeath.reduce((sum, question) => sum + question.points, 0),
+        questions: historyQuestionRows(competition.suddenDeath, suddenOutcomes),
+      } : null,
+    }
+    setStorage((current) => ({
+      ...current,
+      history: [entry, ...current.history.filter((savedEntry) => savedEntry.id !== id)],
+    }))
+    setSavedHistoryId(id)
+    setSavedHistoryHasSuddenDeath(Boolean(entry.suddenDeath))
+    setHistoryNotice(entry.suddenDeath
+      ? 'Competition score and Sudden Death result saved to history.'
+      : 'Competition score saved to history.')
+  }
+
+  function deleteScoreHistory(id: string) {
+    setStorage((current) => ({ ...current, history: current.history.filter((entry) => entry.id !== id) }))
+    if (savedHistoryId === id) {
+      setSavedHistoryId(null)
+      setSavedHistoryHasSuddenDeath(false)
+    }
+    setHistoryNotice('Saved score removed from history.')
+  }
+
   const scoreTracker = competition && <section className="competition-scoreboard" aria-label="Competition score tracker">
     <div className="competition-scoreboard-heading"><h3>Score tracker</h3><span>Correct answers earn the question’s points; wrong answers earn zero.</span></div>
     <div className="competition-scoreboard-scroll">
@@ -906,6 +1009,22 @@ export default function MockCompetitionScreen({ voices }: MockCompetitionScreenP
             </Fragment>)}
             <td className="competition-scoreboard-round-total">{cumulativeScore} / {maxTotal}</td>
           </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+  const suddenDeathScoreboard = competition && <section className="competition-scoreboard" aria-label="Sudden Death score tracker">
+    <div className="competition-scoreboard-heading"><h3>Sudden Death tracker</h3><span>Correct answers earn the question’s points; wrong answers earn zero.</span></div>
+    <div className="competition-scoreboard-scroll">
+      <table className="competition-scoreboard-table">
+        <thead><tr><th className="competition-scoreboard-row-label" scope="col">Tracker</th><th scope="colgroup" colSpan={competition.suddenDeath.length + 1}>Sudden Death</th></tr></thead>
+        <tbody>
+          <tr><th className="competition-scoreboard-row-label" scope="row">Question / difficulty</th>{competition.suddenDeath.map((question) => <td key={question.id}>Q{question.number}: {question.difficulty === 'Easy' ? 'E' : 'D'}</td>)}<td className="competition-scoreboard-round-total">Total</td></tr>
+          <tr><th className="competition-scoreboard-row-label" scope="row">Points earned</th>{competition.suddenDeath.map((question) => {
+            const outcome = suddenOutcomes[question.id]
+            const points = outcome === 'correct' ? question.points : outcome === 'wrong' ? 0 : null
+            return <td key={question.id} className={`competition-scoreboard-points${outcome ? ` is-${outcome}` : ''}`}>{points ?? '—'}</td>
+          })}<td className="competition-scoreboard-round-total">{totalScore(competition.suddenDeath, suddenOutcomes)} / {competition.suddenDeath.reduce((sum, question) => sum + question.points, 0)}</td></tr>
         </tbody>
       </table>
     </div>
@@ -1022,6 +1141,32 @@ export default function MockCompetitionScreen({ voices }: MockCompetitionScreenP
             </li>)}
           </ul>
         </section>
+
+        <section className="competition-history" aria-labelledby="competition-history-heading">
+          <div className="competition-library-heading"><h2 id="competition-history-heading">Score History</h2><span>{storage.history.length} saved attempts</span></div>
+          {!storage.history.length && <p className="empty-state">After both rounds are complete, save a score to keep its results and scoreboard here.</p>}
+          <div className="competition-history-list">
+            {storage.history.map((entry) => <article className="competition-history-entry" key={entry.id}>
+              <div className="competition-history-entry-header">
+                <div className="competition-history-copy">
+                  <p className="eyebrow">Saved {new Date(entry.savedAt).toLocaleString()}</p>
+                  <h3>{entry.competitionName}</h3>
+                  <p>{entry.rounds.map((round) => `Round ${round.round}: ${round.score} / ${round.maxScore}`).join(' · ')}</p>
+                  {entry.suddenDeath && <p>Sudden Death: {entry.suddenDeath.score} / {entry.suddenDeath.maxScore}</p>}
+                </div>
+                <div className="competition-history-entry-actions">
+                  <strong>{entry.score} / {entry.maxScore} points</strong>
+                  <button className="text-action" type="button" aria-label={`Delete saved score for ${entry.competitionName}`} onClick={() => deleteScoreHistory(entry.id)}>Delete</button>
+                </div>
+              </div>
+              <details className="competition-history-details">
+                <summary>View saved scoreboard</summary>
+                <HistoryScoreboard entry={entry} />
+              </details>
+            </article>)}
+          </div>
+          {historyNotice && <p className="manage-message" role="status">{historyNotice}</p>}
+        </section>
       </>}
 
       {(phase === 'announcing' || phase === 'countdown' || phase === 'answering' || phase === 'paused' || phase === 'revealed') && currentQuestion && <section className="competition-run" aria-label="Competition question">
@@ -1094,19 +1239,30 @@ export default function MockCompetitionScreen({ voices }: MockCompetitionScreenP
           {!missedQuestions(regularQuestions, outcomes).length && <p className="empty-state">Every question was marked correct.</p>}
         </section>
         <div className="competition-results-actions">
+          <button className="primary-action" type="button" disabled={Boolean(savedHistoryId)} onClick={saveScoreToHistory}>{savedHistoryId ? 'Score Saved' : 'Save Score to History'}</button>
           {competition.suddenDeath.length > 0 && <button className="primary-action" type="button" onClick={startSuddenDeath}>Sudden Death</button>}
           <button className="secondary-action" type="button" onClick={stopCompetition}>Back to setup</button>
         </div>
+        {historyNotice && <p className="manage-message" role="status">{historyNotice}</p>}
       </section>}
 
       {phase === 'sudden-results' && competition && <section className="competition-results">
-        <p className="eyebrow">Sudden Death complete</p><h2>Sudden Death score</h2>
+        <p className="eyebrow">Sudden Death complete</p><h2>{competition.competitionName}</h2>
+        <p className="competition-result-rounds">Main rounds: {cumulativeScore} / {maxTotal}</p>
+        {scoreTracker}
+        <h3 className="competition-sudden-death-result-heading">Sudden Death score</h3>
         <p className="competition-score-large">{totalScore(competition.suddenDeath, suddenOutcomes)} <span>/ {competition.suddenDeath.reduce((total, question) => total + question.points, 0)}</span></p>
+        {suddenDeathScoreboard}
         <section className="competition-missed"><h3>Missed sudden-death questions ({missedQuestions(competition.suddenDeath, suddenOutcomes).length})</h3>
           {missedQuestions(competition.suddenDeath, suddenOutcomes).map((question) => <article key={question.id}><MathText text={question.question} /><p><strong>Answer:</strong> <MathText text={question.answer} /></p><p><strong>Solution:</strong> <MathText text={question.solution} /></p></article>)}
           {!missedQuestions(competition.suddenDeath, suddenOutcomes).length && <p className="empty-state">Every sudden-death question was marked correct.</p>}
         </section>
-        <div className="competition-results-actions"><button className="primary-action" type="button" onClick={() => setPhase('results')}>Back to final results</button><button className="secondary-action" type="button" onClick={stopCompetition}>Back to setup</button></div>
+        <div className="competition-results-actions">
+          <button className="primary-action" type="button" disabled={savedHistoryHasSuddenDeath} onClick={saveScoreToHistory}>{savedHistoryHasSuddenDeath ? 'Score Saved' : savedHistoryId ? 'Update Saved Score' : 'Save Score to History'}</button>
+          <button className="secondary-action" type="button" onClick={() => setPhase('results')}>Back to final results</button>
+          <button className="secondary-action" type="button" onClick={stopCompetition}>Back to setup</button>
+        </div>
+        {historyNotice && <p className="manage-message" role="status">{historyNotice}</p>}
       </section>}
     </section>
   )

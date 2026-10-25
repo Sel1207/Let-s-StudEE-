@@ -38,6 +38,36 @@ export interface CompetitionVersion {
   updatedAt: number
 }
 
+export interface CompetitionScoreQuestion {
+  number: number
+  difficulty: CompetitionDifficulty
+  points: number
+  earnedPoints: number
+}
+
+export interface CompetitionScoreRound {
+  round: number
+  score: number
+  maxScore: number
+  questions: CompetitionScoreQuestion[]
+}
+
+export interface CompetitionSuddenDeathScore {
+  score: number
+  maxScore: number
+  questions: CompetitionScoreQuestion[]
+}
+
+export interface CompetitionScoreHistory {
+  id: string
+  competitionName: string
+  savedAt: number
+  score: number
+  maxScore: number
+  rounds: CompetitionScoreRound[]
+  suddenDeath: CompetitionSuddenDeathScore | null
+}
+
 export interface CompetitionSettings {
   easySeconds: number
   difficultSeconds: number
@@ -49,6 +79,7 @@ export interface CompetitionSettings {
 
 export interface CompetitionStorage {
   versions: CompetitionVersion[]
+  history: CompetitionScoreHistory[]
   settings: CompetitionSettings
 }
 
@@ -64,6 +95,72 @@ const DEFAULT_SETTINGS: CompetitionSettings = {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function isNonNegativeInteger(value: unknown): value is number {
+  return typeof value === 'number' && Number.isInteger(value) && value >= 0
+}
+
+function parseScoreQuestion(value: unknown): CompetitionScoreQuestion | null {
+  if (!isRecord(value) || !Number.isInteger(value.number) || Number(value.number) < 1
+    || (value.difficulty !== 'Easy' && value.difficulty !== 'Difficult')
+    || !isNonNegativeInteger(value.points) || value.points < 1
+    || !isNonNegativeInteger(value.earnedPoints) || value.earnedPoints > value.points) return null
+  return {
+    number: Number(value.number),
+    difficulty: value.difficulty,
+    points: value.points,
+    earnedPoints: value.earnedPoints,
+  }
+}
+
+function parseScoreRound(value: unknown): CompetitionScoreRound | null {
+  if (!isRecord(value) || !Number.isInteger(value.round) || Number(value.round) < 1
+    || !isNonNegativeInteger(value.score) || !isNonNegativeInteger(value.maxScore)
+    || !Array.isArray(value.questions) || !value.questions.length) return null
+  const questions = value.questions.map(parseScoreQuestion)
+  if (questions.some((question) => question === null)) return null
+  return {
+    round: Number(value.round),
+    score: value.score,
+    maxScore: value.maxScore,
+    questions: questions as CompetitionScoreQuestion[],
+  }
+}
+
+function parseSuddenDeathScore(value: unknown): CompetitionSuddenDeathScore | null {
+  if (!isRecord(value) || !isNonNegativeInteger(value.score) || !isNonNegativeInteger(value.maxScore)
+    || !Array.isArray(value.questions) || !value.questions.length) return null
+  const questions = value.questions.map(parseScoreQuestion)
+  if (questions.some((question) => question === null)) return null
+  return {
+    score: value.score,
+    maxScore: value.maxScore,
+    questions: questions as CompetitionScoreQuestion[],
+  }
+}
+
+function parseScoreHistory(value: unknown): CompetitionScoreHistory | null {
+  if (!isRecord(value) || typeof value.id !== 'string' || !value.id
+    || typeof value.competitionName !== 'string' || !value.competitionName
+    || !isNonNegativeInteger(value.savedAt) || !isNonNegativeInteger(value.score)
+    || !isNonNegativeInteger(value.maxScore) || !Array.isArray(value.rounds) || !value.rounds.length
+    || (value.suddenDeath !== null && value.suddenDeath !== undefined && !isRecord(value.suddenDeath))) return null
+  const rounds = value.rounds.map(parseScoreRound)
+  if (rounds.some((round) => round === null)) return null
+  const suddenDeath = value.suddenDeath === null || value.suddenDeath === undefined
+    ? null
+    : parseSuddenDeathScore(value.suddenDeath)
+  if (value.suddenDeath && !suddenDeath) return null
+  return {
+    id: value.id,
+    competitionName: value.competitionName,
+    savedAt: value.savedAt,
+    score: value.score,
+    maxScore: value.maxScore,
+    rounds: rounds as CompetitionScoreRound[],
+    suddenDeath,
+  }
 }
 
 function fail(path: string, message: string): never {
@@ -374,9 +471,9 @@ export function defaultCompetitionSettings(): CompetitionSettings {
 export function loadCompetitionStorage(): CompetitionStorage {
   try {
     const saved = window.localStorage.getItem(STORAGE_KEY)
-    if (!saved) return { versions: [], settings: defaultCompetitionSettings() }
+    if (!saved) return { versions: [], history: [], settings: defaultCompetitionSettings() }
     const value: unknown = JSON.parse(saved)
-    if (!isRecord(value)) return { versions: [], settings: defaultCompetitionSettings() }
+    if (!isRecord(value)) return { versions: [], history: [], settings: defaultCompetitionSettings() }
     const versions = Array.isArray(value.versions) ? value.versions.flatMap((entry): CompetitionVersion[] => {
       if (!isRecord(entry) || typeof entry.id !== 'string' || typeof entry.name !== 'string'
         || typeof entry.createdAt !== 'number' || typeof entry.updatedAt !== 'number'
@@ -388,9 +485,16 @@ export function loadCompetitionStorage(): CompetitionStorage {
         return []
       }
     }) : []
+    const history = Array.isArray(value.history)
+      ? value.history.flatMap((entry): CompetitionScoreHistory[] => {
+        const parsed = parseScoreHistory(entry)
+        return parsed ? [parsed] : []
+      })
+      : []
     const settings = isRecord(value.settings) ? value.settings : {}
     return {
       versions,
+      history,
       settings: {
         easySeconds: Number.isInteger(settings.easySeconds) && Number(settings.easySeconds) > 0 ? Number(settings.easySeconds) : DEFAULT_SETTINGS.easySeconds,
         difficultSeconds: Number.isInteger(settings.difficultSeconds) && Number(settings.difficultSeconds) > 0 ? Number(settings.difficultSeconds) : DEFAULT_SETTINGS.difficultSeconds,
@@ -401,7 +505,7 @@ export function loadCompetitionStorage(): CompetitionStorage {
       },
     }
   } catch {
-    return { versions: [], settings: defaultCompetitionSettings() }
+    return { versions: [], history: [], settings: defaultCompetitionSettings() }
   }
 }
 
