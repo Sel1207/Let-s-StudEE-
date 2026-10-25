@@ -48,13 +48,13 @@ QUESTION FIELDS
 - points must be 1 for Easy and 3 for Difficult.
 - type must be exactly Identification, Problem-solving, or Multiple choice. Use Multiple choice when the source has answer options.
 - For Multiple choice, include every option using Choice A, Choice B, Choice C, and Choice D fields as needed, plus a Read Aloud field for every choice. Keep option wording and values complete. Put the correct letter and answer text in Answer (for example, "B. 18/5"). For other types omit all Choice fields.
-- Inspect the entire source for timing rules, including labels beside questions, round instructions, tables, and general rules that apply to a set of questions. Use each question's applicable source time exactly, converting it to seconds. When a question-specific limit overrides a round or general limit, use the question-specific one. Only estimate when no time limit applies to that question; follow the TIME GUIDANCE below. Always provide a positive number of seconds for every question, never null.
+- Inspect the entire source for timing rules, including labels beside questions, round instructions, tables, and general rules that apply to a set of questions. Use each question's applicable source time exactly, converting it to seconds. When a question-specific limit overrides a round or general limit, use the question-specific one. If no time limit applies to a question, choose the most suitable time from the allowed options in TIME GUIDANCE. Always provide a positive number of seconds for every question, never null.
 - Give each question and choice two versions: a display version and a separate Read Aloud version. In display versions, keep normal mathematical notation and wrap equations in $...$ for KaTeX rendering. In Read Aloud versions, write exactly how a person should say it, using words instead of math markup or symbols: x squared, x sub one, square root of, pi, sine of, three over five, degrees. Say abbreviations with spaces (ECE as E C E). Write 11 as eleven, not 1 sub 1. Keep the meaning identical between versions.
 - Keep answers and full solutions in display form with equations wrapped in $...$. These appear on screen after the question.
 - Include answer and a full, understandable solution for every question.
 
 OUTPUT
-Return the entire result inside exactly ONE Markdown code block labeled text, beginning with a text-labeled triple-backtick fence and ending with a closing triple-backtick line. Put every field, question block, and optional Extraction Notes inside that one block. Return no introduction, explanation, or other text outside the block, and do not use nested code blocks. The code block is intentional so the AI chat provides a Copy button for the complete competition. The app accepts the outer code fences when the user pastes the result. Use the exact labeled format below. Put each question in source order and separate every block with a line containing three hyphens. Time Seconds must always be a positive number: copy the applicable source time, or estimate one only if no time applies. Use "Sudden Death" as the round label for tie-breakers. Include both Question and Question Read Aloud for every question.
+Return the entire result inside exactly ONE Markdown code block labeled text, beginning with a text-labeled triple-backtick fence and ending with a closing triple-backtick line. Put every field, question block, and optional Extraction Notes inside that one block. Return no introduction, explanation, or other text outside the block, and do not use nested code blocks. The code block is intentional so the AI chat provides a Copy button for the complete competition. The app accepts the outer code fences when the user pastes the result. Use the exact labeled format below. Put each question in source order and separate every block with a line containing three hyphens. Time Seconds must always be a positive number: preserve the applicable source time exactly, or choose the most suitable allowed time if the source gives none. Use "Sudden Death" as the round label for tie-breakers. Include both Question and Question Read Aloud for every question.
 
 Example of the required single code block:
 \`\`\`text
@@ -108,11 +108,15 @@ Extraction Notes: List only uncertain text or symbol fixes here, if any.
 \`\`\`
 
 TIME GUIDANCE
-Preserve every printed or otherwise stated time limit, including a shared time rule that applies to a round or question type. Convert minutes to seconds. If no applicable source time is stated for a question, estimate:
-15 seconds = identification or recall (name it, state a definition or formula)
-30 seconds = quick, one-step question
-60 seconds = standard problem with a few steps
-120 seconds = multi-step word problem (ages, mixtures, work, motion, towers)
+Preserve every printed or otherwise stated time limit, including a shared time rule that applies to a round or question type. Convert minutes to seconds. If no applicable source time is stated for a question, choose exactly one of these allowed values based on how long a prepared contestant should reasonably need:
+10 seconds = instant recall, a very short fact, or a direct identification
+20 seconds = quick recall or a very simple one-step question
+30 seconds = a typical one-step question or short calculation
+45 seconds = a short problem with a couple of steps
+60 seconds = a standard problem requiring several steps
+90 seconds = a challenging multi-step problem
+120 seconds = an extended, multi-step problem or word problem (ages, mixtures, work, motion, towers)
+Do not invent another time value when estimating; use only 10, 20, 30, 45, 60, 90, or 120 seconds. Choose the value separately for each question based on its actual difficulty and length.
 The app uses its configurable Easy/Difficult limits only as fallbacks for manually entered or legacy questions without a time. It always uses an extracted question's Time Seconds value.
 
 SPEAKING AND MATH
