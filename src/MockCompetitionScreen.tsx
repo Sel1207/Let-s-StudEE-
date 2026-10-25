@@ -365,6 +365,10 @@ export default function MockCompetitionScreen({ voices }: MockCompetitionScreenP
     playTone(880, 'sine', 0.13, 0.19)
   }
 
+  function fiveSecondCue() {
+    playTone(560, 'triangle', 0.13)
+  }
+
   function endBuzzer() {
     const context = audioContext.current
     const settings = storageRef.current.settings
@@ -573,6 +577,7 @@ export default function MockCompetitionScreen({ voices }: MockCompetitionScreenP
     const next = Math.max(0, remainingRef.current - 1)
     remainingRef.current = next
     setRemainingSeconds(next)
+    if (next === 5) fiveSecondCue()
     if (next === 0) announceTimeUp()
   })
 
