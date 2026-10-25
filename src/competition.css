@@ -57,15 +57,15 @@
 .competition-run-heading .eyebrow { width: 100%; margin: 0; }
 .competition-run-heading h2 { margin: 0; font-size: 20px; font-weight: 600; }
 .competition-run-heading > p:last-child { margin: 0; color: var(--muted); font-size: 11px; }
-.competition-scoreboard { margin: 0 0 20px; padding: 12px; border: 1px solid var(--line); background: var(--surface); }
+.competition-scoreboard { width: calc(100vw - 32px); margin: 0 0 20px calc(50% - 50vw + 16px); padding: 12px; border: 1px solid var(--line); background: var(--surface); }
 .competition-scoreboard-heading { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; margin-bottom: 9px; }
 .competition-scoreboard-heading h3 { margin: 0; font-size: 12px; font-weight: 600; }
 .competition-scoreboard-heading span { color: var(--muted); font-size: 9px; }
-.competition-scoreboard-scroll { overflow-x: auto; }
-.competition-scoreboard-table { width: 100%; min-width: max-content; border-collapse: collapse; font-size: 9px; text-align: center; }
-.competition-scoreboard-table th, .competition-scoreboard-table td { min-width: 62px; padding: 8px 7px; border: 1px solid var(--line); white-space: nowrap; }
+.competition-scoreboard-scroll { width: 100%; }
+.competition-scoreboard-table { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: 9px; text-align: center; }
+.competition-scoreboard-table th, .competition-scoreboard-table td { min-width: 0; padding: 8px 5px; border: 1px solid var(--line); white-space: normal; overflow-wrap: anywhere; }
 .competition-scoreboard-table thead th { background: var(--accent-soft); color: var(--accent); font-weight: 700; }
-.competition-scoreboard-table .competition-scoreboard-row-label { min-width: 126px; text-align: left; color: var(--ink); }
+.competition-scoreboard-table .competition-scoreboard-row-label { width: clamp(68px, 9vw, 126px); text-align: left; color: var(--ink); }
 .competition-scoreboard-table tbody th { background: var(--accent-soft); font-weight: 600; }
 .competition-scoreboard-round-total { background: var(--accent-soft); font-weight: 700; }
 .competition-scoreboard-points { font-size: 12px; font-weight: 700; }
@@ -136,4 +136,9 @@
   .competition-timer { font-size: 68px; }
   .competition-breakdowns { grid-template-columns: 1fr; gap: 20px; }
   .competition-score-large { font-size: 52px; }
+  .competition-scoreboard { padding: 8px 5px; }
+  .competition-scoreboard-table { font-size: 7px; }
+  .competition-scoreboard-table th, .competition-scoreboard-table td { padding: 5px 1px; }
+  .competition-scoreboard-table .competition-scoreboard-row-label { width: 54px; font-size: 7px; }
+  .competition-scoreboard-points { font-size: 10px; }
 }

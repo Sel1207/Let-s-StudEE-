@@ -501,11 +501,11 @@ export default function MockCompetitionScreen({ voices }: MockCompetitionScreenP
 
   const announceTimeUp = useEffectEvent(() => {
     stopSpeech()
-    setQuestionVisible(true)
     setPhase('answering')
     setNotice("Time's up! Listen to the correct answer.")
     endBuzzer()
     const finishReveal = () => {
+      setQuestionVisible(true)
       setPhase('revealed')
       setNotice("Time's up!")
     }
@@ -558,6 +558,7 @@ export default function MockCompetitionScreen({ voices }: MockCompetitionScreenP
   function revealAnswer() {
     if (!currentQuestion || !isActive || phase === 'answering' || (phase === 'paused' && pausedFrom === 'answering')) return
     stopSpeech()
+    setQuestionVisible(true)
     setPhase('revealed')
     setNotice('Answer revealed.')
   }
@@ -600,6 +601,7 @@ export default function MockCompetitionScreen({ voices }: MockCompetitionScreenP
       setPhase('answering')
       setNotice(started ? 'Replaying the question, then reading the answer.' : 'Speech synthesis is unavailable.')
       if (!started) {
+        setQuestionVisible(true)
         setPhase('revealed')
         setNotice("Time's up! Speech synthesis is unavailable; the answer is shown.")
       }
@@ -627,9 +629,11 @@ export default function MockCompetitionScreen({ voices }: MockCompetitionScreenP
 
   function nextQuestion(skip = false) {
     if (!competition || !currentQuestion) return
-    stopSpeech()
     const outcomeMap = selectedOutcomeMap()
-    if (outcomeMap[currentQuestion.id] === undefined) {
+    const currentOutcome = outcomeMap[currentQuestion.id]
+    if (!skip && currentOutcome === undefined) return
+    stopSpeech()
+    if (currentOutcome === undefined) {
       if (mode === 'sudden-death') setSuddenOutcomes((current) => ({ ...current, [currentQuestion.id]: 'wrong' }))
       else setOutcomes((current) => ({ ...current, [currentQuestion.id]: 'wrong' }))
     }
@@ -999,7 +1003,7 @@ export default function MockCompetitionScreen({ voices }: MockCompetitionScreenP
             {phase === 'revealed' && <div className="competition-marking">
               <button className={`secondary-action${currentQuestionOutcome === 'correct' ? ' is-selected' : ''}`} type="button" aria-pressed={currentQuestionOutcome === 'correct'} onClick={() => setQuestionOutcome('correct')}>Mark Correct</button>
               <button className={`secondary-action${currentQuestionOutcome === 'wrong' ? ' is-selected' : ''}`} type="button" aria-pressed={currentQuestionOutcome === 'wrong'} onClick={() => setQuestionOutcome('wrong')}>Mark Wrong</button>
-              <button className="primary-action" type="button" onClick={() => nextQuestion()}>Next Question</button>
+              <button className="primary-action" type="button" disabled={!currentQuestionOutcome} title={!currentQuestionOutcome ? 'Mark this question correct or wrong to continue.' : undefined} onClick={() => nextQuestion()}>Next Question</button>
             </div>}
             {mode === 'competition' && <p className="competition-score-so-far">This round: {roundScore} / {maxRound} · Total: {cumulativeScore} / {maxTotal}</p>}
           </aside>
