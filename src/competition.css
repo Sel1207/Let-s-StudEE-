@@ -93,8 +93,8 @@
 .competition-scoreboard-table tbody th { background: var(--accent-soft); font-weight: 600; }
 .competition-scoreboard-round-total { background: var(--accent-soft); font-weight: 700; }
 .competition-scoreboard-points { font-size: 12px; font-weight: 700; }
-.competition-scoreboard-points.is-correct { color: #247b56; }
-.competition-scoreboard-points.is-wrong { color: #b24738; }
+.competition-scoreboard-points.is-correct { color: var(--success); }
+.competition-scoreboard-points.is-wrong { color: var(--danger); }
 .competition-question-layout { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(270px, .8fr); min-height: 510px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
 .competition-question-card { min-width: 0; padding: 26px 34px 26px 0; }
 .competition-question-meta { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 24px; }
@@ -110,7 +110,7 @@
 .competition-answer-panel strong { color: var(--accent); font-size: 10px; text-transform: uppercase; }
 .competition-timer-panel { min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px 0 24px 28px; border-left: 1px solid var(--line); text-align: center; }
 .competition-timer { font-size: 80px; }
-.competition-timer-urgent { color: #b24738; }
+.competition-timer-urgent { color: var(--danger); }
 .competition-controls, .competition-marking { width: 100%; display: flex; flex-wrap: wrap; justify-content: center; gap: 7px; margin-top: 22px; }
 .competition-controls button, .competition-marking button { min-height: 42px; min-width: 0; flex: 1 1 calc(50% - 7px); padding-inline: 8px; font-size: 10px; }
 .competition-controls button:disabled { opacity: .5; }

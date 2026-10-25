@@ -1,13 +1,16 @@
 import { accuracy, formatDuration } from './questionLogic'
 import { ALLOWED_DURATIONS, PREFERRED_VOICE_NAME, TOPICS, type StudyData, type StudySettings } from './studyTypes'
+import type { ThemePreference } from './themePreference'
 
 interface SettingsScreenProps {
   data: StudyData
   voices: SpeechSynthesisVoice[]
+  theme: ThemePreference
+  onChangeTheme: (theme: ThemePreference) => void
   onChangeSettings: (settings: StudySettings) => void
 }
 
-export default function SettingsScreen({ data, voices, onChangeSettings }: SettingsScreenProps) {
+export default function SettingsScreen({ data, voices, theme, onChangeTheme, onChangeSettings }: SettingsScreenProps) {
   const englishVoices = voices.filter((voice) => /^en([_-]|$)/i.test(voice.lang))
   const voiceOptions = englishVoices.length ? englishVoices : voices
   const defaultVoice = voiceOptions.find((voice) => voice.name.includes(PREFERRED_VOICE_NAME)) ?? voiceOptions[0]
@@ -72,6 +75,17 @@ export default function SettingsScreen({ data, voices, onChangeSettings }: Setti
             type="checkbox"
             checked={data.settings.announceDuration}
             onChange={(event) => onChangeSettings({ ...data.settings, announceDuration: event.currentTarget.checked })}
+          />
+        </label>
+        <label className="setting-row toggle-setting theme-setting" htmlFor="dark-mode">
+          <span><strong>Dark mode</strong><small>Switch to a darker color theme across the app.</small></span>
+          <input
+            id="dark-mode"
+            type="checkbox"
+            role="switch"
+            aria-checked={theme === 'dark'}
+            checked={theme === 'dark'}
+            onChange={(event) => onChangeTheme(event.currentTarget.checked ? 'dark' : 'light')}
           />
         </label>
       </div>

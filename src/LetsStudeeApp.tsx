@@ -6,6 +6,7 @@ import StudyScreen from './StudyScreen'
 import { drawQuestion, spokenDuration } from './questionLogic'
 import { loadStudyData, saveStudyData } from './studyStorage'
 import { speechRate } from './speechRate'
+import { loadThemePreference, saveThemePreference, type ThemePreference } from './themePreference'
 import { PREFERRED_VOICE_NAME, type Question, type StudyData, type StudySettings, type Topic, type TopicGroupName } from './studyTypes'
 
 type View = 'study' | 'manage' | 'settings' | 'competitions'
@@ -59,6 +60,7 @@ function speakLines(
 
 function StudyApp() {
   const [data, setData] = useState<StudyData>(loadStudyData)
+  const [theme, setTheme] = useState<ThemePreference>(loadThemePreference)
   const [view, setView] = useState<View>(() => (
     new URLSearchParams(window.location.search).get('__app_update')?.startsWith('settings-') ? 'settings' : 'study'
   ))
@@ -82,6 +84,12 @@ function StudyApp() {
   useEffect(() => {
     saveStudyData(data)
   }, [data])
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'dark' ? '#151b17' : '#f7f8f5')
+    saveThemePreference(theme)
+  }, [theme])
 
   useEffect(() => {
     document.title = 'Lets StudEE!'
@@ -425,7 +433,7 @@ function StudyApp() {
           />
         )}
         {view === 'settings' && (
-          <SettingsScreen data={data} voices={voices} onChangeSettings={updateSettings} />
+          <SettingsScreen data={data} voices={voices} theme={theme} onChangeTheme={setTheme} onChangeSettings={updateSettings} />
         )}
         {view === 'competitions' && <Suspense fallback={<p className="session-notice">Loading Mock Competition…</p>}><MockCompetitionScreen voices={voices} /></Suspense>}
       </main>

@@ -1,7 +1,7 @@
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap');
 
 :root {
-  color-scheme: only light;
+  color-scheme: light;
   --paper: #fff;
   --surface: #fff;
   --ink: #202722;
@@ -9,7 +9,9 @@
   --line: #dce2dc;
   --accent: #347452;
   --accent-soft: #e3eee7;
-  --alert: #347452;
+  --alert: #b24738;
+  --success: #247b56;
+  --danger: #b24738;
   font-family: 'DM Sans', sans-serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -17,6 +19,20 @@
   -moz-osx-font-smoothing: grayscale;
   background: var(--paper);
   color: var(--ink);
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --paper: #151b17;
+  --surface: #1e2721;
+  --ink: #e7eee8;
+  --muted: #a4b0a7;
+  --line: #37443a;
+  --accent: #8bc99c;
+  --accent-soft: #283a2e;
+  --alert: #ff9b85;
+  --success: #83d6a2;
+  --danger: #ff9b85;
 }
 
 * { box-sizing: border-box; }

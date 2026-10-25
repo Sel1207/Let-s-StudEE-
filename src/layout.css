@@ -69,7 +69,7 @@ select, input[type='text'], textarea { min-height: 44px; padding: 8px 10px; bord
 .file-import input { position: absolute; width: 1px; height: 1px; overflow: hidden; opacity: 0; }
 .manage-message, .form-error { margin: 10px 0; font-size: 11px; }
 .manage-message { color: var(--accent); }
-.form-error { color: #b24738; }
+.form-error { color: var(--danger); }
 .topic-tabs { display: flex; gap: 4px; margin-top: 22px; overflow-x: auto; border-bottom: 1px solid var(--line); }
 .topic-tabs button { min-height: 46px; flex: 0 0 auto; display: flex; align-items: center; gap: 6px; padding: 0 11px; border: 0; border-bottom: 2px solid transparent; background: transparent; color: var(--muted); font-size: 10px; cursor: pointer; }
 .topic-tabs button[aria-selected='true'] { border-bottom-color: var(--accent); color: var(--ink); }
@@ -105,6 +105,10 @@ select, input[type='text'], textarea { min-height: 44px; padding: 8px 10px; bord
 .segmented-control button { min-width: 72px; border: 1px solid var(--line); background: transparent; font-size: 10px; cursor: pointer; }
 .segmented-control button[aria-pressed='true'] { border-color: var(--accent); background: var(--accent-soft); }
 .toggle-setting input { width: 20px; height: 20px; }
+.theme-setting input[type='checkbox'] { position: relative; width: 44px; height: 26px; flex: 0 0 44px; appearance: none; border: 1px solid var(--line); border-radius: 999px; background: var(--line); cursor: pointer; transition: background-color .18s ease; }
+.theme-setting input[type='checkbox']::before { position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: var(--surface); content: ''; transition: transform .18s ease; }
+.theme-setting input[type='checkbox']:checked { border-color: var(--accent); background: var(--accent); }
+.theme-setting input[type='checkbox']:checked::before { transform: translateX(18px); }
 .app-update-section { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-top: 28px; padding: 15px 0; border-block: 1px solid var(--line); }
 .app-update-section h2 { margin: 0 0 4px; font-size: 14px; }
 .app-update-section p { max-width: 60ch; margin: 0; color: var(--muted); font-size: 10px; line-height: 1.5; }
