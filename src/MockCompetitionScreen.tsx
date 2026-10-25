@@ -1,4 +1,4 @@
-import { useEffect, useEffectEvent, useMemo, useRef, useState, type CSSProperties } from 'react'
+import { Fragment, useEffect, useEffectEvent, useMemo, useRef, useState, type CSSProperties } from 'react'
 import katex from 'katex'
 import 'katex/dist/katex.min.css'
 import './competition.css'
@@ -813,6 +813,40 @@ export default function MockCompetitionScreen({ voices }: MockCompetitionScreenP
     return { difficulty, score: totalScore(questions, outcomes), max: questions.reduce((total, question) => total + question.points, 0), count: questions.length }
   })
   const missedQuestions = (questions: CompetitionQuestion[], results: Record<string, Outcome>) => questions.filter((question) => results[question.id] !== 'correct')
+  const scoreTracker = competition && <section className="competition-scoreboard" aria-label="Competition score tracker">
+    <div className="competition-scoreboard-heading"><h3>Score tracker</h3><span>Correct answers earn the question’s points; wrong answers earn zero.</span></div>
+    <div className="competition-scoreboard-scroll">
+      <table className="competition-scoreboard-table">
+        <thead><tr>
+          <th className="competition-scoreboard-row-label" scope="col">Tracker</th>
+          {competition.rounds.map((round) => <th key={round.round} scope="colgroup" colSpan={round.questions.length + 1}>Round {round.round}</th>)}
+          <th scope="col">Total</th>
+        </tr></thead>
+        <tbody>
+          <tr>
+            <th className="competition-scoreboard-row-label" scope="row">Question / difficulty</th>
+            {competition.rounds.map((round) => <Fragment key={round.round}>
+              {round.questions.map((question) => <td key={question.id}>Q{question.number}: {question.difficulty === 'Easy' ? 'E' : 'D'}</td>)}
+              <td className="competition-scoreboard-round-total">Round {round.round} total</td>
+            </Fragment>)}
+            <td className="competition-scoreboard-round-total">Competition total</td>
+          </tr>
+          <tr>
+            <th className="competition-scoreboard-row-label" scope="row">Points earned</th>
+            {competition.rounds.map((round) => <Fragment key={round.round}>
+              {round.questions.map((question) => {
+                const outcome = outcomes[question.id]
+                const points = outcome === 'correct' ? question.points : outcome === 'wrong' ? 0 : null
+                return <td key={question.id} className={`competition-scoreboard-points${outcome ? ` is-${outcome}` : ''}`} aria-label={outcome ? `${points} points` : 'Not scored yet'}>{points ?? '—'}</td>
+              })}
+              <td className="competition-scoreboard-round-total">{totalScore(round.questions, outcomes)} / {round.questions.reduce((sum, question) => sum + question.points, 0)}</td>
+            </Fragment>)}
+            <td className="competition-scoreboard-round-total">{cumulativeScore} / {maxTotal}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
 
   return (
     <section className="secondary-view competition-view" aria-labelledby="competition-heading">
@@ -933,6 +967,7 @@ export default function MockCompetitionScreen({ voices }: MockCompetitionScreenP
           <h2>{competition?.competitionName}</h2>
           <p>Question {currentQuestion.number} of {activeQuestionList.length}</p>
         </div>
+        {mode === 'competition' && scoreTracker}
         <div className="competition-question-layout">
           <article className="competition-question-card">
             <div className="competition-question-meta">
@@ -976,6 +1011,7 @@ export default function MockCompetitionScreen({ voices }: MockCompetitionScreenP
         <h2>Round score</h2>
         <p className="competition-score-large">{roundScore} <span>/ {maxRound}</span></p>
         <p>Running total: <strong>{cumulativeScore} / {maxTotal}</strong></p>
+        {scoreTracker}
         <button className="primary-action" type="button" onClick={continueAfterRound}>{roundIndex + 1 < competition.rounds.length ? 'Continue to next round' : 'View final results'}</button>
         <button className="secondary-action" type="button" onClick={stopCompetition}>Stop Competition</button>
       </section>}
@@ -985,6 +1021,7 @@ export default function MockCompetitionScreen({ voices }: MockCompetitionScreenP
         <h2>{competition.competitionName}</h2>
         <p className="competition-score-large">{cumulativeScore} <span>/ {maxTotal}</span></p>
         <p className="competition-result-rounds">{competition.rounds.map((round, index) => <span key={round.round}>Round {round.round}: {totalScore(round.questions, outcomes)} / {round.questions.reduce((sum, question) => sum + question.points, 0)}{index < competition.rounds.length - 1 ? ' · ' : ''}</span>)}</p>
+        {scoreTracker}
         <div className="competition-breakdowns">
           <section><h3>By category</h3>{[...categoryBreakdown].map(([category, row]) => <div className="competition-breakdown-row" key={category}><span>{category}</span><strong>{row.score} / {row.max}</strong><small>{row.correct} of {row.count} correct</small></div>)}</section>
           <section><h3>By difficulty</h3>{difficultyBreakdown.filter((row) => row.count).map((row) => <div className="competition-breakdown-row" key={row.difficulty}><span>{row.difficulty}</span><strong>{row.score} / {row.max}</strong><small>{row.count} questions</small></div>)}</section>

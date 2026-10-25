@@ -57,6 +57,20 @@
 .competition-run-heading .eyebrow { width: 100%; margin: 0; }
 .competition-run-heading h2 { margin: 0; font-size: 20px; font-weight: 600; }
 .competition-run-heading > p:last-child { margin: 0; color: var(--muted); font-size: 11px; }
+.competition-scoreboard { margin: 0 0 20px; padding: 12px; border: 1px solid var(--line); background: var(--surface); }
+.competition-scoreboard-heading { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; margin-bottom: 9px; }
+.competition-scoreboard-heading h3 { margin: 0; font-size: 12px; font-weight: 600; }
+.competition-scoreboard-heading span { color: var(--muted); font-size: 9px; }
+.competition-scoreboard-scroll { overflow-x: auto; }
+.competition-scoreboard-table { width: 100%; min-width: max-content; border-collapse: collapse; font-size: 9px; text-align: center; }
+.competition-scoreboard-table th, .competition-scoreboard-table td { min-width: 62px; padding: 8px 7px; border: 1px solid var(--line); white-space: nowrap; }
+.competition-scoreboard-table thead th { background: var(--accent-soft); color: var(--accent); font-weight: 700; }
+.competition-scoreboard-table .competition-scoreboard-row-label { min-width: 126px; text-align: left; color: var(--ink); }
+.competition-scoreboard-table tbody th { background: var(--accent-soft); font-weight: 600; }
+.competition-scoreboard-round-total { background: var(--accent-soft); font-weight: 700; }
+.competition-scoreboard-points { font-size: 12px; font-weight: 700; }
+.competition-scoreboard-points.is-correct { color: #247b56; }
+.competition-scoreboard-points.is-wrong { color: #b24738; }
 .competition-question-layout { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(270px, .8fr); min-height: 510px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
 .competition-question-card { min-width: 0; padding: 26px 34px 26px 0; }
 .competition-question-meta { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 24px; }
