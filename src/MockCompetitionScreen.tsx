@@ -55,8 +55,10 @@ QUESTION FIELDS
 - Include answer and a full, understandable solution for every question.
 
 OUTPUT
-Return plain text only, with no Markdown code fences, introduction, or text after the optional notes. Use this exact labeled format. Put each question in source order and separate every block with a line containing three hyphens. Time Seconds must always be a positive number: copy the applicable source time, or estimate one only if no time applies. Use "Sudden Death" as the round label for tie-breakers. Include both Question and Question Read Aloud for every question.
+Return the entire result inside exactly ONE Markdown code block labeled text, beginning with a text-labeled triple-backtick fence and ending with a closing triple-backtick line. Put every field, question block, and optional Extraction Notes inside that one block. Return no introduction, explanation, or other text outside the block, and do not use nested code blocks. The code block is intentional so the AI chat provides a Copy button for the complete competition. The app accepts the outer code fences when the user pastes the result. Use the exact labeled format below. Put each question in source order and separate every block with a line containing three hyphens. Time Seconds must always be a positive number: copy the applicable source time, or estimate one only if no time applies. Use "Sudden Death" as the round label for tie-breakers. Include both Question and Question Read Aloud for every question.
 
+Example of the required single code block:
+\`\`\`text
 Competition Name: National Math Wizard
 ---
 Round: 1
@@ -104,6 +106,7 @@ Answer: ...
 Solution: ...
 ---
 Extraction Notes: List only uncertain text or symbol fixes here, if any.
+\`\`\`
 
 TIME GUIDANCE
 Preserve every printed or otherwise stated time limit, including a shared time rule that applies to a round or question type. Convert minutes to seconds. If no applicable source time is stated for a question, estimate:
@@ -768,7 +771,7 @@ export default function MockCompetitionScreen({ voices }: MockCompetitionScreenP
             </div>
             {error && <p className="form-error" role="alert">{error}</p>}
             {notice && <p className="manage-message" role="status">{notice}</p>}
-            <p className="question-hint">Load the labeled text copied from your AI prompt, or paste an existing JSON competition. Extracted questions keep display math separate from plain Read Aloud wording; questions run in the order listed.</p>
+            <p className="question-hint">Use the AI response’s Copy button to copy the complete code block, then paste it here. The loader removes the outer code fences automatically. Existing JSON competitions are also accepted.</p>
           </section>
 
           <section className="competition-settings" aria-labelledby="competition-settings-heading">
