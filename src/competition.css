@@ -117,6 +117,7 @@
 .competition-marking { margin-top: 11px; }
 .competition-marking .is-selected { background: var(--accent-soft); }
 .competition-marking .primary-action { flex-basis: 100%; }
+.competition-controls .competition-save-progress { flex-basis: 100%; }
 .competition-score-so-far { margin: 18px 0 0; color: var(--muted); font-size: 10px; }
 .competition-summary, .competition-results { max-width: 1260px; margin: 0 auto; padding: 24px 0; text-align: center; }
 .competition-summary h2, .competition-results > h2 { margin: 0; font-size: 25px; font-weight: 600; }

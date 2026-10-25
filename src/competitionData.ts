@@ -55,6 +55,7 @@ export interface CompetitionScoreRound {
 export interface CompetitionSuddenDeathScore {
   score: number
   maxScore: number
+  questionCount: number
   questions: CompetitionScoreQuestion[]
 }
 
@@ -141,9 +142,14 @@ function parseSuddenDeathScore(value: unknown): CompetitionSuddenDeathScore | nu
     || !Array.isArray(value.questions) || !value.questions.length) return null
   const questions = value.questions.map(parseScoreQuestion)
   if (questions.some((question) => question === null)) return null
+  const questionCount = isNonNegativeInteger(value.questionCount) && value.questionCount >= questions.length
+    ? value.questionCount
+    : value.questionCount === undefined ? questions.length : 0
+  if (questionCount < questions.length || questionCount < 1) return null
   return {
     score: value.score,
     maxScore: value.maxScore,
+    questionCount,
     questions: questions as CompetitionScoreQuestion[],
   }
 }
@@ -470,6 +476,10 @@ export function parseCompetitionInput(source: string): Competition {
 
 export function createCompetitionId(): string {
   return globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`
+}
+
+export function competitionNameKey(name: string): string {
+  return name.normalize('NFKC').trim().replace(/\s+/g, ' ').toLowerCase()
 }
 
 export function defaultCompetitionSettings(): CompetitionSettings {

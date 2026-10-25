@@ -4,6 +4,7 @@ import 'katex/dist/katex.min.css'
 import './competition.css'
 import { speechRate } from './speechRate'
 import {
+  competitionNameKey,
   createCompetitionId,
   createCompetitionBackup,
   defaultCompetitionSettings,
@@ -277,6 +278,23 @@ function initialStorage(): CompetitionStorage {
   return loadCompetitionStorage()
 }
 
+function mergeCompetitionVersions(existing: CompetitionVersion[], incoming: CompetitionVersion[]): CompetitionVersion[] {
+  const merged = new Map<string, CompetitionVersion>()
+  const merge = (version: CompetitionVersion) => {
+    const key = competitionNameKey(version.name)
+    const collisions = [...merged.values()].filter((saved) => saved.id === version.id || competitionNameKey(saved.name) === key)
+    const latest = collisions.reduce<CompetitionVersion | null>((newest, saved) => (
+      !newest || saved.updatedAt > newest.updatedAt ? saved : newest
+    ), null)
+    if (latest && latest.updatedAt > version.updatedAt) return
+    collisions.forEach((saved) => merged.delete(saved.id))
+    merged.set(version.id, version)
+  }
+  existing.slice().sort((a, b) => a.updatedAt - b.updatedAt).forEach(merge)
+  incoming.slice().sort((a, b) => a.updatedAt - b.updatedAt).forEach(merge)
+  return [...merged.values()].sort((a, b) => b.updatedAt - a.updatedAt)
+}
+
 function HistoryScoreboard({ entry }: { entry: CompetitionScoreHistory }) {
   const questionLabel = (question: CompetitionScoreQuestion) => `Q${question.number}: ${question.difficulty === 'Easy' ? 'E' : 'D'}`
   return <>
@@ -309,7 +327,7 @@ function HistoryScoreboard({ entry }: { entry: CompetitionScoreHistory }) {
       </table>
     </section>
     {entry.suddenDeath && <section className="competition-scoreboard competition-history-scoreboard" aria-label="Saved sudden death scoreboard">
-      <div className="competition-scoreboard-heading"><h3>Sudden Death</h3><span>{entry.suddenDeath.score} / {entry.suddenDeath.maxScore} points</span></div>
+      <div className="competition-scoreboard-heading"><h3>Sudden Death</h3><span>{entry.suddenDeath.questions.length} / {entry.suddenDeath.questionCount} questions scored · {entry.suddenDeath.score} / {entry.suddenDeath.maxScore} points</span></div>
       <table className="competition-scoreboard-table">
         <thead><tr><th className="competition-scoreboard-row-label" scope="col">Tracker</th><th scope="colgroup" colSpan={entry.suddenDeath.questions.length + 1}>Sudden Death</th></tr></thead>
         <tbody>
@@ -353,7 +371,6 @@ export default function MockCompetitionScreen({ voices }: MockCompetitionScreenP
   const [outcomes, setOutcomes] = useState<Record<string, Outcome>>({})
   const [suddenOutcomes, setSuddenOutcomes] = useState<Record<string, Outcome>>({})
   const [savedHistoryId, setSavedHistoryId] = useState<string | null>(null)
-  const [savedHistoryHasSuddenDeath, setSavedHistoryHasSuddenDeath] = useState(false)
   const [historyNotice, setHistoryNotice] = useState('')
   const [pausedFrom, setPausedFrom] = useState<'announcing' | 'countdown' | 'answering'>('countdown')
   const storageRef = useRef(storage)
@@ -361,6 +378,7 @@ export default function MockCompetitionScreen({ voices }: MockCompetitionScreenP
   const speechToken = useRef(0)
   const audioContext = useRef<AudioContext | null>(null)
   const remainingRef = useRef(0)
+  const pausedRef = useRef(false)
 
   useEffect(() => {
     storageRef.current = storage
@@ -574,6 +592,7 @@ export default function MockCompetitionScreen({ voices }: MockCompetitionScreenP
   }
 
   const beginCountdown = useEffectEvent(() => {
+    if (pausedRef.current || document.visibilityState === 'hidden') return
     setPhase('countdown')
     setNotice('')
     startBeep()
@@ -601,6 +620,7 @@ export default function MockCompetitionScreen({ voices }: MockCompetitionScreenP
 
   function startQuestion(question: CompetitionQuestion, runMode: RunMode) {
     createAudio()
+    pausedRef.current = false
     setCurrentQuestion(question)
     setQuestionVisible(false)
     setRemainingSeconds(question.timeSeconds ?? (question.difficulty === 'Easy' ? storage.settings.easySeconds : storage.settings.difficultSeconds))
@@ -643,6 +663,7 @@ export default function MockCompetitionScreen({ voices }: MockCompetitionScreenP
   })
 
   const tickTimer = useEffectEvent(() => {
+    if (pausedRef.current || document.visibilityState === 'hidden') return
     const next = Math.max(0, remainingRef.current - 1)
     remainingRef.current = next
     setRemainingSeconds(next)
@@ -654,6 +675,28 @@ export default function MockCompetitionScreen({ voices }: MockCompetitionScreenP
     if (phase !== 'countdown') return
     const timer = window.setInterval(tickTimer, 1000)
     return () => window.clearInterval(timer)
+  }, [phase])
+
+  useEffect(() => {
+    if (phase !== 'announcing' && phase !== 'countdown' && phase !== 'answering') return
+    const activePhase = phase
+    const pauseForBackground = () => {
+      if (pausedRef.current || (document.visibilityState !== 'hidden' && document.hasFocus())) return
+      pausedRef.current = true
+      setPausedFrom(activePhase)
+      if ((activePhase === 'announcing' || activePhase === 'answering') && 'speechSynthesis' in window) {
+        window.speechSynthesis.pause()
+      }
+      setPhase('paused')
+      setNotice('Paused because the app went to the background. Resume when you are ready.')
+    }
+    document.addEventListener('visibilitychange', pauseForBackground)
+    window.addEventListener('blur', pauseForBackground)
+    if (document.visibilityState === 'hidden' || !document.hasFocus()) pauseForBackground()
+    return () => {
+      document.removeEventListener('visibilitychange', pauseForBackground)
+      window.removeEventListener('blur', pauseForBackground)
+    }
   }, [phase])
 
   function stopCompetition() {
@@ -675,7 +718,6 @@ export default function MockCompetitionScreen({ voices }: MockCompetitionScreenP
     setOutcomes({})
     setSuddenOutcomes({})
     setSavedHistoryId(null)
-    setSavedHistoryHasSuddenDeath(false)
     setHistoryNotice('')
     setRoundIndex(0)
     setQuestionIndex(0)
@@ -693,6 +735,7 @@ export default function MockCompetitionScreen({ voices }: MockCompetitionScreenP
 
   function pauseCompetition() {
     if (phase !== 'announcing' && phase !== 'countdown' && phase !== 'answering') return
+    pausedRef.current = true
     setPausedFrom(phase)
     if ((phase === 'announcing' || phase === 'answering') && 'speechSynthesis' in window) window.speechSynthesis.pause()
     setPhase('paused')
@@ -700,7 +743,8 @@ export default function MockCompetitionScreen({ voices }: MockCompetitionScreenP
   }
 
   function resumeCompetition() {
-    if (phase !== 'paused') return
+    if (phase !== 'paused' || document.visibilityState === 'hidden') return
+    pausedRef.current = false
     if ((pausedFrom === 'announcing' || pausedFrom === 'answering') && 'speechSynthesis' in window) window.speechSynthesis.resume()
     setPhase(pausedFrom)
     setNotice('')
@@ -804,7 +848,7 @@ export default function MockCompetitionScreen({ voices }: MockCompetitionScreenP
     if (!competition?.suddenDeath.length) return
     setQuestionIndex(0)
     setSuddenOutcomes({})
-    setSavedHistoryHasSuddenDeath(false)
+    setHistoryNotice('')
     startQuestion(competition.suddenDeath[0], 'sudden-death')
   }
 
@@ -841,26 +885,20 @@ export default function MockCompetitionScreen({ voices }: MockCompetitionScreenP
     setTransferNotice('')
     try {
       const backup = parseCompetitionBackup(await file.text())
-      const existingVersionIds = new Set(storageRef.current.versions.map((version) => version.id))
       const existingHistoryIds = new Set(storageRef.current.history.map((entry) => entry.id))
-      const addedCompetitions = backup.versions.filter((version) => !existingVersionIds.has(version.id)).length
-      const replacedCompetitions = backup.versions.length - addedCompetitions
       const addedScores = backup.history.filter((entry) => !existingHistoryIds.has(entry.id)).length
       const replacedScores = backup.history.length - addedScores
       setStorage((current) => {
-        const versionsById = new Map(current.versions.map((version) => [version.id, version]))
-        backup.versions.forEach((version) => versionsById.set(version.id, version))
         const historyById = new Map(current.history.map((entry) => [entry.id, entry]))
         backup.history.forEach((entry) => historyById.set(entry.id, entry))
         return {
           ...current,
-          versions: [...versionsById.values()].sort((a, b) => b.updatedAt - a.updatedAt),
+          versions: mergeCompetitionVersions(current.versions, backup.versions),
           history: [...historyById.values()].sort((a, b) => b.savedAt - a.savedAt),
         }
       })
-      const competitionCount = `${addedCompetitions} competition${addedCompetitions === 1 ? '' : 's'} added${replacedCompetitions ? `, ${replacedCompetitions} updated` : ''}`
       const scoreCount = `${addedScores} score entr${addedScores === 1 ? 'y' : 'ies'} added${replacedScores ? `, ${replacedScores} updated` : ''}`
-      setTransferNotice(`Imported ${competitionCount} and ${scoreCount}. This device's voice and speech settings were kept.`)
+      setTransferNotice(`Backup merged. Matching competition names were updated to their latest version without duplicates; ${scoreCount}. This device's voice and speech settings were kept.`)
     } catch (problem) {
       setTransferError(problem instanceof Error ? problem.message : 'Could not read this Mock Competition backup.')
     }
@@ -888,19 +926,29 @@ export default function MockCompetitionScreen({ voices }: MockCompetitionScreenP
         setPhase('setup')
         return
       }
+      const matchingVersion = storage.versions
+        .filter((version) => competitionNameKey(version.name) === competitionNameKey(parsed.competitionName))
+        .sort((a, b) => b.updatedAt - a.updatedAt)[0]
       const version: CompetitionVersion = {
-        id: createCompetitionId(),
+        id: matchingVersion?.id ?? createCompetitionId(),
         name: parsed.competitionName,
         competition: parsed,
-        createdAt: now,
+        createdAt: matchingVersion?.createdAt ?? now,
         updatedAt: now,
       }
-      setStorage((current) => ({ ...current, versions: [version, ...current.versions] }))
+      setStorage((current) => ({
+        ...current,
+        versions: [version, ...current.versions.filter((saved) => (
+          competitionNameKey(saved.name) !== competitionNameKey(parsed.competitionName)
+        ))],
+      }))
       setSelectedVersionId(version.id)
       setCompetition(parsed)
       setDraft(source)
       setError('')
-      setNotice(`Loaded “${parsed.competitionName}” as a new version.`)
+      setNotice(matchingVersion
+        ? `Updated “${parsed.competitionName}” instead of adding a duplicate.`
+        : `Loaded “${parsed.competitionName}” as a new competition.`)
       setPhase('setup')
     } catch (problem) {
       setError(problem instanceof Error ? problem.message : 'Could not load this competition.')
@@ -1005,8 +1053,7 @@ export default function MockCompetitionScreen({ voices }: MockCompetitionScreenP
   function saveScoreToHistory() {
     if (!competition || regularQuestions.some((question) => outcomes[question.id] === undefined)) return
     const id = savedHistoryId ?? createCompetitionId()
-    const suddenDeathComplete = competition.suddenDeath.length > 0
-      && competition.suddenDeath.every((question) => suddenOutcomes[question.id] !== undefined)
+    const scoredSuddenDeathQuestions = competition.suddenDeath.filter((question) => suddenOutcomes[question.id] !== undefined)
     const entry: CompetitionScoreHistory = {
       id,
       competitionName: competition.competitionName,
@@ -1019,10 +1066,11 @@ export default function MockCompetitionScreen({ voices }: MockCompetitionScreenP
         maxScore: round.questions.reduce((sum, question) => sum + question.points, 0),
         questions: historyQuestionRows(round.questions, outcomes),
       })),
-      suddenDeath: suddenDeathComplete ? {
+      suddenDeath: scoredSuddenDeathQuestions.length ? {
         score: totalScore(competition.suddenDeath, suddenOutcomes),
         maxScore: competition.suddenDeath.reduce((sum, question) => sum + question.points, 0),
-        questions: historyQuestionRows(competition.suddenDeath, suddenOutcomes),
+        questionCount: competition.suddenDeath.length,
+        questions: historyQuestionRows(scoredSuddenDeathQuestions, suddenOutcomes),
       } : null,
     }
     setStorage((current) => ({
@@ -1030,9 +1078,8 @@ export default function MockCompetitionScreen({ voices }: MockCompetitionScreenP
       history: [entry, ...current.history.filter((savedEntry) => savedEntry.id !== id)],
     }))
     setSavedHistoryId(id)
-    setSavedHistoryHasSuddenDeath(Boolean(entry.suddenDeath))
     setHistoryNotice(entry.suddenDeath
-      ? 'Competition score and Sudden Death result saved to history.'
+      ? `Competition score and Sudden Death progress (${entry.suddenDeath.questions.length} of ${entry.suddenDeath.questionCount} questions) saved to history.`
       : 'Competition score saved to history.')
   }
 
@@ -1040,7 +1087,6 @@ export default function MockCompetitionScreen({ voices }: MockCompetitionScreenP
     setStorage((current) => ({ ...current, history: current.history.filter((entry) => entry.id !== id) }))
     if (savedHistoryId === id) {
       setSavedHistoryId(null)
-      setSavedHistoryHasSuddenDeath(false)
     }
     setHistoryNotice('Saved score removed from history.')
   }
@@ -1244,7 +1290,7 @@ export default function MockCompetitionScreen({ voices }: MockCompetitionScreenP
                   <p className="eyebrow">Saved {new Date(entry.savedAt).toLocaleString()}</p>
                   <h3>{entry.competitionName}</h3>
                   <p>{entry.rounds.map((round) => `Round ${round.round}: ${round.score} / ${round.maxScore}`).join(' · ')}</p>
-                  {entry.suddenDeath && <p>Sudden Death: {entry.suddenDeath.score} / {entry.suddenDeath.maxScore}</p>}
+                  {entry.suddenDeath && <p>Sudden Death: {entry.suddenDeath.score} / {entry.suddenDeath.maxScore} · {entry.suddenDeath.questions.length} of {entry.suddenDeath.questionCount} questions scored</p>}
                 </div>
                 <div className="competition-history-entry-actions">
                   <strong>{entry.score} / {entry.maxScore} points</strong>
@@ -1294,8 +1340,10 @@ export default function MockCompetitionScreen({ voices }: MockCompetitionScreenP
               <button className="secondary-action" type="button" onClick={replayQuestion}>Replay Question</button>
               {isActive && phase !== 'answering' && !(phase === 'paused' && pausedFrom === 'answering') && <button className="primary-action" type="button" onClick={revealAnswer}>Reveal</button>}
               <button className="secondary-action" type="button" disabled={!isActive && phase !== 'revealed'} onClick={() => nextQuestion(true)}>Skip</button>
+              {mode === 'sudden-death' && Object.keys(suddenOutcomes).length > 0 && <button className="primary-action competition-save-progress" type="button" onClick={saveScoreToHistory}>{savedHistoryId ? 'Update Score History' : 'Save Score to History'}</button>}
               <button className="secondary-action" type="button" onClick={stopCompetition}>Stop Competition</button>
             </div>
+            {mode === 'sudden-death' && historyNotice && <p className="manage-message" role="status">{historyNotice}</p>}
             {phase === 'revealed' && <div className="competition-marking">
               <button className={`secondary-action${currentQuestionOutcome === 'correct' ? ' is-selected' : ''}`} type="button" aria-pressed={currentQuestionOutcome === 'correct'} onClick={() => setQuestionOutcome('correct')}>Mark Correct</button>
               <button className={`secondary-action${currentQuestionOutcome === 'wrong' ? ' is-selected' : ''}`} type="button" aria-pressed={currentQuestionOutcome === 'wrong'} onClick={() => setQuestionOutcome('wrong')}>Mark Wrong</button>
@@ -1350,7 +1398,7 @@ export default function MockCompetitionScreen({ voices }: MockCompetitionScreenP
           {!missedQuestions(competition.suddenDeath, suddenOutcomes).length && <p className="empty-state">Every sudden-death question was marked correct.</p>}
         </section>
         <div className="competition-results-actions">
-          <button className="primary-action" type="button" disabled={savedHistoryHasSuddenDeath} onClick={saveScoreToHistory}>{savedHistoryHasSuddenDeath ? 'Score Saved' : savedHistoryId ? 'Update Saved Score' : 'Save Score to History'}</button>
+          <button className="primary-action" type="button" onClick={saveScoreToHistory}>{savedHistoryId ? 'Update Saved Score' : 'Save Score to History'}</button>
           <button className="secondary-action" type="button" onClick={() => setPhase('results')}>Back to final results</button>
           <button className="secondary-action" type="button" onClick={stopCompetition}>Back to setup</button>
         </div>
