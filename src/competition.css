@@ -1,4 +1,4 @@
-.competition-view { max-width: 1040px; }
+.competition-view { max-width: 1260px; }
 .competition-view > .view-heading { margin-bottom: 24px; }
 .competition-extraction { margin: 0 0 30px; padding: 20px 22px; border: 1px solid var(--line); background: var(--accent-soft); }
 .competition-extraction-copy h2 { margin: 0 0 6px; font-size: 17px; font-weight: 600; }
@@ -52,12 +52,12 @@
 .competition-version-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 2px; }
 .competition-version-actions .text-action { min-height: 38px; }
 .competition-version-actions .secondary-action { min-height: 40px; padding-inline: 12px; font-size: 10px; }
-.competition-run { max-width: 1040px; margin: 0 auto; }
+.competition-run { max-width: 1260px; margin: 0 auto; }
 .competition-run-heading { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 16px; margin-bottom: 18px; }
 .competition-run-heading .eyebrow { width: 100%; margin: 0; }
 .competition-run-heading h2 { margin: 0; font-size: 20px; font-weight: 600; }
 .competition-run-heading > p:last-child { margin: 0; color: var(--muted); font-size: 11px; }
-.competition-scoreboard { width: calc(100vw - 32px); margin: 0 0 20px calc(50% - 50vw + 16px); padding: 12px; border: 1px solid var(--line); background: var(--surface); }
+.competition-scoreboard { width: 100%; margin: 0 0 20px; padding: 12px; border: 1px solid var(--line); background: var(--surface); }
 .competition-scoreboard-heading { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; margin-bottom: 9px; }
 .competition-scoreboard-heading h3 { margin: 0; font-size: 12px; font-weight: 600; }
 .competition-scoreboard-heading span { color: var(--muted); font-size: 9px; }
@@ -94,7 +94,7 @@
 .competition-marking .is-selected { background: var(--accent-soft); }
 .competition-marking .primary-action { flex-basis: 100%; }
 .competition-score-so-far { margin: 18px 0 0; color: var(--muted); font-size: 10px; }
-.competition-summary, .competition-results { max-width: 850px; margin: 0 auto; padding: 24px 0; text-align: center; }
+.competition-summary, .competition-results { max-width: 1260px; margin: 0 auto; padding: 24px 0; text-align: center; }
 .competition-summary h2, .competition-results > h2 { margin: 0; font-size: 25px; font-weight: 600; }
 .competition-score-large { margin: 14px 0 5px; color: var(--accent); font-size: 64px; font-weight: 600; line-height: 1.1; font-variant-numeric: tabular-nums; }
 .competition-score-large span { color: var(--muted); font-size: 25px; font-weight: 400; }
