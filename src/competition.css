@@ -36,6 +36,16 @@
 .competition-mute { border-bottom: 0; }
 .competition-mute input { width: 18px; height: 18px; }
 .loaded-competition { display: flex; align-items: center; justify-content: space-between; gap: 20px; margin-top: 28px; padding: 19px 0; border-block: 1px solid var(--line); }
+.competition-transfer { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 10px 22px; margin-top: 28px; padding: 17px 18px; border: 1px solid var(--line); background: var(--surface); }
+.competition-transfer-copy { min-width: 0; }
+.competition-transfer-copy .eyebrow { margin: 0 0 5px; }
+.competition-transfer-copy h2 { margin: 0 0 5px; font-size: 14px; font-weight: 600; }
+.competition-transfer-copy > p:last-child { max-width: 80ch; margin: 0; color: var(--muted); font-size: 10px; line-height: 1.5; }
+.competition-transfer-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 7px; }
+.competition-transfer-actions button { min-height: 40px; }
+.competition-backup-file-input { display: none; }
+.competition-transfer > .form-error, .competition-transfer > .manage-message { grid-column: 1 / -1; margin: 0; }
+.competition-transfer .primary-action:disabled { opacity: .5; cursor: not-allowed; }
 .loaded-competition h2 { margin: 0 0 4px; font-size: 18px; font-weight: 600; }
 .loaded-competition p:not(.eyebrow) { margin: 0; color: var(--muted); font-size: 10px; }
 .round-max-list { display: flex; flex-wrap: wrap; gap: 5px 12px; margin-top: 8px; color: var(--accent); font-size: 9px; }
@@ -130,6 +140,8 @@
 
 @media (max-width: 850px) {
   .competition-setup-grid, .competition-question-layout { grid-template-columns: 1fr; }
+  .competition-transfer { grid-template-columns: 1fr; }
+  .competition-transfer-actions { justify-content: flex-start; }
   .competition-settings { margin-top: 2px; }
   .competition-question-card { padding: 22px 0; }
   .competition-timer-panel { min-height: 350px; padding: 24px 0; border-top: 1px solid var(--line); border-left: 0; }
@@ -142,6 +154,8 @@
   .competition-json { min-height: 290px; }
   .competition-load-actions > button { flex: 1 1 100%; }
   .loaded-competition, .competition-version { align-items: flex-start; flex-direction: column; }
+  .competition-transfer-actions { width: 100%; }
+  .competition-transfer-actions button { flex: 1 1 100%; justify-content: center; }
   .competition-history-entry-header, .competition-history-entry-actions { align-items: flex-start; flex-direction: column; }
   .competition-history-entry-actions { gap: 3px; }
   .competition-history-entry-actions .text-action { padding-left: 0; }

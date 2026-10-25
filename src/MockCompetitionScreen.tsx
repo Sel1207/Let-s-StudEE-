@@ -4,8 +4,10 @@ import 'katex/dist/katex.min.css'
 import './competition.css'
 import {
   createCompetitionId,
+  createCompetitionBackup,
   defaultCompetitionSettings,
   loadCompetitionStorage,
+  parseCompetitionBackup,
   parseCompetitionInput,
   saveCompetitionStorage,
   type Competition,
@@ -332,6 +334,8 @@ export default function MockCompetitionScreen({ voices }: MockCompetitionScreenP
   const [storage, setStorage] = useState<CompetitionStorage>(initialStorage)
   const [draft, setDraft] = useState('')
   const [promptNotice, setPromptNotice] = useState('')
+  const [transferNotice, setTransferNotice] = useState('')
+  const [transferError, setTransferError] = useState('')
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [voiceTestNotice, setVoiceTestNotice] = useState('')
@@ -354,6 +358,7 @@ export default function MockCompetitionScreen({ voices }: MockCompetitionScreenP
   const [historyNotice, setHistoryNotice] = useState('')
   const [pausedFrom, setPausedFrom] = useState<'announcing' | 'countdown' | 'answering'>('countdown')
   const storageRef = useRef(storage)
+  const backupFileInput = useRef<HTMLInputElement>(null)
   const speechToken = useRef(0)
   const audioContext = useRef<AudioContext | null>(null)
   const remainingRef = useRef(0)
@@ -800,6 +805,55 @@ export default function MockCompetitionScreen({ voices }: MockCompetitionScreenP
     }
   }
 
+  function exportCompetitionBackup() {
+    try {
+      const backupFile = new Blob([createCompetitionBackup(storage)], { type: 'application/json' })
+      const url = URL.createObjectURL(backupFile)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `lets-studee-competitions-${new Date().toISOString().slice(0, 10)}.json`
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000)
+      setTransferError('')
+      setTransferNotice('Backup downloaded. Move the JSON file to your phone, then import it here from Files.')
+    } catch {
+      setTransferError('Could not create the backup file. Please try again in a current browser.')
+      setTransferNotice('')
+    }
+  }
+
+  async function importCompetitionBackup(file: File) {
+    setTransferError('')
+    setTransferNotice('')
+    try {
+      const backup = parseCompetitionBackup(await file.text())
+      const existingVersionIds = new Set(storageRef.current.versions.map((version) => version.id))
+      const existingHistoryIds = new Set(storageRef.current.history.map((entry) => entry.id))
+      const addedCompetitions = backup.versions.filter((version) => !existingVersionIds.has(version.id)).length
+      const replacedCompetitions = backup.versions.length - addedCompetitions
+      const addedScores = backup.history.filter((entry) => !existingHistoryIds.has(entry.id)).length
+      const replacedScores = backup.history.length - addedScores
+      setStorage((current) => {
+        const versionsById = new Map(current.versions.map((version) => [version.id, version]))
+        backup.versions.forEach((version) => versionsById.set(version.id, version))
+        const historyById = new Map(current.history.map((entry) => [entry.id, entry]))
+        backup.history.forEach((entry) => historyById.set(entry.id, entry))
+        return {
+          ...current,
+          versions: [...versionsById.values()].sort((a, b) => b.updatedAt - a.updatedAt),
+          history: [...historyById.values()].sort((a, b) => b.savedAt - a.savedAt),
+        }
+      })
+      const competitionCount = `${addedCompetitions} competition${addedCompetitions === 1 ? '' : 's'} added${replacedCompetitions ? `, ${replacedCompetitions} updated` : ''}`
+      const scoreCount = `${addedScores} score entr${addedScores === 1 ? 'y' : 'ies'} added${replacedScores ? `, ${replacedScores} updated` : ''}`
+      setTransferNotice(`Imported ${competitionCount} and ${scoreCount}. This device's voice and speech settings were kept.`)
+    } catch (problem) {
+      setTransferError(problem instanceof Error ? problem.message : 'Could not read this Mock Competition backup.')
+    }
+  }
+
   function loadCompetition(source = draft) {
     try {
       const parsed = parseCompetitionInput(source)
@@ -1113,6 +1167,32 @@ export default function MockCompetitionScreen({ voices }: MockCompetitionScreenP
             </label>
           </section>
         </div>
+
+        <section className="competition-transfer" aria-labelledby="competition-transfer-heading">
+          <div className="competition-transfer-copy">
+            <p className="eyebrow">Move between devices</p>
+            <h2 id="competition-transfer-heading">Transfer competitions</h2>
+            <p>Download a backup on your laptop, move the file with iCloud Drive, Google Drive, OneDrive, or AirDrop, then import it on your phone from Files. It includes saved competitions and score history; voice settings stay specific to each device.</p>
+          </div>
+          <div className="competition-transfer-actions">
+            <button className="primary-action" type="button" disabled={!storage.versions.length && !storage.history.length} onClick={exportCompetitionBackup}>Download backup</button>
+            <button className="secondary-action" type="button" onClick={() => backupFileInput.current?.click()}>Import backup</button>
+            <input
+              ref={backupFileInput}
+              className="competition-backup-file-input"
+              type="file"
+              accept=".json,application/json"
+              aria-label="Choose a Mock Competition backup file"
+              onChange={(event) => {
+                const file = event.currentTarget.files?.[0]
+                event.currentTarget.value = ''
+                if (file) void importCompetitionBackup(file)
+              }}
+            />
+          </div>
+          {transferError && <p className="form-error" role="alert">{transferError}</p>}
+          {transferNotice && <p className="manage-message" role="status">{transferNotice}</p>}
+        </section>
 
         {competition && selectedVersionId && <section className="loaded-competition" aria-label="Selected competition">
           <div><p className="eyebrow">Ready to replay</p><h2>{competition.competitionName}</h2><p>{competition.rounds.length} rounds · {regularQuestions.length} questions · {maxTotal} possible points</p><div className="round-max-list">{competition.rounds.map((round) => <span key={round.round}>Round {round.round}: {round.questions.reduce((sum, question) => sum + question.points, 0)} points</span>)}</div></div>

@@ -83,6 +83,14 @@ export interface CompetitionStorage {
   settings: CompetitionSettings
 }
 
+export interface CompetitionBackup {
+  format: 'lets-studee-competition-backup'
+  version: 1
+  exportedAt: number
+  competitions: CompetitionVersion[]
+  history: CompetitionScoreHistory[]
+}
+
 const STORAGE_KEY = 'lets-studee-mock-competitions-v1'
 const DEFAULT_SETTINGS: CompetitionSettings = {
   easySeconds: 30,
@@ -466,6 +474,63 @@ export function createCompetitionId(): string {
 
 export function defaultCompetitionSettings(): CompetitionSettings {
   return { ...DEFAULT_SETTINGS }
+}
+
+export function createCompetitionBackup(storage: Pick<CompetitionStorage, 'versions' | 'history'>): string {
+  const backup: CompetitionBackup = {
+    format: 'lets-studee-competition-backup',
+    version: 1,
+    exportedAt: Date.now(),
+    competitions: storage.versions,
+    history: storage.history,
+  }
+  return JSON.stringify(backup, null, 2)
+}
+
+export function parseCompetitionBackup(source: string): Pick<CompetitionStorage, 'versions' | 'history'> {
+  let value: unknown
+  try {
+    value = JSON.parse(source) as unknown
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Invalid JSON.'
+    throw new Error(`This backup is not valid JSON: ${message}`)
+  }
+  if (!isRecord(value)) fail('backup', 'expected a JSON object')
+  if (value.format !== 'lets-studee-competition-backup' || value.version !== 1) {
+    fail('backup', 'this file is not a supported Mock Competition backup')
+  }
+  if (!Array.isArray(value.competitions)) fail('competitions', 'expected an array')
+  if (!Array.isArray(value.history)) fail('history', 'expected an array')
+
+  const versions = value.competitions.map((entry, index): CompetitionVersion => {
+    const path = `competitions[${index}]`
+    if (!isRecord(entry) || typeof entry.id !== 'string' || !entry.id.trim()
+      || typeof entry.name !== 'string' || !entry.name.trim()
+      || typeof entry.createdAt !== 'number' || !Number.isFinite(entry.createdAt) || entry.createdAt <= 0
+      || typeof entry.updatedAt !== 'number' || !Number.isFinite(entry.updatedAt) || entry.updatedAt <= 0
+      || !isRecord(entry.competition)) fail(path, 'expected a saved competition with its name, dates, and question data')
+    let competition: Competition
+    try {
+      competition = parseCompetitionText(JSON.stringify(entry.competition))
+    } catch (error) {
+      fail(`${path}.competition`, error instanceof Error ? error.message : 'invalid competition data')
+    }
+    return {
+      id: entry.id,
+      name: entry.name,
+      createdAt: entry.createdAt,
+      updatedAt: entry.updatedAt,
+      competition,
+    }
+  })
+
+  const history = value.history.map((entry, index): CompetitionScoreHistory => {
+    const parsed = parseScoreHistory(entry)
+    if (!parsed) fail(`history[${index}]`, 'invalid saved score entry')
+    return parsed
+  })
+  if (versions.length === 0 && history.length === 0) fail('backup', 'there are no saved competitions or scores to import')
+  return { versions, history }
 }
 
 export function loadCompetitionStorage(): CompetitionStorage {
