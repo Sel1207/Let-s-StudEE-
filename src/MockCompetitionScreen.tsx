@@ -418,6 +418,8 @@ export default function MockCompetitionScreen({ voices }: MockCompetitionScreenP
     const next = () => {
       if (speechToken.current !== token) return
       if (index >= lines.length) {
+        if (completed) return
+        completed = true
         onComplete()
         return
       }
@@ -437,12 +439,56 @@ export default function MockCompetitionScreen({ voices }: MockCompetitionScreenP
       utterance.rate = SPEED_RATE[speed]
       utterance.volume = settings.muted ? 0 : settings.volume
       if (selectedVoice) utterance.voice = selectedVoice
-      utterance.onend = next
-      utterance.onerror = next
-      window.speechSynthesis.speak(utterance)
+      let settled = false
+      let hasStarted = false
+      let retryCount = 0
+      let watchdog: number | undefined
+      const speechDeadline = Date.now() + Math.max(8000, utterance.text.trim().split(/\s+/).length * 650)
+      const finishUtterance = () => {
+        if (settled || speechToken.current !== token) return
+        settled = true
+        if (watchdog !== undefined) window.clearTimeout(watchdog)
+        window.setTimeout(next, 100)
+      }
+      const watchSpeech = () => {
+        if (settled || speechToken.current !== token) return
+        if (window.speechSynthesis.speaking || window.speechSynthesis.pending) {
+          if (Date.now() >= speechDeadline) {
+            window.speechSynthesis.cancel()
+            finishUtterance()
+            return
+          }
+          hasStarted = true
+          watchdog = window.setTimeout(watchSpeech, 1000)
+          return
+        }
+        if (!hasStarted && retryCount < 1) {
+          retryCount += 1
+          try {
+            window.speechSynthesis.resume()
+            window.speechSynthesis.speak(utterance)
+            watchdog = window.setTimeout(watchSpeech, 1500)
+          } catch {
+            finishUtterance()
+          }
+          return
+        }
+        finishUtterance()
+      }
+      utterance.onstart = () => { hasStarted = true }
+      utterance.onend = finishUtterance
+      utterance.onerror = finishUtterance
+      try {
+        window.speechSynthesis.resume()
+        window.speechSynthesis.speak(utterance)
+        watchdog = window.setTimeout(watchSpeech, 5000)
+      } catch {
+        finishUtterance()
+      }
     }
+    let completed = false
     try {
-      next()
+      window.setTimeout(next, 100)
       return true
     } catch {
       return false
