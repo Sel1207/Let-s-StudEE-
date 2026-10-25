@@ -17,7 +17,7 @@ import {
 
 type Outcome = 'correct' | 'wrong'
 type RunMode = 'competition' | 'sudden-death'
-type Phase = 'setup' | 'announcing' | 'countdown' | 'paused' | 'revealed' | 'round-summary' | 'results' | 'sudden-results'
+type Phase = 'setup' | 'announcing' | 'countdown' | 'answering' | 'paused' | 'revealed' | 'round-summary' | 'results' | 'sudden-results'
 type SpeechPart = string | null | { pauseMs: number } | { text: string; speed?: 'slow' | 'normal' | 'fast' }
 
 const SPEED_RATE = { slow: 0.78, normal: 0.95, fast: 1.15 } as const
@@ -300,7 +300,7 @@ export default function MockCompetitionScreen({ voices }: MockCompetitionScreenP
   const [remainingSeconds, setRemainingSeconds] = useState(0)
   const [outcomes, setOutcomes] = useState<Record<string, Outcome>>({})
   const [suddenOutcomes, setSuddenOutcomes] = useState<Record<string, Outcome>>({})
-  const [pausedFrom, setPausedFrom] = useState<'announcing' | 'countdown'>('countdown')
+  const [pausedFrom, setPausedFrom] = useState<'announcing' | 'countdown' | 'answering'>('countdown')
   const storageRef = useRef(storage)
   const speechToken = useRef(0)
   const audioContext = useRef<AudioContext | null>(null)
@@ -325,7 +325,7 @@ export default function MockCompetitionScreen({ voices }: MockCompetitionScreenP
   const activeQuestionList = competition && mode === 'sudden-death'
     ? competition.suddenDeath
     : competition?.rounds[roundIndex]?.questions ?? []
-  const isActive = phase === 'announcing' || phase === 'countdown' || phase === 'paused'
+  const isActive = phase === 'announcing' || phase === 'countdown' || phase === 'answering' || phase === 'paused'
   const activeTimeLimit = currentQuestion
     ? currentQuestion.timeSeconds ?? (currentQuestion.difficulty === 'Easy' ? storage.settings.easySeconds : storage.settings.difficultSeconds)
     : 0
@@ -502,11 +502,20 @@ export default function MockCompetitionScreen({ voices }: MockCompetitionScreenP
   const announceTimeUp = useEffectEvent(() => {
     stopSpeech()
     setQuestionVisible(true)
-    setPhase('revealed')
-    setNotice("Time's up!")
+    setPhase('answering')
+    setNotice("Time's up! Listen to the correct answer.")
     endBuzzer()
-    const started = speakSequence(["Time's up!"], () => {})
-    if (!started) setNotice("Time's up! Speech synthesis is unavailable.")
+    const finishReveal = () => {
+      setPhase('revealed')
+      setNotice("Time's up!")
+    }
+    const started = currentQuestion
+      ? speakSequence(["Time's up!", null, 'The correct answer is', currentQuestion.answer], finishReveal)
+      : false
+    if (!started) {
+      finishReveal()
+      setNotice("Time's up! Speech synthesis is unavailable; the answer is shown.")
+    }
   })
 
   const tickTimer = useEffectEvent(() => {
@@ -547,29 +556,55 @@ export default function MockCompetitionScreen({ voices }: MockCompetitionScreenP
   }
 
   function revealAnswer() {
-    if (!currentQuestion || !isActive) return
+    if (!currentQuestion || !isActive || phase === 'answering' || (phase === 'paused' && pausedFrom === 'answering')) return
     stopSpeech()
     setPhase('revealed')
     setNotice('Answer revealed.')
   }
 
   function pauseCompetition() {
-    if (phase !== 'announcing' && phase !== 'countdown') return
+    if (phase !== 'announcing' && phase !== 'countdown' && phase !== 'answering') return
     setPausedFrom(phase)
-    if (phase === 'announcing' && 'speechSynthesis' in window) window.speechSynthesis.pause()
+    if ((phase === 'announcing' || phase === 'answering') && 'speechSynthesis' in window) window.speechSynthesis.pause()
     setPhase('paused')
     setNotice('Competition paused.')
   }
 
   function resumeCompetition() {
     if (phase !== 'paused') return
-    if (pausedFrom === 'announcing' && 'speechSynthesis' in window) window.speechSynthesis.resume()
+    if ((pausedFrom === 'announcing' || pausedFrom === 'answering') && 'speechSynthesis' in window) window.speechSynthesis.resume()
     setPhase(pausedFrom)
     setNotice('')
   }
 
   function replayQuestion() {
     if (!currentQuestion) return
+    if (phase === 'answering' || (phase === 'paused' && pausedFrom === 'answering')) {
+      const questionText = currentQuestion.spokenQuestion ?? currentQuestion.question
+      const options = choiceSpeechParts(currentQuestion)
+      const started = speakSequence([
+        questionText,
+        ...options,
+        null,
+        'Again.',
+        questionText,
+        ...options,
+        null,
+        'The correct answer is',
+        currentQuestion.answer,
+      ], () => {
+        setQuestionVisible(true)
+        setPhase('revealed')
+        setNotice("Time's up!")
+      })
+      setPhase('answering')
+      setNotice(started ? 'Replaying the question, then reading the answer.' : 'Speech synthesis is unavailable.')
+      if (!started) {
+        setPhase('revealed')
+        setNotice("Time's up! Speech synthesis is unavailable; the answer is shown.")
+      }
+      return
+    }
     if (phase === 'announcing' || (phase === 'paused' && pausedFrom === 'announcing')) {
       startQuestion(currentQuestion, mode)
       return
@@ -892,7 +927,7 @@ export default function MockCompetitionScreen({ voices }: MockCompetitionScreenP
         </section>
       </>}
 
-      {(phase === 'announcing' || phase === 'countdown' || phase === 'paused' || phase === 'revealed') && currentQuestion && <section className="competition-run" aria-label="Competition question">
+      {(phase === 'announcing' || phase === 'countdown' || phase === 'answering' || phase === 'paused' || phase === 'revealed') && currentQuestion && <section className="competition-run" aria-label="Competition question">
         <div className="competition-run-heading">
           <p className="eyebrow">{mode === 'sudden-death' ? 'Sudden Death' : `Round ${currentQuestion.round}`}</p>
           <h2>{competition?.competitionName}</h2>
@@ -914,7 +949,7 @@ export default function MockCompetitionScreen({ voices }: MockCompetitionScreenP
             </div>}
           </article>
           <aside className="competition-timer-panel">
-            <p className={`session-state${phase === 'revealed' ? ' is-alert' : ''}`} aria-live="polite">{phase === 'announcing' ? 'Listen' : phase === 'paused' ? 'Paused' : phase === 'revealed' ? notice === "Time's up!" ? "Time's up" : 'Answer revealed' : ''}</p>
+            <p className={`session-state${phase === 'revealed' || phase === 'answering' ? ' is-alert' : ''}`} aria-live="polite">{phase === 'announcing' ? 'Listen' : phase === 'answering' ? 'Reading the correct answer' : phase === 'paused' ? 'Paused' : phase === 'revealed' ? notice === "Time's up!" ? "Time's up" : 'Answer revealed' : ''}</p>
             <div className={`timer${phase === 'countdown' && remainingSeconds <= 5 ? ' timer-urgent competition-timer-urgent' : ' competition-timer'}`} role="timer" aria-live="off" aria-label={`${remainingSeconds} seconds remaining`} style={timerStyle}>{formatClock(remainingSeconds)}</div>
             <div className="timer-track" aria-hidden="true"><span /></div>
             {notice && <p className="session-notice" role="status">{notice}</p>}
@@ -922,7 +957,7 @@ export default function MockCompetitionScreen({ voices }: MockCompetitionScreenP
               {phase === 'paused' ? <button className="primary-action" type="button" onClick={resumeCompetition}>Resume</button>
                 : <button className="secondary-action" type="button" disabled={!isActive} onClick={pauseCompetition}>Pause</button>}
               <button className="secondary-action" type="button" onClick={replayQuestion}>Replay Question</button>
-              {isActive && <button className="primary-action" type="button" onClick={revealAnswer}>Reveal</button>}
+              {isActive && phase !== 'answering' && !(phase === 'paused' && pausedFrom === 'answering') && <button className="primary-action" type="button" onClick={revealAnswer}>Reveal</button>}
               <button className="secondary-action" type="button" disabled={!isActive && phase !== 'revealed'} onClick={() => nextQuestion(true)}>Skip</button>
               <button className="secondary-action" type="button" onClick={stopCompetition}>Stop Competition</button>
             </div>
