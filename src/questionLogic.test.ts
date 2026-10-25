@@ -1,119 +1,15 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { applyPreset, drawQuestion, initialQuestionSpeech, parseDurationToken, parseQuestionLines, questionCounts, resetQuestionUsage, spokenDuration, topicChances } from './questionLogic'
-import { createInitialStudyData, loadStudyData, parseStudyBackup } from './studyStorage'
-import { DEFAULT_FOUNDATIONAL_QUESTIONS } from './defaultFoundationalQuestions'
-import { PREFERRED_VOICE_URI, preferredSpeechVoice, resolveSpeechVoice } from './speechVoice'
-import { loadStudySessions, saveStudySessions, type StudySession } from './studySessions'
-import { EE_TOPICS, MATH_TOPICS, TOPICS, type Question, type Topic } from './studyTypes'
+import { drawQuestion, parseDurationToken, parseQuestionLines, questionCounts, spokenDuration, topicChances } from './questionLogic'
+import { createInitialStudyData, parseStudyBackup } from './studyStorage'
+import { EE_TOPICS, TOPIC_GROUPS, TOPICS, type Question, type Topic } from './studyTypes'
 
 afterEach(() => {
   vi.restoreAllMocks()
-  vi.unstubAllGlobals()
-})
-
-describe('default study data', () => {
-  it('starts with the provided foundational questions and requested speech defaults', () => {
-    const data = createInitialStudyData()
-
-    expect(data.questionBanks['Foundational Math']).toHaveLength(30)
-    expect(data.questionBanks['Foundational Math'].map(({ seconds }) => seconds))
-      .toEqual(DEFAULT_FOUNDATIONAL_QUESTIONS.map(({ seconds }) => seconds))
-    expect(data.settings.voiceURI).toBe(PREFERRED_VOICE_URI)
-    expect(data.settings.speechSpeed).toBe('normal')
-  })
-
-  it('migrates an existing empty bank once without replacing later edits', () => {
-    const storageKey = 'lets-studee-study-data-v1'
-    const migrationKey = 'lets-studee-defaults-migration-v1'
-    const saved = createInitialStudyData()
-    saved.questionBanks['Foundational Math'] = []
-    saved.settings.voiceURI = ''
-    const values = new Map([[storageKey, JSON.stringify(saved)]])
-    vi.stubGlobal('window', {
-      localStorage: {
-        getItem: (key: string) => values.get(key) ?? null,
-        setItem: (key: string, value: string) => values.set(key, value),
-      },
-    })
-
-    const migrated = loadStudyData()
-    expect(migrated.questionBanks['Foundational Math']).toHaveLength(30)
-    expect(migrated.settings.voiceURI).toBe(PREFERRED_VOICE_URI)
-
-    migrated.questionBanks['Foundational Math'] = []
-    values.set(storageKey, JSON.stringify(migrated))
-    expect(values.get(migrationKey)).toBe('complete')
-    expect(loadStudyData().questionBanks['Foundational Math']).toHaveLength(0)
-  })
-
-  it('loads older Math-only backups with empty EE banks', () => {
-    const data = createInitialStudyData()
-    const mathOnlyBackup = {
-      version: data.version,
-      settings: data.settings,
-      questionBanks: Object.fromEntries(MATH_TOPICS.map((topic) => [topic, data.questionBanks[topic]])),
-      topicPreferences: Object.fromEntries(MATH_TOPICS.map((topic) => [topic, data.topicPreferences[topic]])),
-      usedQuestionIds: Object.fromEntries(MATH_TOPICS.map((topic) => [topic, data.usedQuestionIds[topic]])),
-      results: Object.fromEntries(MATH_TOPICS.map((topic) => [topic, data.results[topic]])),
-    }
-
-    const restored = parseStudyBackup(mathOnlyBackup)
-    expect(TOPICS).toEqual([...MATH_TOPICS, ...EE_TOPICS])
-    for (const topic of EE_TOPICS) {
-      expect(restored.questionBanks[topic]).toEqual([])
-      expect(restored.topicPreferences[topic]).toEqual({ active: true, weight: 1 })
-    }
-    expect(restored.questionBanks['Foundational Math']).toHaveLength(30)
-  })
-})
-
-describe('speech voice preference', () => {
-  it('prefers Microsoft Liam Online Natural in Canadian English', () => {
-    const liam = {
-      name: 'Microsoft Liam Online (Natural) - English (Canada)',
-      lang: 'en-CA',
-      voiceURI: 'liam-en-ca',
-    } as SpeechSynthesisVoice
-    const englishFallback = {
-      name: 'English fallback',
-      lang: 'en-US',
-      voiceURI: 'fallback-en-us',
-    } as SpeechSynthesisVoice
-
-    expect(preferredSpeechVoice([englishFallback, liam])).toBe(liam)
-    expect(resolveSpeechVoice([englishFallback], PREFERRED_VOICE_URI)).toBe(englishFallback)
-  })
-})
-
-describe('saved study sessions', () => {
-  it('stores and restores session question history', () => {
-    const values = new Map<string, string>()
-    vi.stubGlobal('window', {
-      localStorage: {
-        getItem: (key: string) => values.get(key) ?? null,
-        setItem: (key: string, value: string) => values.set(key, value),
-      },
-    })
-    const sessions: StudySession[] = [{
-      id: 'session-1',
-      startedAt: '2026-09-28T12:00:00.000Z',
-      endedAt: null,
-      questions: [{
-        id: 'question-1',
-        text: 'What is two plus two?',
-        topic: 'Foundational Math',
-        seconds: 60,
-        askedAt: '2026-09-28T12:01:00.000Z',
-      }],
-    }]
-
-    expect(saveStudySessions(sessions)).toBe(true)
-    expect(loadStudySessions()).toEqual(sessions)
-  })
 })
 
 describe('question time limits', () => {
   it.each([
+    ['15', 15],
     ['20', 20],
     ['45', 45],
     ['90', 90],
@@ -132,24 +28,51 @@ describe('question time limits', () => {
     ])
   })
 
+  it('accepts 15-second prompt output', () => {
+    expect(parseQuestionLines('15 | Name a triangle with no equal sides.', 60)[0].seconds).toBe(15)
+  })
+
   it('announces compound durations naturally', () => {
     expect(spokenDuration(20)).toBe('twenty seconds')
     expect(spokenDuration(120)).toBe('two minutes')
     expect(spokenDuration(150)).toBe('two minutes thirty seconds')
   })
+})
 
-  it('says the question, then Again, then the question a second time', () => {
-    expect(initialQuestionSpeech('What is two plus two?', 120, true)).toEqual([
-      'two minutes',
-      'What is two plus two?',
-      'Again,',
-      'What is two plus two?',
+describe('study backup compatibility', () => {
+  it('seeds first-time study data with all 30 foundational math questions', () => {
+    const data = createInitialStudyData()
+    expect(data.questionBanks['Foundational Math']).toHaveLength(30)
+    expect(data.questionBanks['Foundational Math'][0].id).toBe('foundational-default-01')
+    expect(data.questionBanks['Power Systems']).toEqual([])
+  })
+
+  it('keeps existing banks when new topics are absent from an older backup', () => {
+    const legacyData = createInitialStudyData()
+    legacyData.questionBanks['Foundational Math'] = [{ id: 'legacy', text: 'Existing question', seconds: 30 }]
+    const addedTopics = ['Mathematical Trivia', 'Algebra', 'Trigonometry', 'Analytical Geometry', 'Power Series & Fourier Series Analysis', 'Probability and Statistics', ...EE_TOPICS]
+    for (const topic of addedTopics) {
+      delete (legacyData.questionBanks as Record<string, unknown>)[topic]
+      delete (legacyData.topicPreferences as Record<string, unknown>)[topic]
+      delete (legacyData.usedQuestionIds as Record<string, unknown>)[topic]
+      delete (legacyData.results as Record<string, unknown>)[topic]
+    }
+
+    const restored = parseStudyBackup(legacyData)
+    expect(restored.questionBanks['Foundational Math']).toEqual([
+      { id: 'legacy', text: 'Existing question', seconds: 30 },
     ])
-    expect(initialQuestionSpeech('What is two plus two?', 120, false)).toEqual([
-      'What is two plus two?',
-      'Again,',
-      'What is two plus two?',
-    ])
+    expect(restored.questionBanks['Mathematical Trivia']).toEqual([])
+    expect(restored.questionBanks.Algebra).toEqual([])
+    expect(restored.questionBanks['Probability and Statistics']).toEqual([])
+    expect(restored.questionBanks['Power Systems']).toEqual([])
+  })
+
+  it('keeps math and electrical engineering in separate topic groups', () => {
+    expect(TOPIC_GROUPS.map((group) => group.name)).toEqual(['Math', 'Electrical Engineering'])
+    expect(EE_TOPICS).toContain('Illumination')
+    expect(EE_TOPICS).toContain('Power Systems')
+    expect(TOPICS).toEqual([...TOPIC_GROUPS[0].topics, ...TOPIC_GROUPS[1].topics])
   })
 })
 
@@ -166,6 +89,19 @@ function bankWithTopics(entries: Partial<Record<Topic, Question[]>>) {
 }
 
 describe('weighted question draws', () => {
+  it('draws only from the currently selected topic group', () => {
+    const data = bankWithTopics({
+      'Foundational Math': [{ id: 'math-question', text: 'A math question', seconds: 30 }],
+      'Power Systems': [{ id: 'ee-question', text: 'An EE question', seconds: 30 }],
+    })
+    vi.spyOn(Math, 'random').mockReturnValue(0)
+
+    expect(drawQuestion(data, 'Math')?.topic).toBe('Foundational Math')
+    expect(drawQuestion(data, 'Electrical Engineering')?.topic).toBe('Power Systems')
+    expect(topicChances(data, 'Math')['Power Systems']).toBe(0)
+    expect(topicChances(data, 'Electrical Engineering')['Foundational Math']).toBe(0)
+  })
+
   it('does not repeat a question until the active pool is exhausted', () => {
     const data = bankWithTopics({
       'Foundational Math': [
@@ -183,24 +119,6 @@ describe('weighted question draws', () => {
     expect(reshuffled?.question.id).toBe('a')
   })
 
-  it('starts a fresh no-repeat pool when a new session begins', () => {
-    const data = bankWithTopics({
-      'Foundational Math': [
-        { id: 'a', text: 'First question', seconds: 20 },
-        { id: 'b', text: 'Second question', seconds: 30 },
-      ],
-    })
-    vi.spyOn(Math, 'random').mockReturnValue(0)
-
-    const first = drawQuestion(data)
-    const second = drawQuestion(first!.data)
-    const nextSession = resetQuestionUsage(second!.data)
-
-    expect(first?.question.id).toBe('a')
-    expect(second?.question.id).toBe('b')
-    expect(drawQuestion(nextSession)?.question.id).toBe('a')
-  })
-
   it('draws a topic according to its relative weight', () => {
     const data = bankWithTopics({
       'Foundational Math': [
@@ -216,22 +134,6 @@ describe('weighted question draws', () => {
 
     expect(drawQuestion(data)?.topic).toBe('Foundational Math')
     expect(drawQuestion(data)?.topic).toBe('Calculus 1')
-  })
-
-  it('draws only from the selected Math or EE topic group', () => {
-    const data = bankWithTopics({
-      'Foundational Math': [{ id: 'math', text: 'Math question', seconds: 20 }],
-      'Power Plant': [{ id: 'ee', text: 'EE question', seconds: 20 }],
-    })
-    vi.spyOn(Math, 'random').mockReturnValue(0)
-
-    expect(drawQuestion(data, MATH_TOPICS)?.topic).toBe('Foundational Math')
-    expect(drawQuestion(data, EE_TOPICS)?.topic).toBe('Power Plant')
-    expect(questionCounts(data, MATH_TOPICS)['Power Plant']).toBe(0)
-    expect(topicChances(data, MATH_TOPICS)['Power Plant']).toBe(0)
-
-    const mathPreset = applyPreset(data, 'all-equal', MATH_TOPICS)
-    expect(mathPreset.topicPreferences['Power Plant']).toEqual(data.topicPreferences['Power Plant'])
   })
 
   it('filters questions by their exact time limit', () => {

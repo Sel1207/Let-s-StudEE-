@@ -1,18 +1,17 @@
-import { useEffect, useEffectEvent, useRef, useState } from 'react'
+import { lazy, Suspense, useEffect, useEffectEvent, useRef, useState } from 'react'
 import './layout.css'
 import ManageScreen from './ManageScreen'
 import SettingsScreen from './SettingsScreen'
 import StudyScreen from './StudyScreen'
-import { drawQuestion, initialQuestionSpeech, resetQuestionUsage } from './questionLogic'
+import { drawQuestion, spokenDuration } from './questionLogic'
 import { loadStudyData, saveStudyData } from './studyStorage'
-import { resolveSpeechVoice } from './speechVoice'
-import { loadStudySessions, saveStudySessions, type StudySession } from './studySessions'
-import { topicsInGroup, type Question, type SpeechSpeed, type StudyData, type StudySettings, type Topic, type TopicGroup } from './studyTypes'
+import { PREFERRED_VOICE_NAME, type Question, type SpeechSpeed, type StudyData, type StudySettings, type Topic, type TopicGroupName } from './studyTypes'
 
-type View = 'study' | 'manage' | 'settings'
-type SessionPhase = 'ready' | 'speaking' | 'countdown' | 'time-up' | 'revealed' | 'rated'
+type View = 'study' | 'manage' | 'settings' | 'competitions'
+type SessionPhase = 'ready' | 'speaking' | 'countdown' | 'paused' | 'time-up' | 'revealed' | 'rated'
 type Rating = 'gotIt' | 'missedIt'
 let speechRun = 0
+const MockCompetitionScreen = lazy(() => import('./MockCompetitionScreen'))
 
 function rateValue(speed: SpeechSpeed): number {
   if (speed === 'slow') return 0.78
@@ -28,7 +27,9 @@ function speakLines(
 ): boolean {
   if (!('speechSynthesis' in window) || !('SpeechSynthesisUtterance' in window)) return false
 
-  const selectedVoice = resolveSpeechVoice(voices, settings.voiceURI)
+  const selectedVoice = voices.find((voice) => voice.voiceURI === settings.voiceURI)
+    ?? voices.find((voice) => voice.name.includes(PREFERRED_VOICE_NAME))
+    ?? voices.find((voice) => /^en([_-]|$)/i.test(voice.lang))
   const run = ++speechRun
   let index = 0
   let completed = false
@@ -63,9 +64,8 @@ function speakLines(
 
 function StudyApp() {
   const [data, setData] = useState<StudyData>(loadStudyData)
-  const [sessions, setSessions] = useState<StudySession[]>(loadStudySessions)
-  const [selectedGroup, setSelectedGroup] = useState<TopicGroup>('Math')
   const [view, setView] = useState<View>('study')
+  const [activeTopicGroup, setActiveTopicGroup] = useState<TopicGroupName>('Math')
   const [phase, setPhase] = useState<SessionPhase>('ready')
   const [question, setQuestion] = useState<Question | null>(null)
   const [topic, setTopic] = useState<Topic | null>(null)
@@ -78,16 +78,13 @@ function StudyApp() {
   const remainingRef = useRef<number>(remainingSeconds)
   const sessionToken = useRef(0)
   const audioContext = useRef<AudioContext | null>(null)
-  const latestSession = sessions[sessions.length - 1]
-  const currentSession = latestSession?.endedAt === null ? latestSession : null
+  const pausedFrom = useRef<'speaking' | 'countdown'>('countdown')
+  const sessionPaused = useRef(false)
+  const resumeSpeech = useRef(false)
 
   useEffect(() => {
     saveStudyData(data)
   }, [data])
-
-  useEffect(() => {
-    saveStudySessions(sessions)
-  }, [sessions])
 
   useEffect(() => {
     document.title = 'Lets StudEE!'
@@ -156,6 +153,8 @@ function StudyApp() {
   function stopSpeech() {
     sessionToken.current += 1
     speechRun += 1
+    sessionPaused.current = false
+    resumeSpeech.current = false
     if ('speechSynthesis' in window) window.speechSynthesis.cancel()
   }
 
@@ -185,36 +184,20 @@ function StudyApp() {
   }, [phase])
 
   function readQuestion() {
-    if (!currentSession) {
-      setNotice('Start a session before reading a question.')
-      return
-    }
-
-    const draw = drawQuestion(data, topicsInGroup(selectedGroup))
+    const draw = drawQuestion(data, activeTopicGroup)
     if (!draw) {
       setNotice('No questions in the active pool. Add questions or adjust your topics and time filter.')
       return
     }
 
     setData(draw.data)
-    setSessions((savedSessions) => savedSessions.map((session) => session.id === currentSession.id
-      ? {
-        ...session,
-        questions: [...session.questions, {
-          id: draw.question.id,
-          text: draw.question.text,
-          topic: draw.topic,
-          seconds: draw.question.seconds,
-          askedAt: new Date().toISOString(),
-        }],
-      }
-      : session))
     setQuestion(draw.question)
     setTopic(draw.topic)
     setQuestionVisible(false)
     setTimeIsUp(false)
     setRated(false)
     setNotice('')
+    sessionPaused.current = false
     remainingRef.current = draw.question.seconds
     setRemainingSeconds(draw.question.seconds)
     const token = ++sessionToken.current
@@ -222,15 +205,18 @@ function StudyApp() {
     prepareAudio()
     const beginCountdown = () => {
       if (sessionToken.current !== token) return
+      if (sessionPaused.current) {
+        pausedFrom.current = 'countdown'
+        return
+      }
       setPhase('countdown')
       playTimerStartCue()
     }
 
-    const speech = initialQuestionSpeech(
-      draw.question.text,
-      draw.question.seconds,
-      data.settings.announceDuration,
-    )
+    const topicAnnouncement = `Topic: ${draw.topic}`
+    const speech = data.settings.announceDuration
+      ? [topicAnnouncement, spokenDuration(draw.question.seconds), draw.question.text, 'Again.', draw.question.text]
+      : [topicAnnouncement, draw.question.text, 'Again.', draw.question.text]
     const started = speakLines(speech, data.settings, voices, beginCountdown)
 
     if (!started) {
@@ -242,13 +228,13 @@ function StudyApp() {
   function repeatQuestion() {
     if (!question || phase !== 'countdown') return
     const token = ++sessionToken.current
-    const started = speakLines(['Again,', question.text], data.settings, voices, () => {
+    const started = speakLines([`Topic: ${topic}`, 'Again.', question.text], data.settings, voices, () => {
       if (sessionToken.current === token) setNotice('')
     })
     setNotice(started ? 'The timer keeps running.' : 'Speech synthesis is unavailable.')
   }
 
-  function stopQuestion() {
+  function stopSession() {
     stopSpeech()
     setPhase('ready')
     setQuestion(null)
@@ -261,27 +247,28 @@ function StudyApp() {
     setRemainingSeconds(data.settings.defaultSeconds)
   }
 
-  function startStudySession() {
-    if (currentSession) return
-    stopQuestion()
-    const id = globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`
-    setSessions((savedSessions) => [...savedSessions, {
-      id,
-      startedAt: new Date().toISOString(),
-      endedAt: null,
-      questions: [],
-    }])
-    setData((current) => resetQuestionUsage(current))
-    setNotice('Session started. Read a question when you are ready.')
+  function pauseSession() {
+    if (phase !== 'speaking' && phase !== 'countdown') return
+    pausedFrom.current = phase
+    sessionPaused.current = true
+    resumeSpeech.current = phase === 'speaking'
+      || ('speechSynthesis' in window && window.speechSynthesis.speaking)
+    if (resumeSpeech.current && 'speechSynthesis' in window) window.speechSynthesis.pause()
+    setPhase('paused')
+    setNotice('Session paused.')
   }
 
-  function endStudySession() {
-    if (!currentSession) return
-    stopQuestion()
-    setSessions((savedSessions) => savedSessions.map((session) => session.id === currentSession.id
-      ? { ...session, endedAt: new Date().toISOString() }
-      : session))
-    setNotice('Session ended. Its questions are saved below.')
+  function resumeSession() {
+    if (phase !== 'paused') return
+    sessionPaused.current = false
+    if (resumeSpeech.current && 'speechSynthesis' in window) window.speechSynthesis.resume()
+    resumeSpeech.current = false
+    if (pausedFrom.current === 'speaking') {
+      setPhase('speaking')
+    } else {
+      setPhase('countdown')
+    }
+    setNotice('Session resumed.')
   }
 
   function skipQuestion() {
@@ -289,12 +276,10 @@ function StudyApp() {
     readQuestion()
   }
 
-  function showQuestion() {
-    if (!question || !['countdown', 'time-up'].includes(phase)) return
-    if (phase === 'countdown') setPhase('revealed')
-    setQuestionVisible(true)
+  function toggleQuestionVisibility() {
+    if (!question) return
+    setQuestionVisible((visible) => !visible)
     setNotice('')
-    if (phase === 'countdown') stopSpeech()
   }
 
   function rateQuestion(rating: Rating) {
@@ -329,9 +314,9 @@ function StudyApp() {
     }
   }
 
-  function previewQuestion(text: string): boolean {
+  function previewQuestion(text: string, questionTopic: Topic): boolean {
     const token = ++sessionToken.current
-    return speakLines([text], data.settings, voices, () => {
+    return speakLines([`Topic: ${questionTopic}`, text], data.settings, voices, () => {
       if (sessionToken.current === token) setNotice('')
     })
   }
@@ -351,7 +336,7 @@ function StudyApp() {
   }
 
   function navigate(nextView: View) {
-    if (nextView !== 'study' && (phase === 'speaking' || phase === 'countdown')) stopQuestion()
+    if (nextView !== 'study' && ['speaking', 'countdown', 'paused'].includes(phase)) stopSession()
     setView(nextView)
   }
 
@@ -361,16 +346,16 @@ function StudyApp() {
     if (event.altKey || event.ctrlKey || event.metaKey) return
 
     if (event.code === 'Space') {
-      if (view === 'study' && currentSession && ['ready', 'time-up', 'revealed', 'rated'].includes(phase)) {
+      if (view === 'study' && ['ready', 'time-up', 'revealed', 'rated'].includes(phase)) {
         event.preventDefault()
         readQuestion()
       }
     } else if (event.key.toLowerCase() === 'r' && view === 'study' && phase === 'countdown') {
       event.preventDefault()
       repeatQuestion()
-    } else if (event.key.toLowerCase() === 'q' && view === 'study' && ['countdown', 'time-up'].includes(phase)) {
+    } else if (event.key.toLowerCase() === 'q' && view === 'study' && ['speaking', 'countdown', 'paused', 'time-up'].includes(phase)) {
       event.preventDefault()
-      showQuestion()
+      toggleQuestionVisibility()
     }
   })
 
@@ -395,14 +380,14 @@ function StudyApp() {
       <header className="app-header">
         <a className="wordmark" href="/" onClick={(event) => { event.preventDefault(); navigate('study') }}>Lets StudEE!</a>
         <nav className="main-nav" aria-label="Main navigation">
-          {(['study', 'manage', 'settings'] as const).map((item) => (
+          {(['study', 'competitions', 'manage', 'settings'] as const).map((item) => (
             <button
               key={item}
               type="button"
               aria-current={view === item ? 'page' : undefined}
               onClick={() => navigate(item)}
             >
-              {item === 'study' ? 'Study' : item === 'manage' ? 'Manage questions' : 'Settings'}
+              {item === 'study' ? 'Study' : item === 'competitions' ? 'Mock Competition' : item === 'manage' ? 'Manage questions' : 'Settings'}
             </button>
           ))}
         </nav>
@@ -412,19 +397,17 @@ function StudyApp() {
         {view === 'study' && (
           <StudyScreen
             data={data}
+            activeGroup={activeTopicGroup}
+            onGroupChange={setActiveTopicGroup}
             {...activeQuestionProps}
             onChangeData={updateData}
-            isSessionActive={Boolean(currentSession)}
-            selectedGroup={selectedGroup}
-            onSelectGroup={setSelectedGroup}
-            sessions={sessions}
-            onStartSession={startStudySession}
-            onEndSession={endStudySession}
             onRead={readQuestion}
             onRepeat={repeatQuestion}
-            onStop={stopQuestion}
+            onStop={stopSession}
+            onPause={pauseSession}
+            onResume={resumeSession}
             onSkip={skipQuestion}
-            onShowQuestion={showQuestion}
+            onToggleQuestion={toggleQuestionVisibility}
             onNext={readQuestion}
             onRate={rateQuestion}
           />
@@ -440,10 +423,11 @@ function StudyApp() {
         {view === 'settings' && (
           <SettingsScreen data={data} voices={voices} onChangeSettings={updateSettings} />
         )}
+        {view === 'competitions' && <Suspense fallback={<p className="session-notice">Loading Mock Competition…</p>}><MockCompetitionScreen voices={voices} /></Suspense>}
       </main>
 
       <footer className="app-footer">
-        <span>Export a backup to keep a copy of your progress.</span>
+        <span>{view === 'competitions' ? 'Competitions and settings save automatically in this browser.' : 'Export a backup to keep a copy of your progress.'}</span>
         <span>Space read / next · R repeat · Q show question</span>
       </footer>
     </div>

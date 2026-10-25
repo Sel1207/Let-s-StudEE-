@@ -1,9 +1,15 @@
 export const MATH_TOPICS = [
   'Foundational Math',
+  'Mathematical Trivia',
+  'Algebra',
+  'Trigonometry',
+  'Analytical Geometry',
+  'Power Series & Fourier Series Analysis',
   'Calculus 1',
   'Calculus 2',
   'Calculus 3',
   'Linear Algebra',
+  'Probability and Statistics',
   'Advanced Mathematics',
   'Differential Equations',
   'Discrete Math',
@@ -28,20 +34,18 @@ export const TOPIC_GROUPS = [
   { name: 'Electrical Engineering', topics: EE_TOPICS },
 ] as const
 
+export type TopicGroupName = (typeof TOPIC_GROUPS)[number]['name']
+
 export const TOPICS = [...MATH_TOPICS, ...EE_TOPICS] as const
 
+export const PREFERRED_VOICE_NAME = 'Microsoft Liam Online (Natural)'
+
 export type Topic = (typeof TOPICS)[number]
-export type TopicGroup = (typeof TOPIC_GROUPS)[number]['name']
-
-export function topicsInGroup(groupName: TopicGroup): readonly Topic[] {
-  return TOPIC_GROUPS.find((group) => group.name === groupName)?.topics ?? MATH_TOPICS
-}
-
 export type SpeechSpeed = 'slow' | 'normal' | 'fast'
-export type TimeFilter = 'any' | 20 | 30 | 60 | 120
+export type TimeFilter = 'any' | 15 | 20 | 30 | 60 | 120
 export type Preset = 'all-equal' | 'only-selected' | 'focus-weakest'
 
-export const ALLOWED_DURATIONS = [20, 30, 45, 60, 90, 120, 150, 180] as const
+export const ALLOWED_DURATIONS = [15, 20, 30, 45, 60, 90, 120, 150, 180] as const
 export type AllowedDuration = (typeof ALLOWED_DURATIONS)[number]
 
 export interface Question {

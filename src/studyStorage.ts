@@ -1,18 +1,10 @@
-import { ALLOWED_DURATIONS, EE_TOPICS, TOPICS, type AllowedDuration, type Question, type StudyData, type StudySettings, type Topic, type TopicPreference, type TopicResult } from './studyTypes'
+import { ALLOWED_DURATIONS, TOPICS, type AllowedDuration, type Question, type StudyData, type StudySettings, type Topic, type TopicPreference, type TopicResult } from './studyTypes'
 import { DEFAULT_FOUNDATIONAL_QUESTIONS } from './defaultFoundationalQuestions'
-import { PREFERRED_VOICE_URI } from './speechVoice'
 
 const STORAGE_KEY = 'lets-studee-study-data-v1'
 const DEFAULTS_MIGRATION_KEY = 'lets-studee-defaults-migration-v1'
 const SPEEDS = ['slow', 'normal', 'fast'] as const
-const FILTERS = ['any', 20, 30, 60, 120] as const
-
-function createDefaultFoundationalQuestions(): Question[] {
-  return DEFAULT_FOUNDATIONAL_QUESTIONS.map((question, index) => ({
-    id: `foundational-default-${String(index + 1).padStart(2, '0')}`,
-    ...question,
-  }))
-}
+const FILTERS = ['any', 15, 20, 30, 60, 120] as const
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -22,8 +14,11 @@ function topicRecord<T>(createValue: (topic: Topic) => T): Record<Topic, T> {
   return Object.fromEntries(TOPICS.map((topic) => [topic, createValue(topic)])) as Record<Topic, T>
 }
 
-function isEETopic(topic: Topic): boolean {
-  return EE_TOPICS.some((eeTopic) => eeTopic === topic)
+function createDefaultFoundationalQuestions(): Question[] {
+  return DEFAULT_FOUNDATIONAL_QUESTIONS.map((question, index) => ({
+    id: `foundational-default-${String(index + 1).padStart(2, '0')}`,
+    ...question,
+  }))
 }
 
 export function createInitialStudyData(): StudyData {
@@ -34,7 +29,7 @@ export function createInitialStudyData(): StudyData {
     settings: {
       defaultSeconds: 60,
       speechSpeed: 'normal',
-      voiceURI: PREFERRED_VOICE_URI,
+      voiceURI: '',
       announceDuration: true,
       timeFilter: 'any',
     },
@@ -117,24 +112,23 @@ export function parseStudyBackup(value: unknown): StudyData {
 
   return {
     version: 1,
-    questionBanks: topicRecord((topic) => !Object.hasOwn(questionBanks, topic) && isEETopic(topic)
-      ? []
-      : parseQuestionList(questionBanks[topic], topic)),
-    topicPreferences: topicRecord((topic) => !Object.hasOwn(topicPreferences, topic) && isEETopic(topic)
-      ? { active: true, weight: 1 }
-      : parsePreference(topicPreferences[topic], topic)),
+    questionBanks: topicRecord((topic) => Object.hasOwn(questionBanks, topic)
+      ? parseQuestionList(questionBanks[topic], topic)
+      : []),
+    topicPreferences: topicRecord((topic) => Object.hasOwn(topicPreferences, topic)
+      ? parsePreference(topicPreferences[topic], topic)
+      : { active: true, weight: 1 }),
     settings: parseSettings(value.settings),
     usedQuestionIds: topicRecord((topic) => {
-      const ids = usedQuestionIds[topic]
-      if (!Object.hasOwn(usedQuestionIds, topic) && isEETopic(topic)) return []
+      const ids = Object.hasOwn(usedQuestionIds, topic) ? usedQuestionIds[topic] : []
       if (!Array.isArray(ids) || ids.some((id) => typeof id !== 'string')) {
         throw new Error(`The ${topic} question progress is invalid.`)
       }
       return [...ids]
     }),
-    results: topicRecord((topic) => !Object.hasOwn(results, topic) && isEETopic(topic)
-      ? { gotIt: 0, missedIt: 0 }
-      : parseResult(results[topic], topic)),
+    results: topicRecord((topic) => Object.hasOwn(results, topic)
+      ? parseResult(results[topic], topic)
+      : { gotIt: 0, missedIt: 0 }),
   }
 }
 
@@ -151,7 +145,6 @@ export function loadStudyData(): StudyData {
       if (!data.questionBanks['Foundational Math'].length) {
         data.questionBanks['Foundational Math'] = createDefaultFoundationalQuestions()
       }
-      if (!data.settings.voiceURI) data.settings.voiceURI = PREFERRED_VOICE_URI
       window.localStorage.setItem(DEFAULTS_MIGRATION_KEY, 'complete')
     }
     return data

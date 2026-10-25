@@ -1,6 +1,6 @@
-import { ALLOWED_DURATIONS, TOPICS, type AllowedDuration, type Preset, type Question, type StudyData, type Topic, type TimeFilter } from './studyTypes'
+import { ALLOWED_DURATIONS, TOPIC_GROUPS, TOPICS, type AllowedDuration, type Preset, type Question, type StudyData, type Topic, type TopicGroupName, type TimeFilter } from './studyTypes'
 
-const SECOND_ONLY_DURATIONS = [20, 30, 45, 60, 90, 150]
+const SECOND_ONLY_DURATIONS = [15, 20, 30, 45, 60, 90, 150]
 function createQuestionId(): string {
   return globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`
 }
@@ -34,7 +34,7 @@ export function parseQuestionLines(text: string, defaultSeconds: AllowedDuration
     if (separator >= 0) {
       const parsedSeconds = parseDurationToken(line.slice(0, separator))
       if (parsedSeconds === null) {
-        throw new Error(`Line ${index + 1}: use 20, 30, 45, 60, 90, 1m, 2m, 2m30s, or 3m before the |.`)
+        throw new Error(`Line ${index + 1}: use 15, 20, 30, 45, 60, 90, 1m, 2m, 2m30s, or 3m before the |.`)
       }
       seconds = parsedSeconds
       questionText = line.slice(separator + 1).trim()
@@ -72,14 +72,12 @@ export function spokenDuration(seconds: number): string {
   return remainder ? `${minuteText} ${numberWords(remainder)} seconds` : minuteText
 }
 
-export function initialQuestionSpeech(questionText: string, seconds: number, announceDuration: boolean): string[] {
-  return announceDuration
-    ? [spokenDuration(seconds), questionText, 'Again,', questionText]
-    : [questionText, 'Again,', questionText]
-}
-
 export function matchesTimeFilter(question: Question, filter: TimeFilter): boolean {
   return filter === 'any' || question.seconds === filter
+}
+
+function getTopicsInGroup(group?: TopicGroupName): readonly Topic[] {
+  return group ? TOPIC_GROUPS.find((topicGroup) => topicGroup.name === group)?.topics ?? TOPICS : TOPICS
 }
 
 function getActiveQuestionPools(data: StudyData, topics: readonly Topic[]): Partial<Record<Topic, Question[]>> {
@@ -93,9 +91,9 @@ function getActiveQuestionPools(data: StudyData, topics: readonly Topic[]): Part
   return pools
 }
 
-function unusedPools(data: StudyData, pools: Partial<Record<Topic, Question[]>>, topics: readonly Topic[]): Partial<Record<Topic, Question[]>> {
+function unusedPools(data: StudyData, pools: Partial<Record<Topic, Question[]>>): Partial<Record<Topic, Question[]>> {
   const unused: Partial<Record<Topic, Question[]>> = {}
-  for (const topic of topics) {
+  for (const topic of TOPICS) {
     const questions = pools[topic]
     if (!questions) continue
     const used = new Set(data.usedQuestionIds[topic])
@@ -109,9 +107,10 @@ function hasQuestions(pools: Partial<Record<Topic, Question[]>>, topics: readonl
   return topics.some((topic) => Boolean(pools[topic]?.length))
 }
 
-export function topicChances(data: StudyData, topics: readonly Topic[] = TOPICS): Record<Topic, number> {
+export function topicChances(data: StudyData, group?: TopicGroupName): Record<Topic, number> {
+  const topics = getTopicsInGroup(group)
   const pools = getActiveQuestionPools(data, topics)
-  const remaining = unusedPools(data, pools, topics)
+  const remaining = unusedPools(data, pools)
   const available = hasQuestions(remaining, topics) ? remaining : pools
   const totalWeight = topics.reduce((total, topic) => {
     return total + (available[topic]?.length ? data.topicPreferences[topic].weight : 0)
@@ -125,27 +124,17 @@ export function topicChances(data: StudyData, topics: readonly Topic[] = TOPICS)
   ])) as Record<Topic, number>
 }
 
-export function questionCounts(data: StudyData, topics: readonly Topic[] = TOPICS): Record<Topic, number> {
+export function questionCounts(data: StudyData): Record<Topic, number> {
   return Object.fromEntries(TOPICS.map((topic) => [
     topic,
-    topics.includes(topic)
-      ? data.questionBanks[topic].filter((question) => matchesTimeFilter(question, data.settings.timeFilter)).length
-      : 0,
+    data.questionBanks[topic].filter((question) => matchesTimeFilter(question, data.settings.timeFilter)).length,
   ])) as Record<Topic, number>
 }
 
-export function resetQuestionUsage(data: StudyData): StudyData {
-  const usedQuestionIds = {} as Record<Topic, string[]>
-  for (const topic of TOPICS) usedQuestionIds[topic] = []
-  return {
-    ...data,
-    usedQuestionIds,
-  }
-}
-
-export function drawQuestion(data: StudyData, topics: readonly Topic[] = TOPICS): { question: Question; topic: Topic; data: StudyData } | null {
+export function drawQuestion(data: StudyData, group?: TopicGroupName): { question: Question; topic: Topic; data: StudyData } | null {
+  const topics = getTopicsInGroup(group)
   const pools = getActiveQuestionPools(data, topics)
-  let available = unusedPools(data, pools, topics)
+  let available = unusedPools(data, pools)
   let nextData = data
 
   if (!hasQuestions(available, topics)) {
@@ -188,18 +177,18 @@ export function accuracy(result: StudyData['results'][Topic]): number | null {
   return attempts ? result.gotIt / attempts * 100 : null
 }
 
-export function applyPreset(data: StudyData, preset: Preset, topics: readonly Topic[] = TOPICS): StudyData {
+export function applyPreset(data: StudyData, preset: Preset): StudyData {
   const topicPreferences = { ...data.topicPreferences }
 
   if (preset === 'all-equal') {
-    for (const topic of topics) topicPreferences[topic] = { active: true, weight: 1 }
+    for (const topic of TOPICS) topicPreferences[topic] = { active: true, weight: 1 }
   } else if (preset === 'only-selected') {
-    for (const topic of topics) {
+    for (const topic of TOPICS) {
       const preference = topicPreferences[topic]
       topicPreferences[topic] = { ...preference, weight: preference.active ? 1 : 0 }
     }
   } else {
-    for (const topic of topics) {
+    for (const topic of TOPICS) {
       const preference = topicPreferences[topic]
       const score = accuracy(data.results[topic])
       const weight = score === null ? 1 : Math.max(1, Math.min(5, 1 + Math.floor((100 - score) / 25)))

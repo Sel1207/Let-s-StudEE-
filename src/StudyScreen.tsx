@@ -1,13 +1,14 @@
 import type { CSSProperties } from 'react'
-import { accuracy, applyPreset, formatDuration, questionCounts, topicChances } from './questionLogic'
-import type { StudySession } from './studySessions'
-import { TOPIC_GROUPS, TOPICS, topicsInGroup, type Preset, type Question, type StudyData, type Topic, type TopicGroup } from './studyTypes'
+import { accuracy, applyPreset, questionCounts, topicChances } from './questionLogic'
+import { TOPIC_GROUPS, TOPICS, type Preset, type Question, type StudyData, type Topic, type TopicGroupName } from './studyTypes'
 
-type SessionPhase = 'ready' | 'speaking' | 'countdown' | 'time-up' | 'revealed' | 'rated'
+type SessionPhase = 'ready' | 'speaking' | 'countdown' | 'paused' | 'time-up' | 'revealed' | 'rated'
 type Rating = 'gotIt' | 'missedIt'
 
 interface StudyScreenProps {
   data: StudyData
+  activeGroup: TopicGroupName
+  onGroupChange: (group: TopicGroupName) => void
   phase: SessionPhase
   remainingSeconds: number
   currentQuestion: Question | null
@@ -16,18 +17,14 @@ interface StudyScreenProps {
   timeIsUp: boolean
   rated: boolean
   notice: string
-  isSessionActive: boolean
-  selectedGroup: TopicGroup
-  sessions: StudySession[]
   onChangeData: (data: StudyData) => void
-  onSelectGroup: (group: TopicGroup) => void
-  onStartSession: () => void
-  onEndSession: () => void
   onRead: () => void
   onRepeat: () => void
   onStop: () => void
+  onPause: () => void
+  onResume: () => void
   onSkip: () => void
-  onShowQuestion: () => void
+  onToggleQuestion: () => void
   onNext: () => void
   onRate: (rating: Rating) => void
 }
@@ -36,13 +33,10 @@ function formatTime(seconds: number): string {
   return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`
 }
 
-function formatSessionDate(value: string): string {
-  const date = new Date(value)
-  return Number.isNaN(date.getTime()) ? 'Unknown date' : date.toLocaleString()
-}
-
 export default function StudyScreen({
   data,
+  activeGroup,
+  onGroupChange,
   phase,
   remainingSeconds,
   currentQuestion,
@@ -51,29 +45,25 @@ export default function StudyScreen({
   timeIsUp,
   rated,
   notice,
-  isSessionActive,
-  selectedGroup,
-  sessions,
   onChangeData,
-  onSelectGroup,
-  onStartSession,
-  onEndSession,
   onRead,
   onRepeat,
   onStop,
+  onPause,
+  onResume,
   onSkip,
-  onShowQuestion,
+  onToggleQuestion,
   onNext,
   onRate,
 }: StudyScreenProps) {
-  const activeTopics = topicsInGroup(selectedGroup)
-  const chances = topicChances(data, activeTopics)
-  const counts = questionCounts(data, activeTopics)
-  const selectedCount = activeTopics.reduce((total, topic) => {
+  const chances = topicChances(data, activeGroup)
+  const counts = questionCounts(data)
+  const visibleGroup = TOPIC_GROUPS.find((group) => group.name === activeGroup) ?? TOPIC_GROUPS[0]
+  const selectedCount = visibleGroup.topics.reduce((total, topic) => {
     const preference = data.topicPreferences[topic]
     return total + (preference.active && preference.weight > 0 ? counts[topic] : 0)
   }, 0)
-  const active = phase === 'speaking' || phase === 'countdown'
+  const active = phase === 'speaking' || phase === 'countdown' || phase === 'paused'
   const ended = phase === 'time-up' || phase === 'revealed' || phase === 'rated'
   const timeStyle = { '--time-progress': `${Math.max(0, Math.min(1, remainingSeconds / (currentQuestion?.seconds ?? data.settings.defaultSeconds))) * 100}%` } as CSSProperties
 
@@ -82,7 +72,7 @@ export default function StudyScreen({
   }
 
   function choosePreset(preset: Preset) {
-    onChangeData(applyPreset(data, preset, activeTopics))
+    onChangeData(applyPreset(data, preset))
   }
 
   return (
@@ -96,24 +86,21 @@ export default function StudyScreen({
           </p>
         </div>
 
-        <div className="group-switcher study-mode" role="group" aria-label="Choose subject">
+        <div className="segmented-control topic-group-toggle" role="group" aria-label="Topic group">
           {TOPIC_GROUPS.map((group) => (
             <button
               key={group.name}
               type="button"
-              aria-pressed={selectedGroup === group.name}
-              disabled={isSessionActive}
-              onClick={() => onSelectGroup(group.name)}
+              aria-label={group.name}
+              aria-pressed={activeGroup === group.name}
+              onClick={() => onGroupChange(group.name)}
             >
-              {group.name}
+              {group.name === 'Math' ? 'Math' : 'EE'}
             </button>
           ))}
         </div>
-
-        <section className="topic-group" aria-label={`${selectedGroup} topics`}>
-            <h2 className="topic-group-heading">{selectedGroup}</h2>
-            <div className="topic-list">
-          {activeTopics.map((topic) => {
+        <div className="topic-list" aria-label={`${visibleGroup.name} topics`}>
+          {visibleGroup.topics.map((topic) => {
             const preference = data.topicPreferences[topic]
             const score = accuracy(data.results[topic])
             return (
@@ -152,8 +139,7 @@ export default function StudyScreen({
               </div>
             )
           })}
-            </div>
-        </section>
+        </div>
 
         <details className="study-options">
           <summary>Weights and time filter</summary>
@@ -166,9 +152,10 @@ export default function StudyScreen({
           <select
             id="time-filter"
             value={data.settings.timeFilter}
-            onChange={(event) => onChangeData({ ...data, settings: { ...data.settings, timeFilter: event.currentTarget.value === 'any' ? 'any' : Number(event.currentTarget.value) as 20 | 30 | 60 | 120 } })}
+            onChange={(event) => onChangeData({ ...data, settings: { ...data.settings, timeFilter: event.currentTarget.value === 'any' ? 'any' : Number(event.currentTarget.value) as 15 | 20 | 30 | 60 | 120 } })}
           >
             <option value="any">Any</option>
+            <option value="15">Only 15s</option>
             <option value="20">Only 20s</option>
             <option value="30">Only 30s</option>
             <option value="60">Only 60s</option>
@@ -180,7 +167,7 @@ export default function StudyScreen({
       <section className="session-panel" aria-label="Question session">
         <div className="timer-wrap">
           <p className={`session-state${timeIsUp ? ' is-alert' : ''}`} aria-live="polite">
-            {timeIsUp ? "Time's up!" : phase === 'speaking' ? 'Listen' : phase === 'countdown' ? '' : phase === 'revealed' || phase === 'rated' ? 'Question' : 'Ready'}
+            {timeIsUp ? "Time's up!" : phase === 'speaking' ? 'Listen' : phase === 'paused' ? 'Paused' : phase === 'countdown' ? '' : phase === 'revealed' || phase === 'rated' ? 'Question' : 'Ready'}
           </p>
           <div className={`timer${phase === 'countdown' && remainingSeconds <= 10 ? ' timer-urgent' : ''}`} role="timer" aria-live="off" aria-label={`${formatTime(remainingSeconds)} remaining`} style={timeStyle}>
             {formatTime(remainingSeconds)}
@@ -190,13 +177,7 @@ export default function StudyScreen({
           {questionVisible && currentQuestion && <p className="revealed-question">{currentQuestion.text}</p>}
           {notice && <p className="session-notice" role="status">{notice}</p>}
 
-          {!isSessionActive && !active && !ended && (
-            <button className="primary-action" type="button" disabled={selectedCount === 0} onClick={onStartSession}>
-              Start session
-            </button>
-          )}
-
-          {isSessionActive && !active && !ended && (
+          {!active && !ended && (
             <button className="primary-action" type="button" disabled={selectedCount === 0} onClick={onRead}>
               Read question
             </button>
@@ -204,7 +185,9 @@ export default function StudyScreen({
 
           {phase === 'speaking' && (
             <div className="action-row">
-              <button className="secondary-action" type="button" onClick={onStop}>Stop</button>
+              <button className="secondary-action" type="button" onClick={onToggleQuestion}>{questionVisible ? 'Hide question' : 'Show question'}</button>
+              <button className="secondary-action" type="button" onClick={onPause}>Pause</button>
+              <button className="secondary-action" type="button" onClick={onStop}>Clear session</button>
               <button className="secondary-action" type="button" onClick={onSkip}>Skip</button>
             </div>
           )}
@@ -212,19 +195,31 @@ export default function StudyScreen({
           {phase === 'countdown' && (
             <div className="action-grid">
               <button className="secondary-action" type="button" onClick={onRepeat}>Hear it again</button>
-              <button className="secondary-action" type="button" onClick={onShowQuestion}>Show question</button>
-              <button className="secondary-action" type="button" onClick={onStop}>Stop</button>
+              <button className="secondary-action" type="button" onClick={onToggleQuestion}>{questionVisible ? 'Hide question' : 'Show question'}</button>
+              <button className="secondary-action" type="button" onClick={onPause}>Pause</button>
+              <button className="secondary-action" type="button" onClick={onStop}>Clear session</button>
+              <button className="secondary-action" type="button" onClick={onSkip}>Skip</button>
+            </div>
+          )}
+
+          {phase === 'paused' && (
+            <div className="action-grid">
+              <button className="primary-action" type="button" onClick={onResume}>Resume</button>
+              <button className="secondary-action" type="button" onClick={onToggleQuestion}>{questionVisible ? 'Hide question' : 'Show question'}</button>
+              <button className="secondary-action" type="button" onClick={onStop}>Clear session</button>
               <button className="secondary-action" type="button" onClick={onSkip}>Skip</button>
             </div>
           )}
 
           {phase === 'time-up' && (
             <div className="action-grid">
-              {!questionVisible && <button className="secondary-action" type="button" onClick={onShowQuestion}>Show question</button>}
-              {questionVisible && !rated && <>
+              <button className="secondary-action" type="button" onClick={onToggleQuestion}>{questionVisible ? 'Hide question' : 'Show question'}</button>
+              {!rated && <>
                 <button className="secondary-action" type="button" onClick={() => onRate('gotIt')}>Got it</button>
                 <button className="secondary-action" type="button" onClick={() => onRate('missedIt')}>Missed it</button>
               </>}
+              <button className="secondary-action" type="button" onClick={onToggleQuestion}>{questionVisible ? 'Hide question' : 'Show question'}</button>
+              <button className="secondary-action" type="button" onClick={onStop}>Clear session</button>
               <button className="primary-action" type="button" onClick={onNext}>Next question</button>
             </div>
           )}
@@ -235,50 +230,14 @@ export default function StudyScreen({
                 <button className="secondary-action" type="button" onClick={() => onRate('gotIt')}>Got it</button>
                 <button className="secondary-action" type="button" onClick={() => onRate('missedIt')}>Missed it</button>
               </>}
+              <button className="secondary-action" type="button" onClick={onStop}>Clear session</button>
               <button className="primary-action" type="button" onClick={onNext}>Next question</button>
             </div>
-          )}
-
-          {isSessionActive && (
-            <button className="session-end-action" type="button" onClick={onEndSession}>End session</button>
           )}
 
           <p className="shortcut-note">Space read / next · R repeat · Q show</p>
         </div>
       </section>
-        <details className="session-history">
-          <summary>Session history <span>{sessions.length}</span></summary>
-          {sessions.length === 0 ? (
-            <p className="session-history-empty">Completed and current sessions will appear here.</p>
-          ) : (
-            <div className="session-history-list">
-              {[...sessions].reverse().map((session) => (
-                <details className="session-record" key={session.id}>
-                  <summary>
-                    <span>{session.endedAt ? 'Session' : 'Current session'}</span>
-                    <span className="session-record-count">{session.questions.length} {session.questions.length === 1 ? 'question' : 'questions'}</span>
-                    <time dateTime={session.startedAt}>{formatSessionDate(session.startedAt)}</time>
-                  </summary>
-                  {session.questions.length ? (
-                    <ol className="session-question-list">
-                      {session.questions.map((askedQuestion) => (
-                        <li key={`${session.id}-${askedQuestion.id}`}>
-                          <div className="session-question-heading">
-                            <span>{askedQuestion.topic}</span>
-                            <span>{formatDuration(askedQuestion.seconds)}</span>
-                          </div>
-                          <p>{askedQuestion.text}</p>
-                        </li>
-                      ))}
-                    </ol>
-                  ) : (
-                    <p className="session-history-empty">No questions asked in this session.</p>
-                  )}
-                </details>
-              ))}
-            </div>
-          )}
-        </details>
     </div>
   )
 }

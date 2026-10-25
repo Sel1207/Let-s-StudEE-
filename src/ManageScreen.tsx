@@ -1,12 +1,37 @@
 import { useState, type ChangeEvent } from 'react'
 import { accuracy, formatDuration, parseQuestionLines } from './questionLogic'
 import { parseStudyBackup } from './studyStorage'
-import { ALLOWED_DURATIONS, TOPIC_GROUPS, TOPICS, topicsInGroup, type Question, type StudyData, type Topic, type TopicGroup } from './studyTypes'
+import { ALLOWED_DURATIONS, TOPIC_GROUPS, TOPICS, type Question, type StudyData, type Topic } from './studyTypes'
+
+const QUESTION_EXTRACTION_PROMPT = `Extract only the questions from the attached file for a text-to-speech app.
+
+FORMAT
+One line per question, exactly: time | question
+Output only the questions in ONE code block. No choices, no answers, no asterisks, no numbering, no headers or footers. Join wrapped lines into one line.
+
+TIME
+15 = identification or recall (name it, state a definition or formula)
+30 = quick, one-step
+60 = standard, a few steps
+2m = multi-step word problems (ages, mixtures, work, motion, towers)
+
+SPEAKING STYLE
+Write it as spoken: x^2 = "x squared", ° = "degrees", π = "pi", 3/5 = "3 over 5", sin = "sine of", ECE = "E C E". Fix garbled PDF symbols from context and list uncertain fixes after the code block.
+
+SAMPLES
+Input: 3. In the expansion of (x+4y)^12, the numerical coefficient of the 5th term is a. 63360 b. 126720*
+Output: 60 | In the expansion of the quantity x plus 4y, raised to the 12th power, find the numerical coefficient of the 5th term.
+
+Input: 27. A certain angle has an explement 5 times the supplement, find the angle. a. 67.5 b. 135*
+Output: 30 | A certain angle has an explement 5 times its supplement. Find the angle.
+
+Input: 12. What do you call a triangle with no equal sides? a. Scalene* b. Isosceles
+Output: 15 | What do you call a triangle with no equal sides?`
 
 interface ManageScreenProps {
   data: StudyData
   onChangeData: (data: StudyData) => void
-  onPreview: (text: string) => boolean
+  onPreview: (text: string, topic: Topic) => boolean
   onRestore: (data: StudyData) => void
 }
 
@@ -17,24 +42,15 @@ interface EditingQuestion {
 }
 
 export default function ManageScreen({ data, onChangeData, onPreview, onRestore }: ManageScreenProps) {
-  const [activeGroup, setActiveGroup] = useState<TopicGroup>('Math')
   const [activeTopic, setActiveTopic] = useState<Topic>(TOPICS[0])
+  const [activeGroup, setActiveGroup] = useState<(typeof TOPIC_GROUPS)[number]['name']>('Math')
   const [draft, setDraft] = useState('')
   const [editing, setEditing] = useState<EditingQuestion | null>(null)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
-  const visibleTopics = topicsInGroup(activeGroup)
   const questions = data.questionBanks[activeTopic]
   const score = accuracy(data.results[activeTopic])
   const attempts = data.results[activeTopic].gotIt + data.results[activeTopic].missedIt
-
-  function selectGroup(group: TopicGroup) {
-    setActiveGroup(group)
-    setActiveTopic(topicsInGroup(group)[0])
-    setEditing(null)
-    setMessage('')
-    setError('')
-  }
 
   function updateQuestions(nextQuestions: Question[]) {
     onChangeData({
@@ -119,6 +135,17 @@ export default function ManageScreen({ data, onChangeData, onPreview, onRestore 
     }
   }
 
+  async function copyExtractionPrompt() {
+    try {
+      await navigator.clipboard.writeText(QUESTION_EXTRACTION_PROMPT)
+      setMessage('Question extraction prompt copied.')
+      setError('')
+    } catch {
+      setError('Clipboard access is unavailable. Select the prompt text and copy it.')
+      setMessage('')
+    }
+  }
+
   return (
     <section className="secondary-view manage-view" aria-labelledby="manage-heading">
       <div className="view-heading">
@@ -134,20 +161,37 @@ export default function ManageScreen({ data, onChangeData, onPreview, onRestore 
         </label>
         <span>Import replaces the banks and progress saved in this browser.</span>
       </div>
+      <details className="question-tutorial">
+        <summary>Copy question-extraction instructions</summary>
+        <div className="question-tutorial-content">
+          <textarea aria-label="Question extraction instructions" readOnly value={QUESTION_EXTRACTION_PROMPT} rows={12} />
+          <button className="secondary-action" type="button" onClick={copyExtractionPrompt}>Copy prompt</button>
+        </div>
+      </details>
       {message && <p className="manage-message" role="status">{message}</p>}
       {error && <p className="form-error" role="alert">{error}</p>}
 
-      <div className="group-switcher manage-group-switcher" role="group" aria-label="Question bank category">
+      <div className="segmented-control topic-group-toggle" role="group" aria-label="Question bank group">
         {TOPIC_GROUPS.map((group) => (
-          <button key={group.name} type="button" aria-pressed={activeGroup === group.name} onClick={() => selectGroup(group.name)}>
-            {group.name}
+          <button
+            key={group.name}
+            type="button"
+            aria-label={group.name}
+            aria-pressed={activeGroup === group.name}
+            onClick={() => {
+              setActiveGroup(group.name)
+              setActiveTopic(group.topics[0])
+              setEditing(null)
+              setMessage('')
+              setError('')
+            }}
+          >
+            {group.name === 'Math' ? 'Math' : 'EE'}
           </button>
         ))}
       </div>
-      <section className="topic-tab-group" aria-label={`${activeGroup} question banks`}>
-        <h2>{activeGroup}</h2>
-        <div className="topic-tabs" role="tablist" aria-label={`${activeGroup} topics`}>
-            {visibleTopics.map((topic) => (
+      <div className="topic-tabs" role="tablist" aria-label={`${activeGroup} topics`}>
+        {TOPIC_GROUPS.find((group) => group.name === activeGroup)?.topics.map((topic) => (
               <button
                 key={topic}
                 type="button"
@@ -159,9 +203,8 @@ export default function ManageScreen({ data, onChangeData, onPreview, onRestore 
               >
                 {topic} <span>{data.questionBanks[topic].length}</span>
               </button>
-            ))}
-        </div>
-      </section>
+        ))}
+      </div>
 
       <div id="topic-panel" className="topic-panel" role="tabpanel" aria-labelledby={`topic-tab-${TOPICS.indexOf(activeTopic)}`}>
         <div className="topic-summary">
@@ -202,7 +245,7 @@ export default function ManageScreen({ data, onChangeData, onPreview, onRestore 
                   <p>{question.text}</p>
                   <div className="question-actions">
                     <button className="text-action" type="button" onClick={() => {
-                      if (!onPreview(question.text)) setError('Speech synthesis is not available in this browser.')
+                      if (!onPreview(question.text, activeTopic)) setError('Speech synthesis is not available in this browser.')
                       else setMessage('Previewing question.')
                     }}>Preview voice</button>
                     <button className="text-action" type="button" onClick={() => setEditing({ id: question.id, text: question.text, seconds: question.seconds })}>Edit</button>

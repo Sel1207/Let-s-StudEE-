@@ -1,6 +1,5 @@
 import { accuracy, formatDuration } from './questionLogic'
-import { PREFERRED_VOICE_URI } from './speechVoice'
-import { ALLOWED_DURATIONS, TOPICS, type StudyData, type StudySettings } from './studyTypes'
+import { ALLOWED_DURATIONS, PREFERRED_VOICE_NAME, TOPICS, type StudyData, type StudySettings } from './studyTypes'
 
 interface SettingsScreenProps {
   data: StudyData
@@ -11,6 +10,7 @@ interface SettingsScreenProps {
 export default function SettingsScreen({ data, voices, onChangeSettings }: SettingsScreenProps) {
   const englishVoices = voices.filter((voice) => /^en([_-]|$)/i.test(voice.lang))
   const voiceOptions = englishVoices.length ? englishVoices : voices
+  const defaultVoice = voiceOptions.find((voice) => voice.name.includes(PREFERRED_VOICE_NAME)) ?? voiceOptions[0]
 
   return (
     <section className="secondary-view" aria-labelledby="settings-heading">
@@ -48,14 +48,13 @@ export default function SettingsScreen({ data, voices, onChangeSettings }: Setti
         </fieldset>
 
         <label className="setting-row" htmlFor="voice-select">
-          <span><strong>Voice</strong><small>Prefers Microsoft Liam in English (Canada); uses another English voice if unavailable.</small></span>
+          <span><strong>Voice</strong><small>Prefers Microsoft Liam Online (Natural) when available.</small></span>
           <select
             id="voice-select"
-            value={data.settings.voiceURI}
+            value={data.settings.voiceURI || defaultVoice?.voiceURI || ''}
             onChange={(event) => onChangeSettings({ ...data.settings, voiceURI: event.currentTarget.value })}
           >
             <option value="">English voice (automatic)</option>
-            <option value={PREFERRED_VOICE_URI}>Microsoft Liam Online (Natural) · English (Canada) (preferred)</option>
             {voiceOptions.map((voice) => <option key={voice.voiceURI} value={voice.voiceURI}>{voice.name} · {voice.lang}</option>)}
           </select>
         </label>
