@@ -12,6 +12,12 @@ export default function SettingsScreen({ data, voices, onChangeSettings }: Setti
   const voiceOptions = englishVoices.length ? englishVoices : voices
   const defaultVoice = voiceOptions.find((voice) => voice.name.includes(PREFERRED_VOICE_NAME)) ?? voiceOptions[0]
 
+  function updateApp() {
+    const url = new URL(window.location.href)
+    url.searchParams.set('__app_update', `settings-${Date.now()}`)
+    window.location.replace(url.toString())
+  }
+
   return (
     <section className="secondary-view" aria-labelledby="settings-heading">
       <div className="view-heading">
@@ -69,6 +75,14 @@ export default function SettingsScreen({ data, voices, onChangeSettings }: Setti
           />
         </label>
       </div>
+
+      <section className="app-update-section" aria-labelledby="app-update-heading">
+        <div>
+          <h2 id="app-update-heading">Website update</h2>
+          <p>Load the latest published version. Your bookmark and saved study data will stay in place.</p>
+        </div>
+        <button className="secondary-action" type="button" onClick={updateApp}>Update app</button>
+      </section>
 
       <section className="accuracy-section" aria-labelledby="accuracy-heading">
         <h2 id="accuracy-heading">Topic accuracy</h2>

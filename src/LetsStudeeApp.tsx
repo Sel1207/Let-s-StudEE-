@@ -59,7 +59,9 @@ function speakLines(
 
 function StudyApp() {
   const [data, setData] = useState<StudyData>(loadStudyData)
-  const [view, setView] = useState<View>('study')
+  const [view, setView] = useState<View>(() => (
+    new URLSearchParams(window.location.search).get('__app_update')?.startsWith('settings-') ? 'settings' : 'study'
+  ))
   const [activeTopicGroup, setActiveTopicGroup] = useState<TopicGroupName>('Math')
   const [phase, setPhase] = useState<SessionPhase>('ready')
   const [question, setQuestion] = useState<Question | null>(null)
@@ -83,6 +85,13 @@ function StudyApp() {
 
   useEffect(() => {
     document.title = 'Lets StudEE!'
+  }, [])
+
+  useEffect(() => {
+    const url = new URL(window.location.href)
+    if (!url.searchParams.has('__app_update')) return
+    url.searchParams.delete('__app_update')
+    window.history.replaceState(window.history.state, '', url.toString())
   }, [])
 
   useEffect(() => {
