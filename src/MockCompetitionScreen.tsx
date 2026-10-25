@@ -18,7 +18,7 @@ import {
 type Outcome = 'correct' | 'wrong'
 type RunMode = 'competition' | 'sudden-death'
 type Phase = 'setup' | 'announcing' | 'countdown' | 'paused' | 'revealed' | 'round-summary' | 'results' | 'sudden-results'
-type SpeechPart = string | null | { pauseMs: number }
+type SpeechPart = string | null | { pauseMs: number } | { text: string; speed?: 'slow' | 'normal' | 'fast' }
 
 const SPEED_RATE = { slow: 0.78, normal: 0.95, fast: 1.15 } as const
 
@@ -422,13 +422,19 @@ export default function MockCompetitionScreen({ voices }: MockCompetitionScreenP
         return
       }
       const line = lines[index++]
-      if (line === null || typeof line !== 'string') {
-        window.setTimeout(next, line === null ? 600 : line.pauseMs)
+      if (line === null) {
+        window.setTimeout(next, 600)
         return
       }
-      const utterance = new SpeechSynthesisUtterance(mathToSpeech(line))
+      if (typeof line !== 'string' && 'pauseMs' in line) {
+        window.setTimeout(next, line.pauseMs)
+        return
+      }
       const settings = settingsSnapshot ?? storageRef.current.settings
-      utterance.rate = SPEED_RATE[settings.speechSpeed]
+      const text = typeof line === 'string' ? line : line.text
+      const speed = typeof line === 'string' ? settings.speechSpeed : line.speed ?? settings.speechSpeed
+      const utterance = new SpeechSynthesisUtterance(mathToSpeech(text))
+      utterance.rate = SPEED_RATE[speed]
       utterance.volume = settings.muted ? 0 : settings.volume
       if (selectedVoice) utterance.voice = selectedVoice
       utterance.onend = next
@@ -460,7 +466,18 @@ export default function MockCompetitionScreen({ voices }: MockCompetitionScreenP
       : `Round ${wordsForNumber(question.round as number)}, Question ${wordsForNumber(question.number)}. ${question.category}. ${question.difficulty}. ${wordsForNumber(question.points)} ${question.points === 1 ? 'point' : 'points'}.`
     const options = choiceSpeechParts(question)
     const questionText = question.spokenQuestion ?? question.question
-    return [introduction, `Time: ${spokenDuration(question.timeSeconds ?? (question.difficulty === 'Easy' ? storageRef.current.settings.easySeconds : storageRef.current.settings.difficultSeconds))}.`, questionText, ...options, null, 'Again.', questionText, ...options, 'Time starts now.']
+    const timeLimit = `Time: ${spokenDuration(question.timeSeconds ?? (question.difficulty === 'Easy' ? storageRef.current.settings.easySeconds : storageRef.current.settings.difficultSeconds))}.`
+    return [
+      { text: introduction, speed: 'fast' },
+      { text: timeLimit, speed: 'fast' },
+      questionText,
+      ...options,
+      null,
+      'Again.',
+      questionText,
+      ...options,
+      'Time starts now.',
+    ]
   }
 
   function startQuestion(question: CompetitionQuestion, runMode: RunMode) {
@@ -559,7 +576,7 @@ export default function MockCompetitionScreen({ voices }: MockCompetitionScreenP
     }
     const options = choiceSpeechParts(currentQuestion)
     const questionText = currentQuestion.spokenQuestion ?? currentQuestion.question
-    const started = speakSequence([questionText, ...options, null, questionText, ...options], () => {})
+    const started = speakSequence([questionText, ...options, null, 'Again.', questionText, ...options], () => {})
     setNotice(started ? (phase === 'countdown' ? 'The timer keeps running.' : 'Question replayed.') : 'Speech synthesis is unavailable.')
   }
 
