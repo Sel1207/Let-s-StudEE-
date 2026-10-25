@@ -288,6 +288,7 @@ export default function MockCompetitionScreen({ voices }: MockCompetitionScreenP
   const [voiceTestNotice, setVoiceTestNotice] = useState('')
   const [renameId, setRenameId] = useState<string | null>(null)
   const [renameDraft, setRenameDraft] = useState('')
+  const [editingVersionId, setEditingVersionId] = useState<string | null>(null)
   const [selectedVersionId, setSelectedVersionId] = useState<string | null>(null)
   const [competition, setCompetition] = useState<Competition | null>(null)
   const [phase, setPhase] = useState<Phase>('setup')
@@ -459,7 +460,7 @@ export default function MockCompetitionScreen({ voices }: MockCompetitionScreenP
       : `Round ${wordsForNumber(question.round as number)}, Question ${wordsForNumber(question.number)}. ${question.category}. ${question.difficulty}. ${wordsForNumber(question.points)} ${question.points === 1 ? 'point' : 'points'}.`
     const options = choiceSpeechParts(question)
     const questionText = question.spokenQuestion ?? question.question
-    return [introduction, `Time: ${spokenDuration(question.timeSeconds ?? (question.difficulty === 'Easy' ? storageRef.current.settings.easySeconds : storageRef.current.settings.difficultSeconds))}.`, questionText, ...options, null, questionText, ...options, 'Time starts now.']
+    return [introduction, `Time: ${spokenDuration(question.timeSeconds ?? (question.difficulty === 'Easy' ? storageRef.current.settings.easySeconds : storageRef.current.settings.difficultSeconds))}.`, questionText, ...options, null, 'Again.', questionText, ...options, 'Time starts now.']
   }
 
   function startQuestion(question: CompetitionQuestion, runMode: RunMode) {
@@ -635,6 +636,24 @@ export default function MockCompetitionScreen({ voices }: MockCompetitionScreenP
     try {
       const parsed = parseCompetitionInput(source)
       const now = Date.now()
+      if (editingVersionId) {
+        const editedVersion = storage.versions.find((version) => version.id === editingVersionId)
+        if (!editedVersion) throw new Error('This saved competition no longer exists. Select it again before saving edits.')
+        setStorage((current) => ({
+          ...current,
+          versions: current.versions.map((version) => version.id === editingVersionId
+            ? { ...version, name: parsed.competitionName, competition: parsed, updatedAt: now }
+            : version),
+        }))
+        setSelectedVersionId(editingVersionId)
+        setEditingVersionId(null)
+        setCompetition(parsed)
+        setDraft(JSON.stringify(parsed, null, 2))
+        setError('')
+        setNotice(`Saved edits to “${parsed.competitionName}”.`)
+        setPhase('setup')
+        return
+      }
       const version: CompetitionVersion = {
         id: createCompetitionId(),
         name: parsed.competitionName,
@@ -680,7 +699,24 @@ export default function MockCompetitionScreen({ voices }: MockCompetitionScreenP
   function deleteVersion(id: string) {
     setStorage((current) => ({ ...current, versions: current.versions.filter((version) => version.id !== id) }))
     if (selectedVersionId === id) setSelectedVersionId(null)
+    if (editingVersionId === id) setEditingVersionId(null)
     setNotice('Saved version deleted.')
+  }
+
+  function editVersion(version: CompetitionVersion) {
+    setEditingVersionId(version.id)
+    setSelectedVersionId(version.id)
+    setCompetition(version.competition)
+    setDraft(JSON.stringify(version.competition, null, 2))
+    setError('')
+    setNotice(`Editing “${version.name}”. Change any question or competition field, then save changes.`)
+    document.getElementById('competition-json')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }
+
+  function cancelEditing() {
+    setEditingVersionId(null)
+    setError('')
+    setNotice('Edit canceled. The saved competition was not changed.')
   }
 
   function changeSettings(next: Partial<CompetitionSettings>) {
@@ -766,8 +802,10 @@ export default function MockCompetitionScreen({ voices }: MockCompetitionScreenP
               placeholder={'Competition Name: My Competition\n---\nRound: 1\nQuestion Number: 1\nCategory: Algebra\nDifficulty: Easy\nPoints: 1\nType: Identification\nTime Seconds: 15\nQuestion: What is $2+2$?\nQuestion Read Aloud: What is two plus two?\nAnswer: $4$\nSolution: $2+2=4$'}
               spellCheck={false}
             />
+            {editingVersionId && <p className="question-hint">Editing {storage.versions.find((version) => version.id === editingVersionId)?.name ?? 'saved competition'}. Edit any fields in the text or JSON, then save changes. Invalid combinations will show a validation message.</p>}
             <div className="competition-load-actions">
-              <button className="primary-action" type="button" onClick={() => loadCompetition()}>Load Competition</button>
+              <button className="primary-action" type="button" onClick={() => loadCompetition()}>{editingVersionId ? 'Save Changes' : 'Load Competition'}</button>
+              {editingVersionId && <button className="secondary-action" type="button" onClick={cancelEditing}>Cancel Edit</button>}
             </div>
             {error && <p className="form-error" role="alert">{error}</p>}
             {notice && <p className="manage-message" role="status">{notice}</p>}
@@ -826,7 +864,8 @@ export default function MockCompetitionScreen({ voices }: MockCompetitionScreenP
                 </form> : <><strong>{version.name}</strong><small>{version.competition.rounds.length} rounds · {version.competition.rounds.reduce((sum, round) => sum + round.questions.length, 0)} questions · Saved {new Date(version.updatedAt).toLocaleDateString()}</small></>}
               </div>
               <div className="competition-version-actions">
-                <button className="text-action" type="button" onClick={() => { setSelectedVersionId(version.id); setCompetition(version.competition); setDraft(JSON.stringify(version.competition, null, 2)); setNotice(`Selected “${version.name}”.`); setError('') }}>Select</button>
+                <button className="text-action" type="button" onClick={() => editVersion(version)}>Edit</button>
+                <button className="text-action" type="button" onClick={() => { setEditingVersionId(null); setSelectedVersionId(version.id); setCompetition(version.competition); setDraft(JSON.stringify(version.competition, null, 2)); setNotice(`Selected “${version.name}”.`); setError('') }}>Select</button>
                 <button className="text-action" type="button" onClick={() => { setRenameId(version.id); setRenameDraft(version.name); setError('') }}>Rename</button>
                 <button className="text-action" type="button" onClick={() => deleteVersion(version.id)}>Delete</button>
                 <button className="secondary-action" type="button" onClick={() => beginCompetition(version)}>Replay</button>
