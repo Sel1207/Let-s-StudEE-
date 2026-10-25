@@ -5,19 +5,14 @@ import SettingsScreen from './SettingsScreen'
 import StudyScreen from './StudyScreen'
 import { drawQuestion, spokenDuration } from './questionLogic'
 import { loadStudyData, saveStudyData } from './studyStorage'
-import { PREFERRED_VOICE_NAME, type Question, type SpeechSpeed, type StudyData, type StudySettings, type Topic, type TopicGroupName } from './studyTypes'
+import { speechRate } from './speechRate'
+import { PREFERRED_VOICE_NAME, type Question, type StudyData, type StudySettings, type Topic, type TopicGroupName } from './studyTypes'
 
 type View = 'study' | 'manage' | 'settings' | 'competitions'
 type SessionPhase = 'ready' | 'speaking' | 'countdown' | 'paused' | 'time-up' | 'revealed' | 'rated'
 type Rating = 'gotIt' | 'missedIt'
 let speechRun = 0
 const MockCompetitionScreen = lazy(() => import('./MockCompetitionScreen'))
-
-function rateValue(speed: SpeechSpeed): number {
-  if (speed === 'slow') return 0.78
-  if (speed === 'fast') return 1.15
-  return 0.95
-}
 
 function speakLines(
   lines: string[],
@@ -45,7 +40,7 @@ function speakLines(
       return
     }
     const utterance = new SpeechSynthesisUtterance(lines[index])
-    utterance.rate = rateValue(settings.speechSpeed)
+    utterance.rate = speechRate(settings.speechSpeed)
     if (selectedVoice) utterance.voice = selectedVoice
     utterance.onend = speakNext
     utterance.onerror = speakNext

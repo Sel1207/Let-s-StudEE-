@@ -2,6 +2,7 @@ import { Fragment, useEffect, useEffectEvent, useMemo, useRef, useState, type CS
 import katex from 'katex'
 import 'katex/dist/katex.min.css'
 import './competition.css'
+import { speechRate } from './speechRate'
 import {
   createCompetitionId,
   createCompetitionBackup,
@@ -23,8 +24,6 @@ type Outcome = 'correct' | 'wrong'
 type RunMode = 'competition' | 'sudden-death'
 type Phase = 'setup' | 'announcing' | 'countdown' | 'answering' | 'paused' | 'revealed' | 'round-summary' | 'results' | 'sudden-results'
 type SpeechPart = string | null | { pauseMs: number } | { text: string; speed?: 'slow' | 'normal' | 'fast' }
-
-const SPEED_RATE = { slow: 0.78, normal: 0.95, fast: 1.15 } as const
 
 const COMPETITION_EXTRACTION_PROMPT = `Extract every competition question from the provided source document and return a complete, labeled plain-text competition I can paste into a mock competition app. Do not output JSON.
 
@@ -497,7 +496,7 @@ export default function MockCompetitionScreen({ voices }: MockCompetitionScreenP
       const text = typeof line === 'string' ? line : line.text
       const speed = typeof line === 'string' ? settings.speechSpeed : line.speed ?? settings.speechSpeed
       const utterance = new SpeechSynthesisUtterance(mathToSpeech(text))
-      utterance.rate = SPEED_RATE[speed]
+      utterance.rate = speechRate(speed)
       utterance.volume = settings.muted ? 0 : settings.volume
       if (selectedVoice) utterance.voice = selectedVoice
       let settled = false
