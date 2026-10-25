@@ -434,17 +434,30 @@ export default function MockCompetitionScreen({ voices }: MockCompetitionScreenP
       const boom = context.createOscillator()
       const boomGain = context.createGain()
       boom.type = 'sine'
-      boom.frequency.setValueAtTime(150, startAt)
-      boom.frequency.exponentialRampToValueAtTime(54, startAt + 0.46)
+      boom.frequency.setValueAtTime(125, startAt)
+      boom.frequency.exponentialRampToValueAtTime(42, startAt + 0.58)
       boomGain.gain.setValueAtTime(0.001, startAt)
-      boomGain.gain.exponentialRampToValueAtTime(0.28 * settings.volume, startAt + 0.025)
-      boomGain.gain.exponentialRampToValueAtTime(0.001, startAt + 0.52)
+      boomGain.gain.exponentialRampToValueAtTime(0.36 * settings.volume, startAt + 0.025)
+      boomGain.gain.exponentialRampToValueAtTime(0.001, startAt + 0.62)
       boom.connect(boomGain)
       boomGain.connect(context.destination)
       boom.start(startAt)
-      boom.stop(startAt + 0.54)
+      boom.stop(startAt + 0.64)
 
-      const frameCount = Math.floor(context.sampleRate * 0.2)
+      const impact = context.createOscillator()
+      const impactGain = context.createGain()
+      impact.type = 'triangle'
+      impact.frequency.setValueAtTime(820, startAt)
+      impact.frequency.exponentialRampToValueAtTime(160, startAt + 0.055)
+      impactGain.gain.setValueAtTime(0.001, startAt)
+      impactGain.gain.exponentialRampToValueAtTime(0.055 * settings.volume, startAt + 0.004)
+      impactGain.gain.exponentialRampToValueAtTime(0.001, startAt + 0.06)
+      impact.connect(impactGain)
+      impactGain.connect(context.destination)
+      impact.start(startAt)
+      impact.stop(startAt + 0.07)
+
+      const frameCount = Math.floor(context.sampleRate * 0.28)
       const noiseBuffer = context.createBuffer(1, frameCount, context.sampleRate)
       const noiseData = noiseBuffer.getChannelData(0)
       for (let index = 0; index < frameCount; index += 1) noiseData[index] = Math.random() * 2 - 1
@@ -453,16 +466,16 @@ export default function MockCompetitionScreen({ voices }: MockCompetitionScreenP
       const noiseGain = context.createGain()
       noise.buffer = noiseBuffer
       filter.type = 'lowpass'
-      filter.frequency.setValueAtTime(900, startAt)
-      filter.frequency.exponentialRampToValueAtTime(180, startAt + 0.2)
+      filter.frequency.setValueAtTime(1400, startAt)
+      filter.frequency.exponentialRampToValueAtTime(150, startAt + 0.28)
       noiseGain.gain.setValueAtTime(0.001, startAt)
-      noiseGain.gain.exponentialRampToValueAtTime(0.065 * settings.volume, startAt + 0.01)
-      noiseGain.gain.exponentialRampToValueAtTime(0.001, startAt + 0.2)
+      noiseGain.gain.exponentialRampToValueAtTime(0.11 * settings.volume, startAt + 0.008)
+      noiseGain.gain.exponentialRampToValueAtTime(0.001, startAt + 0.28)
       noise.connect(filter)
       filter.connect(noiseGain)
       noiseGain.connect(context.destination)
       noise.start(startAt)
-      noise.stop(startAt + 0.22)
+      noise.stop(startAt + 0.3)
     }).catch(() => {})
   }
 
@@ -633,7 +646,7 @@ export default function MockCompetitionScreen({ voices }: MockCompetitionScreenP
     const next = Math.max(0, remainingRef.current - 1)
     remainingRef.current = next
     setRemainingSeconds(next)
-    if (next === 5) fiveSecondCue()
+    if (next <= 5 && next > 0) fiveSecondCue()
     if (next === 0) announceTimeUp()
   })
 
