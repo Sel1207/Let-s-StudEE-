@@ -1,6 +1,7 @@
 import type { CSSProperties } from 'react'
 import { accuracy, applyPreset, questionCounts, topicChances } from './questionLogic'
 import { TOPIC_GROUPS, TOPICS, type Preset, type Question, type StudyData, type Topic, type TopicGroupName } from './studyTypes'
+import MathText from './MathText'
 
 type SessionPhase = 'ready' | 'speaking' | 'countdown' | 'paused' | 'time-up' | 'revealed' | 'rated'
 type Rating = 'gotIt' | 'missedIt'
@@ -14,6 +15,7 @@ interface StudyScreenProps {
   currentQuestion: Question | null
   currentTopic: Topic | null
   questionVisible: boolean
+  answerVisible: boolean
   timeIsUp: boolean
   rated: boolean
   notice: string
@@ -25,6 +27,7 @@ interface StudyScreenProps {
   onResume: () => void
   onSkip: () => void
   onToggleQuestion: () => void
+  onToggleAnswer: () => void
   onNext: () => void
   onRate: (rating: Rating) => void
 }
@@ -42,6 +45,7 @@ export default function StudyScreen({
   currentQuestion,
   currentTopic,
   questionVisible,
+  answerVisible,
   timeIsUp,
   rated,
   notice,
@@ -53,6 +57,7 @@ export default function StudyScreen({
   onResume,
   onSkip,
   onToggleQuestion,
+  onToggleAnswer,
   onNext,
   onRate,
 }: StudyScreenProps) {
@@ -169,12 +174,16 @@ export default function StudyScreen({
           <p className={`session-state${timeIsUp ? ' is-alert' : ''}`} aria-live="polite">
             {timeIsUp ? "Time's up!" : phase === 'speaking' ? 'Listen' : phase === 'paused' ? 'Paused' : phase === 'countdown' ? '' : phase === 'revealed' || phase === 'rated' ? 'Question' : 'Ready'}
           </p>
-          <div className={`timer${phase === 'countdown' && remainingSeconds <= 10 ? ' timer-urgent' : ''}`} role="timer" aria-live="off" aria-label={`${formatTime(remainingSeconds)} remaining`} style={timeStyle}>
+          <div className={`timer${phase === 'countdown' && remainingSeconds <= 5 ? ' timer-urgent' : ''}`} role="timer" aria-live="off" aria-label={`${formatTime(remainingSeconds)} remaining`} style={timeStyle}>
             {formatTime(remainingSeconds)}
           </div>
           <div className="timer-track" aria-hidden="true"><span /></div>
           {currentTopic && phase !== 'countdown' && <p className="current-topic">{currentTopic}</p>}
-          {questionVisible && currentQuestion && <p className="revealed-question">{currentQuestion.text}</p>}
+          {questionVisible && currentQuestion && <MathText text={currentQuestion.text} className="revealed-question" />}
+          {(timeIsUp || answerVisible) && currentQuestion && <div className="study-answer-panel">
+            <div><strong>Answer:</strong>{' '}<MathText text={currentQuestion.answer ?? 'No answer was included for this question.'} /></div>
+            <div><strong>Solution:</strong>{' '}<MathText text={currentQuestion.solution ?? 'No worked solution was included for this question.'} /></div>
+          </div>}
           {notice && <p className="session-notice" role="status">{notice}</p>}
 
           {!active && !ended && (
@@ -186,9 +195,11 @@ export default function StudyScreen({
           {phase === 'speaking' && (
             <div className="action-row">
               <button className="secondary-action" type="button" onClick={onToggleQuestion}>{questionVisible ? 'Hide question' : 'Show question'}</button>
+              <button className="secondary-action" type="button" onClick={onToggleAnswer}>{answerVisible ? 'Hide answer' : 'Show answer'}</button>
               <button className="secondary-action" type="button" onClick={onPause}>Pause</button>
               <button className="secondary-action" type="button" onClick={onStop}>Clear session</button>
               <button className="secondary-action" type="button" onClick={onSkip}>Skip</button>
+              {answerVisible && <button className="primary-action" type="button" onClick={onNext}>Next question</button>}
             </div>
           )}
 
@@ -196,9 +207,11 @@ export default function StudyScreen({
             <div className="action-grid">
               <button className="secondary-action" type="button" onClick={onRepeat}>Hear it again</button>
               <button className="secondary-action" type="button" onClick={onToggleQuestion}>{questionVisible ? 'Hide question' : 'Show question'}</button>
+              <button className="secondary-action" type="button" onClick={onToggleAnswer}>{answerVisible ? 'Hide answer' : 'Show answer'}</button>
               <button className="secondary-action" type="button" onClick={onPause}>Pause</button>
               <button className="secondary-action" type="button" onClick={onStop}>Clear session</button>
               <button className="secondary-action" type="button" onClick={onSkip}>Skip</button>
+              {answerVisible && <button className="primary-action" type="button" onClick={onNext}>Next question</button>}
             </div>
           )}
 
@@ -206,8 +219,10 @@ export default function StudyScreen({
             <div className="action-grid">
               <button className="primary-action" type="button" onClick={onResume}>Resume</button>
               <button className="secondary-action" type="button" onClick={onToggleQuestion}>{questionVisible ? 'Hide question' : 'Show question'}</button>
+              <button className="secondary-action" type="button" onClick={onToggleAnswer}>{answerVisible ? 'Hide answer' : 'Show answer'}</button>
               <button className="secondary-action" type="button" onClick={onStop}>Clear session</button>
               <button className="secondary-action" type="button" onClick={onSkip}>Skip</button>
+              {answerVisible && <button className="primary-action" type="button" onClick={onNext}>Next question</button>}
             </div>
           )}
 
@@ -218,7 +233,6 @@ export default function StudyScreen({
                 <button className="secondary-action" type="button" onClick={() => onRate('gotIt')}>Got it</button>
                 <button className="secondary-action" type="button" onClick={() => onRate('missedIt')}>Missed it</button>
               </>}
-              <button className="secondary-action" type="button" onClick={onToggleQuestion}>{questionVisible ? 'Hide question' : 'Show question'}</button>
               <button className="secondary-action" type="button" onClick={onStop}>Clear session</button>
               <button className="primary-action" type="button" onClick={onNext}>Next question</button>
             </div>

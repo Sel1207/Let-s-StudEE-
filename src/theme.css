@@ -9,6 +9,8 @@
   --line: #dce2dc;
   --accent: #347452;
   --accent-soft: #e3eee7;
+  --study-answer-bg: #dff3e6;
+  --study-answer-border: #75b98b;
   --alert: #b24738;
   --success: #247b56;
   --danger: #b24738;
@@ -23,16 +25,18 @@
 
 :root[data-theme='dark'] {
   color-scheme: dark;
-  --paper: #151b17;
-  --surface: #1e2721;
-  --ink: #e7eee8;
-  --muted: #a4b0a7;
-  --line: #37443a;
-  --accent: #8bc99c;
-  --accent-soft: #283a2e;
-  --alert: #ff9b85;
-  --success: #83d6a2;
-  --danger: #ff9b85;
+  --paper: #111214;
+  --surface: #191b1f;
+  --ink: #eceef0;
+  --muted: #a1a6ad;
+  --line: #30343a;
+  --accent: #7cab87;
+  --accent-soft: #242925;
+  --study-answer-bg: #243a2b;
+  --study-answer-border: #4e9565;
+  --alert: #e58b78;
+  --success: #73ba89;
+  --danger: #e88979;
 }
 
 * { box-sizing: border-box; }

@@ -5,9 +5,9 @@ export const MATH_TOPICS = [
   'Trigonometry',
   'Analytical Geometry',
   'Power Series & Fourier Series Analysis',
-  'Calculus 1',
-  'Calculus 2',
-  'Calculus 3',
+  'Differential Calculus',
+  'Integral Calculus',
+  'Series and Multivariable Calculus',
   'Linear Algebra',
   'Probability and Statistics',
   'Advanced Mathematics',
@@ -52,6 +52,9 @@ export interface Question {
   id: string
   text: string
   seconds: AllowedDuration
+  spokenText?: string
+  answer?: string
+  solution?: string
 }
 
 export interface TopicPreference {

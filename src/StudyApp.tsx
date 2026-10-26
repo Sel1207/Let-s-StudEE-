@@ -1,6 +1,7 @@
 import { useEffect, useEffectEvent, useRef, useState, type ChangeEvent, type CSSProperties } from 'react'
 import './study.css'
 import { loadQuestionBank, parseQuestionBank, pickRandomQuestion, saveQuestionBank } from './questionBank'
+import { mathToSpeech } from './mathSpeech'
 import { SUBJECTS, TIMER_OPTIONS, type PracticeQuestion, type Subject } from './types'
 
 type SessionPhase = 'ready' | 'reading' | 'thinking' | 'revealed'
@@ -15,7 +16,7 @@ function speak(text: string, onEnd: () => void): boolean {
   if (!('speechSynthesis' in window) || !('SpeechSynthesisUtterance' in window)) return false
 
   window.speechSynthesis.cancel()
-  const utterance = new SpeechSynthesisUtterance(text)
+  const utterance = new SpeechSynthesisUtterance(mathToSpeech(text))
   utterance.rate = 0.92
   let finished = false
   const finish = () => {

@@ -1,8 +1,9 @@
 import { Fragment, useEffect, useEffectEvent, useMemo, useRef, useState, type CSSProperties } from 'react'
-import katex from 'katex'
-import 'katex/dist/katex.min.css'
 import './competition.css'
+import MathText from './MathText'
 import { speechRate } from './speechRate'
+import { mathToSpeech } from './mathSpeech'
+import FireworksCelebration from './FireworksCelebration'
 import {
   competitionNameKey,
   createCompetitionId,
@@ -13,7 +14,9 @@ import {
   parseCompetitionInput,
   saveCompetitionStorage,
   type Competition,
+  type CompetitionFavorite,
   type CompetitionQuestion,
+  type CompetitionQuestionSnapshot,
   type CompetitionScoreHistory,
   type CompetitionScoreQuestion,
   type CompetitionSettings,
@@ -25,6 +28,7 @@ type Outcome = 'correct' | 'wrong'
 type RunMode = 'competition' | 'sudden-death'
 type Phase = 'setup' | 'announcing' | 'countdown' | 'answering' | 'paused' | 'revealed' | 'round-summary' | 'results' | 'sudden-results'
 type SpeechPart = string | null | { pauseMs: number } | { text: string; speed?: 'slow' | 'normal' | 'fast' }
+
 
 const COMPETITION_EXTRACTION_PROMPT = `Extract every competition question from the provided source document and return a complete, labeled plain-text competition I can paste into a mock competition app. Do not output JSON.
 
@@ -158,104 +162,6 @@ function spokenDuration(seconds: number): string {
   return remainder ? `${wordsForNumber(minutes)} minutes ${wordsForNumber(remainder)} seconds` : `${wordsForNumber(minutes)} ${minutes === 1 ? 'minute' : 'minutes'}`
 }
 
-export function mathToSpeech(text: string): string {
-  return text
-    .replace(/\$\$?|\\\(|\\\)|\\\[|\\\]/g, '')
-    .replace(/\\{2,}(?=(?:frac|sqrt|begin|end|int|lim|rightarrow|to|sum|prod|pi|theta|alpha|beta|infty|sin|cos|tan|arcsin|arccos|arctan|cdot|times|div|leq|geq|neq|approx|in|cup|cap|perp|parallel|pm|circ)\b)/g, '\\')
-    .replace(/\\(?:,|;|!|quad|qquad)/g, ' ')
-    .replace(/\\frac\s*\{([^}]+)\}\s*\{([^}]+)\}/g, '$1 over $2')
-    .replace(/\\sqrt\s*\{([^}]+)\}/g, 'square root of $1')
-    .replace(/\^\s*\\circ\b/gi, ' degrees ')
-    .replace(/\\circ\b/gi, ' degrees ')
-    .replace(/\u00B0/g, ' degrees ')
-    .replace(/\\begin\{(?:bmatrix|pmatrix|matrix)\}/g, 'matrix ')
-    .replace(/\\end\{(?:bmatrix|pmatrix|matrix)\}/g, ' end matrix ')
-    .replace(/\\\\/g, ' row ')
-    .replace(/&/g, ', ')
-    .replace(/\\int_\{?([A-Za-z0-9]+)\}?\^\{?([A-Za-z0-9]+)\}?/g, 'integral from $1 to $2 of ')
-    .replace(/\\lim_\{([^}]+)\}/g, 'limit as $1')
-    .replace(/\\lim\b/g, 'limit as ')
-    .replace(/\\to\b|\\rightarrow\b|→/g, ' approaches ')
-    .replace(/\\int\b/g, 'integral of ')
-    .replace(/\\sum\b/g, 'sum of ')
-    .replace(/\\prod\b/g, 'product of ')
-    .replace(/\\pi\b/g, 'pi')
-    .replace(/\\theta\b/g, 'theta')
-    .replace(/\\alpha\b/g, 'alpha')
-    .replace(/\\beta\b/g, 'beta')
-    .replace(/\\infty\b/g, 'infinity')
-    .replace(/\\sin\b/g, 'sine of ')
-    .replace(/\\cos\b/g, 'cosine of ')
-    .replace(/\\tan\b/g, 'tangent of ')
-    .replace(/\\arcsin\b|\barcsin\b/gi, 'inverse sine of ')
-    .replace(/\\arccos\b|\barccos\b/gi, 'inverse cosine of ')
-    .replace(/\\arctan\b|\barctan\b/gi, 'inverse tangent of ')
-    .replace(/\bsin\b/gi, 'sine of ')
-    .replace(/\bcos\b/gi, 'cosine of ')
-    .replace(/\btan\b/gi, 'tangent of ')
-    .replace(/\\cdot|\\times|×/g, ' times ')
-    .replace(/\\div|÷/g, ' divided by ')
-    .replace(/\\leq|≤/g, ' less than or equal to ')
-    .replace(/\\geq|≥/g, ' greater than or equal to ')
-    .replace(/\\neq|≠/g, ' not equal to ')
-    .replace(/\\approx|≈/g, ' approximately equal to ')
-    .replace(/\\in\b|∈/g, ' is an element of ')
-    .replace(/\\cup|∪/g, ' union ')
-    .replace(/\\cap|∩/g, ' intersection ')
-    .replace(/\\perp|⊥/g, ' perpendicular to ')
-    .replace(/\\parallel|∥/g, ' parallel to ')
-    .replace(/\\pm|±/g, ' plus or minus ')
-    .replace(/√\s*([\w]+)?/g, (_match, value: string | undefined) => `square root of ${value ?? ''}`)
-    .replace(/∫/g, 'integral of ')
-    .replace(/∑/g, 'sum of ')
-    .replace(/π/g, 'pi')
-    .replace(/θ/g, 'theta')
-    .replace(/α/g, 'alpha')
-    .replace(/β/g, 'beta')
-    .replace(/∞/g, 'infinity')
-    .replace(/°/g, ' degrees')
-    .replace(/([A-Za-z0-9]+)²/g, '$1 squared')
-    .replace(/([A-Za-z0-9]+)³/g, '$1 cubed')
-    .replace(/([A-Za-z0-9]+)⁴/g, '$1 to the fourth power')
-    .replace(/([A-Za-z0-9]+)\^\{?2\}?/g, '$1 squared')
-    .replace(/([A-Za-z0-9]+)\^\{?3\}?/g, '$1 cubed')
-    .replace(/([A-Za-z0-9]+)\^\{?([0-9]+)\}?/g, '$1 to the power of $2')
-    .replace(/([A-Za-z][A-Za-z0-9]*)_(?:\{([^}]+)\}|([A-Za-z0-9]+))/g, '$1 sub $2$3')
-    .replace(/([A-Za-z][A-Za-z0-9]*)([\u2080-\u2089]+)/g, (_match, base: string, digits: string) => {
-      const digitWords = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine']
-      const spokenDigits = [...digits].map((digit) => digitWords[digit.codePointAt(0)! - 0x2080]).join(' ')
-      return `${base} sub ${spokenDigits}`
-    })
-    .replace(/\bECE\b/g, 'E C E')
-    .replace(/\b([A-Za-z]+)\s*\/\s*([A-Za-z]+)\b/g, '$1 over $2')
-    .replace(/\b(\d+)\s*\/\s*(\d+)\b/g, '$1 over $2')
-    .replace(/[{}]/g, ' ')
-    .replace(/\\(?:left|right|mathrm|text|,|;|!)/g, ' ')
-    .replace(/[=]/g, ' equals ')
-    .replace(/\s+/g, ' ')
-    .trim()
-}
-
-function mathHtml(expression: string, displayMode: boolean): string {
-  try {
-    return katex.renderToString(expression, { displayMode, throwOnError: false, strict: 'ignore' })
-  } catch {
-    return expression
-  }
-}
-
-function MathText({ text, className }: { text: string; className?: string }) {
-  const chunks = text.split(/(\$\$[\s\S]+?\$\$|\$[^$\n]+\$|\\\[[\s\S]+?\\\]|\\\([\s\S]+?\\\))/g)
-  return <span className={className}>{chunks.map((chunk, index) => {
-    const displayMode = chunk.startsWith('$$') || chunk.startsWith('\\[')
-    const inline = (chunk.startsWith('$') && chunk.endsWith('$')) || (chunk.startsWith('\\(') && chunk.endsWith('\\)'))
-    if (!inline && !displayMode) return <span key={index}>{chunk}</span>
-    const expression = displayMode ? chunk.startsWith('$$') ? chunk.slice(2, -2) : chunk.slice(2, -2)
-      : chunk.startsWith('$') ? chunk.slice(1, -1) : chunk.slice(2, -2)
-    return <span key={index} className={displayMode ? 'math-display' : undefined} dangerouslySetInnerHTML={{ __html: mathHtml(expression, displayMode) }} />
-  })}</span>
-}
-
 function questionChoices(question: CompetitionQuestion, spoken = false): Array<[string, string]> {
   if (!question.choices) return []
   const displayChoices = Object.entries(question.choices) as Array<[string, string]>
@@ -274,32 +180,69 @@ function choiceSpeechParts(question: CompetitionQuestion): SpeechPart[] {
 }
 
 function initialStorage(): CompetitionStorage {
-  if (typeof window === 'undefined') return { versions: [], history: [], settings: defaultCompetitionSettings() }
+  if (typeof window === 'undefined') return { versions: [], history: [], favorites: [], settings: defaultCompetitionSettings() }
   return loadCompetitionStorage()
 }
 
 function mergeCompetitionVersions(existing: CompetitionVersion[], incoming: CompetitionVersion[]): CompetitionVersion[] {
-  const merged = new Map<string, CompetitionVersion>()
-  const merge = (version: CompetitionVersion) => {
+  const merged = [...existing]
+  incoming.forEach((version) => {
     const key = competitionNameKey(version.name)
-    const collisions = [...merged.values()].filter((saved) => saved.id === version.id || competitionNameKey(saved.name) === key)
+    const collisions = merged.filter((saved) => saved.id === version.id || competitionNameKey(saved.name) === key)
     const latest = collisions.reduce<CompetitionVersion | null>((newest, saved) => (
       !newest || saved.updatedAt > newest.updatedAt ? saved : newest
     ), null)
     if (latest && latest.updatedAt > version.updatedAt) return
-    collisions.forEach((saved) => merged.delete(saved.id))
-    merged.set(version.id, version)
-  }
-  existing.slice().sort((a, b) => a.updatedAt - b.updatedAt).forEach(merge)
-  incoming.slice().sort((a, b) => a.updatedAt - b.updatedAt).forEach(merge)
-  return [...merged.values()].sort((a, b) => b.updatedAt - a.updatedAt)
+    const insertionIndex = collisions.length
+      ? merged.findIndex((saved) => saved.id === collisions[0].id)
+      : merged.length
+    const collisionIds = new Set(collisions.map((saved) => saved.id))
+    for (let index = merged.length - 1; index >= 0; index -= 1) {
+      if (collisionIds.has(merged[index].id)) merged.splice(index, 1)
+    }
+    merged.splice(insertionIndex, 0, version)
+  })
+  return merged
 }
 
-function HistoryScoreboard({ entry }: { entry: CompetitionScoreHistory }) {
+function HistoryScoreboard({ entry, versions }: { entry: CompetitionScoreHistory; versions: CompetitionVersion[] }) {
+  const [selectedQuestion, setSelectedQuestion] = useState<{
+    question: CompetitionScoreQuestion
+    round: number | 'Sudden Death'
+    snapshot: CompetitionQuestionSnapshot | null
+  } | null>(null)
+  const dialogRef = useRef<HTMLDialogElement>(null)
   const questionLabel = (question: CompetitionScoreQuestion) => `Q${question.number}: ${question.difficulty === 'Easy' ? 'E' : 'D'}`
+  const sourceVersion = versions.find((version) => competitionNameKey(version.name) === competitionNameKey(entry.competitionName))
+  const questionSnapshot = (question: CompetitionScoreQuestion, round: number | 'Sudden Death'): CompetitionQuestionSnapshot | null => {
+    if (question.snapshot) return question.snapshot
+    const sourceQuestions = round === 'Sudden Death'
+      ? sourceVersion?.competition.suddenDeath
+      : sourceVersion?.competition.rounds.find((candidate) => candidate.round === round)?.questions
+    const sourceQuestion = sourceQuestions?.find((candidate) => candidate.number === question.number && candidate.difficulty === question.difficulty)
+    return sourceQuestion ? {
+      category: sourceQuestion.category,
+      type: sourceQuestion.type,
+      question: sourceQuestion.question,
+      choices: sourceQuestion.choices,
+      answer: sourceQuestion.answer,
+      solution: sourceQuestion.solution,
+    } : null
+  }
+  const showQuestion = (question: CompetitionScoreQuestion, round: number | 'Sudden Death') => {
+    setSelectedQuestion({ question, round, snapshot: questionSnapshot(question, round) })
+  }
+
+  useEffect(() => {
+    const dialog = dialogRef.current
+    if (!dialog) return
+    if (selectedQuestion && !dialog.open) dialog.showModal()
+    if (!selectedQuestion && dialog.open) dialog.close()
+  }, [selectedQuestion])
+
   return <>
     <section className="competition-scoreboard competition-history-scoreboard" aria-label={`Saved scoreboard for ${entry.competitionName}`}>
-      <div className="competition-scoreboard-heading"><h3>Saved scoreboard</h3><span>Question difficulty and points earned</span></div>
+      <div className="competition-scoreboard-heading"><h3>Saved scoreboard</h3><span>Click a question to view its answer and solution</span></div>
       <table className="competition-scoreboard-table">
         <thead><tr>
           <th className="competition-scoreboard-row-label" scope="col">Tracker</th>
@@ -310,7 +253,7 @@ function HistoryScoreboard({ entry }: { entry: CompetitionScoreHistory }) {
           <tr>
             <th className="competition-scoreboard-row-label" scope="row">Question / difficulty</th>
             {entry.rounds.map((round) => <Fragment key={round.round}>
-              {round.questions.map((question, index) => <td key={`${round.round}-${question.number}-${index}`}>{questionLabel(question)}</td>)}
+              {round.questions.map((question, index) => <td key={`${round.round}-${question.number}-${index}`}><button className="competition-scoreboard-question-button" type="button" onClick={() => showQuestion(question, round.round)}>{questionLabel(question)}</button></td>)}
               <td className="competition-scoreboard-round-total">Round {round.round} total</td>
             </Fragment>)}
             <td className="competition-scoreboard-round-total">Competition total</td>
@@ -331,11 +274,28 @@ function HistoryScoreboard({ entry }: { entry: CompetitionScoreHistory }) {
       <table className="competition-scoreboard-table">
         <thead><tr><th className="competition-scoreboard-row-label" scope="col">Tracker</th><th scope="colgroup" colSpan={entry.suddenDeath.questions.length + 1}>Sudden Death</th></tr></thead>
         <tbody>
-          <tr><th className="competition-scoreboard-row-label" scope="row">Question / difficulty</th>{entry.suddenDeath.questions.map((question, index) => <td key={`${question.number}-${index}`}>{questionLabel(question)}</td>)}<td className="competition-scoreboard-round-total">Total</td></tr>
+          <tr><th className="competition-scoreboard-row-label" scope="row">Question / difficulty</th>{entry.suddenDeath.questions.map((question, index) => <td key={`${question.number}-${index}`}><button className="competition-scoreboard-question-button" type="button" onClick={() => showQuestion(question, 'Sudden Death')}>{questionLabel(question)}</button></td>)}<td className="competition-scoreboard-round-total">Total</td></tr>
           <tr><th className="competition-scoreboard-row-label" scope="row">Points earned</th>{entry.suddenDeath.questions.map((question, index) => <td key={`${question.number}-${index}`} className={`competition-scoreboard-points${question.earnedPoints ? ' is-correct' : ' is-wrong'}`}>{question.earnedPoints}</td>)}<td className="competition-scoreboard-round-total">{entry.suddenDeath.score} / {entry.suddenDeath.maxScore}</td></tr>
         </tbody>
       </table>
     </section>}
+    <dialog ref={dialogRef} className="competition-history-question-dialog" aria-labelledby={`history-question-title-${entry.id}`} onClose={() => setSelectedQuestion(null)} onClick={(event) => {
+      if (event.target === event.currentTarget) dialogRef.current?.close()
+    }}>
+      {selectedQuestion && <>
+        <div className="competition-history-question-dialog-heading">
+          <div><p className="eyebrow">{entry.competitionName} · {selectedQuestion.round === 'Sudden Death' ? 'Sudden Death' : `Round ${selectedQuestion.round}`} · Question {selectedQuestion.question.number}</p><h2 id={`history-question-title-${entry.id}`}>{selectedQuestion.snapshot?.category ?? 'Question details'}</h2></div>
+          <button className="text-action" type="button" aria-label="Close question details" onClick={() => dialogRef.current?.close()}>Close</button>
+        </div>
+        <p className="competition-history-question-meta">{selectedQuestion.question.difficulty} · {selectedQuestion.question.points} {selectedQuestion.question.points === 1 ? 'point' : 'points'} · {selectedQuestion.question.earnedPoints} earned</p>
+        {selectedQuestion.snapshot ? <>
+          <MathText text={selectedQuestion.snapshot.question} className="competition-history-question-text" />
+          {selectedQuestion.snapshot.choices && <ol className="competition-choice-list" type="A">{(Object.entries(selectedQuestion.snapshot.choices) as Array<[string, string]>).map(([letter, choice]) => <li key={letter}><span className="choice-letter">{letter}.</span><MathText text={choice} /></li>)}</ol>}
+          <div className="competition-history-question-answer"><strong>Answer</strong><MathText text={selectedQuestion.snapshot.answer} /></div>
+          <div className="competition-history-question-answer"><strong>Solution</strong><MathText text={selectedQuestion.snapshot.solution} /></div>
+        </> : <p className="empty-state">The original question and solution aren’t available for this older score entry.</p>}
+      </>}
+    </dialog>
   </>
 }
 
@@ -362,6 +322,8 @@ export default function MockCompetitionScreen({ voices }: MockCompetitionScreenP
   const [selectedVersionId, setSelectedVersionId] = useState<string | null>(null)
   const [competition, setCompetition] = useState<Competition | null>(null)
   const [phase, setPhase] = useState<Phase>('setup')
+  const [showScoreHistory, setShowScoreHistory] = useState(false)
+  const [showRoundCelebration, setShowRoundCelebration] = useState(false)
   const [mode, setMode] = useState<RunMode>('competition')
   const [roundIndex, setRoundIndex] = useState(0)
   const [questionIndex, setQuestionIndex] = useState(0)
@@ -378,7 +340,9 @@ export default function MockCompetitionScreen({ voices }: MockCompetitionScreenP
   const speechToken = useRef(0)
   const audioContext = useRef<AudioContext | null>(null)
   const remainingRef = useRef(0)
+  const countdownDeadline = useRef<number | null>(null)
   const pausedRef = useRef(false)
+  const celebratedQuestions = useRef(new Set<string>())
 
   useEffect(() => {
     storageRef.current = storage
@@ -592,7 +556,8 @@ export default function MockCompetitionScreen({ voices }: MockCompetitionScreenP
   }
 
   const beginCountdown = useEffectEvent(() => {
-    if (pausedRef.current || document.visibilityState === 'hidden') return
+    if (pausedRef.current) return
+    countdownDeadline.current = Date.now() + remainingRef.current * 1000
     setPhase('countdown')
     setNotice('')
     startBeep()
@@ -621,6 +586,7 @@ export default function MockCompetitionScreen({ voices }: MockCompetitionScreenP
   function startQuestion(question: CompetitionQuestion, runMode: RunMode) {
     createAudio()
     pausedRef.current = false
+    countdownDeadline.current = null
     setCurrentQuestion(question)
     setQuestionVisible(false)
     setRemainingSeconds(question.timeSeconds ?? (question.difficulty === 'Easy' ? storage.settings.easySeconds : storage.settings.difficultSeconds))
@@ -638,15 +604,26 @@ export default function MockCompetitionScreen({ voices }: MockCompetitionScreenP
     }
   }
 
+  function celebrateFinalRound(question: CompetitionQuestion) {
+    if (mode !== 'competition' || !competition) return
+    if (competition.rounds.at(-1)?.questions.at(-1)?.id !== question.id || celebratedQuestions.current.has(question.id)) return
+    celebratedQuestions.current.add(question.id)
+    setShowRoundCelebration(true)
+  }
+
+  function finishAnswerReveal(message: string) {
+    setQuestionVisible(true)
+    setPhase('revealed')
+    setNotice(message)
+  }
+
   const announceTimeUp = useEffectEvent(() => {
     stopSpeech()
     setPhase('answering')
     setNotice("Time's up! Listen to the correct answer.")
     endBuzzer()
     const finishReveal = () => {
-      setQuestionVisible(true)
-      setPhase('revealed')
-      setNotice("Time's up!")
+      if (currentQuestion) finishAnswerReveal("Time's up!")
     }
     const started = currentQuestion
       ? speakSequence([
@@ -663,45 +640,37 @@ export default function MockCompetitionScreen({ voices }: MockCompetitionScreenP
   })
 
   const tickTimer = useEffectEvent(() => {
-    if (pausedRef.current || document.visibilityState === 'hidden') return
-    const next = Math.max(0, remainingRef.current - 1)
+    if (pausedRef.current || countdownDeadline.current === null) return
+    const next = Math.max(0, Math.ceil((countdownDeadline.current - Date.now()) / 1000))
+    if (next === remainingRef.current) return
     remainingRef.current = next
     setRemainingSeconds(next)
     if (next <= 5 && next > 0) fiveSecondCue()
-    if (next === 0) announceTimeUp()
+    if (next === 0) {
+      countdownDeadline.current = null
+      announceTimeUp()
+    }
   })
 
   useEffect(() => {
     if (phase !== 'countdown') return
-    const timer = window.setInterval(tickTimer, 1000)
-    return () => window.clearInterval(timer)
-  }, [phase])
-
-  useEffect(() => {
-    if (phase !== 'announcing' && phase !== 'countdown' && phase !== 'answering') return
-    const activePhase = phase
-    const pauseForBackground = () => {
-      if (pausedRef.current || (document.visibilityState !== 'hidden' && document.hasFocus())) return
-      pausedRef.current = true
-      setPausedFrom(activePhase)
-      if ((activePhase === 'announcing' || activePhase === 'answering') && 'speechSynthesis' in window) {
-        window.speechSynthesis.pause()
-      }
-      setPhase('paused')
-      setNotice('Paused because the app went to the background. Resume when you are ready.')
+    const timer = window.setInterval(tickTimer, 250)
+    const syncWhenVisible = () => {
+      if (document.visibilityState === 'visible') tickTimer()
     }
-    document.addEventListener('visibilitychange', pauseForBackground)
-    window.addEventListener('blur', pauseForBackground)
-    if (document.visibilityState === 'hidden' || !document.hasFocus()) pauseForBackground()
+    document.addEventListener('visibilitychange', syncWhenVisible)
     return () => {
-      document.removeEventListener('visibilitychange', pauseForBackground)
-      window.removeEventListener('blur', pauseForBackground)
+      window.clearInterval(timer)
+      document.removeEventListener('visibilitychange', syncWhenVisible)
     }
   }, [phase])
 
   function stopCompetition() {
     stopSpeech()
+    countdownDeadline.current = null
+    setShowRoundCelebration(false)
     setPhase('setup')
+    setShowScoreHistory(false)
     setCurrentQuestion(null)
     setNotice('Competition stopped.')
   }
@@ -714,7 +683,10 @@ export default function MockCompetitionScreen({ voices }: MockCompetitionScreenP
       setSelectedVersionId(selected.id)
       setDraft(JSON.stringify(source, null, 2))
     }
+    celebratedQuestions.current.clear()
+    setShowRoundCelebration(false)
     setCompetition(source)
+    setShowScoreHistory(false)
     setOutcomes({})
     setSuddenOutcomes({})
     setSavedHistoryId(null)
@@ -728,13 +700,33 @@ export default function MockCompetitionScreen({ voices }: MockCompetitionScreenP
   function revealAnswer() {
     if (!currentQuestion || !isActive || phase === 'answering' || (phase === 'paused' && pausedFrom === 'answering')) return
     stopSpeech()
+    countdownDeadline.current = null
     setQuestionVisible(true)
-    setPhase('revealed')
-    setNotice('Answer revealed.')
+    setPhase('answering')
+    setNotice('Reading the correct answer.')
+    const started = speakSequence([
+      { text: 'The correct answer is:', speed: 'normal' },
+      { text: currentQuestion.answer, speed: 'normal' },
+    ], () => {
+      finishAnswerReveal('Answer revealed.')
+    })
+    if (!started) {
+      finishAnswerReveal('Speech synthesis is unavailable. The answer is shown.')
+    }
   }
 
   function pauseCompetition() {
     if (phase !== 'announcing' && phase !== 'countdown' && phase !== 'answering') return
+    if (phase === 'countdown') {
+      const next = Math.max(0, Math.ceil(((countdownDeadline.current ?? Date.now()) - Date.now()) / 1000))
+      countdownDeadline.current = null
+      remainingRef.current = next
+      setRemainingSeconds(next)
+      if (next === 0) {
+        announceTimeUp()
+        return
+      }
+    }
     pausedRef.current = true
     setPausedFrom(phase)
     if ((phase === 'announcing' || phase === 'answering') && 'speechSynthesis' in window) window.speechSynthesis.pause()
@@ -743,8 +735,9 @@ export default function MockCompetitionScreen({ voices }: MockCompetitionScreenP
   }
 
   function resumeCompetition() {
-    if (phase !== 'paused' || document.visibilityState === 'hidden') return
+    if (phase !== 'paused') return
     pausedRef.current = false
+    if (pausedFrom === 'countdown') countdownDeadline.current = Date.now() + remainingRef.current * 1000
     if ((pausedFrom === 'announcing' || pausedFrom === 'answering') && 'speechSynthesis' in window) window.speechSynthesis.resume()
     setPhase(pausedFrom)
     setNotice('')
@@ -766,16 +759,12 @@ export default function MockCompetitionScreen({ voices }: MockCompetitionScreenP
         { text: 'The correct answer is', speed: 'normal' },
         { text: currentQuestion.answer, speed: 'normal' },
       ], () => {
-        setQuestionVisible(true)
-        setPhase('revealed')
-        setNotice("Time's up!")
+        finishAnswerReveal("Time's up!")
       })
       setPhase('answering')
       setNotice(started ? 'Replaying the question, then reading the answer.' : 'Speech synthesis is unavailable.')
       if (!started) {
-        setQuestionVisible(true)
-        setPhase('revealed')
-        setNotice("Time's up! Speech synthesis is unavailable; the answer is shown.")
+        finishAnswerReveal("Time's up! Speech synthesis is unavailable; the answer is shown.")
       }
       return
     }
@@ -793,16 +782,18 @@ export default function MockCompetitionScreen({ voices }: MockCompetitionScreenP
     return mode === 'sudden-death' ? suddenOutcomes : outcomes
   }
 
-  function setQuestionOutcome(outcome: Outcome) {
+  function markQuestionOutcome(outcome: Outcome) {
     if (!currentQuestion) return
+    if (mode === 'competition') celebrateFinalRound(currentQuestion)
     if (mode === 'sudden-death') setSuddenOutcomes((current) => ({ ...current, [currentQuestion.id]: outcome }))
     else setOutcomes((current) => ({ ...current, [currentQuestion.id]: outcome }))
+    nextQuestion(false, outcome)
   }
 
-  function nextQuestion(skip = false) {
+  function nextQuestion(skip = false, markedOutcome?: Outcome) {
     if (!competition || !currentQuestion) return
     const outcomeMap = selectedOutcomeMap()
-    const currentOutcome = outcomeMap[currentQuestion.id]
+    const currentOutcome = markedOutcome ?? outcomeMap[currentQuestion.id]
     if (!skip && currentOutcome === undefined) return
     stopSpeech()
     if (currentOutcome === undefined) {
@@ -852,6 +843,18 @@ export default function MockCompetitionScreen({ voices }: MockCompetitionScreenP
     startQuestion(competition.suddenDeath[0], 'sudden-death')
   }
 
+  function saveCelebrationScore() {
+    saveScoreToHistory()
+    setShowRoundCelebration(false)
+    setPhase('results')
+  }
+
+  function continueToSuddenDeath() {
+    if (!competition?.suddenDeath.length) return
+    setShowRoundCelebration(false)
+    startSuddenDeath()
+  }
+
   async function copyExtractionPrompt() {
     try {
       await navigator.clipboard.writeText(COMPETITION_EXTRACTION_PROMPT)
@@ -888,17 +891,21 @@ export default function MockCompetitionScreen({ voices }: MockCompetitionScreenP
       const existingHistoryIds = new Set(storageRef.current.history.map((entry) => entry.id))
       const addedScores = backup.history.filter((entry) => !existingHistoryIds.has(entry.id)).length
       const replacedScores = backup.history.length - addedScores
+      const favoriteCount = backup.favorites.length
       setStorage((current) => {
         const historyById = new Map(current.history.map((entry) => [entry.id, entry]))
+        const favoritesById = new Map(current.favorites.map((entry) => [entry.id, entry]))
         backup.history.forEach((entry) => historyById.set(entry.id, entry))
+        backup.favorites.forEach((entry) => favoritesById.set(entry.id, entry))
         return {
           ...current,
           versions: mergeCompetitionVersions(current.versions, backup.versions),
           history: [...historyById.values()].sort((a, b) => b.savedAt - a.savedAt),
+          favorites: [...favoritesById.values()].sort((a, b) => b.savedAt - a.savedAt),
         }
       })
       const scoreCount = `${addedScores} score entr${addedScores === 1 ? 'y' : 'ies'} added${replacedScores ? `, ${replacedScores} updated` : ''}`
-      setTransferNotice(`Backup merged. Matching competition names were updated to their latest version without duplicates; ${scoreCount}. This device's voice and speech settings were kept.`)
+      setTransferNotice(`Backup merged. Matching competition names were updated to their latest version without duplicates; ${scoreCount}; ${favoriteCount} favorite question${favoriteCount === 1 ? '' : 's'} included. This device's voice and speech settings were kept.`)
     } catch (problem) {
       setTransferError(problem instanceof Error ? problem.message : 'Could not read this Mock Competition backup.')
     }
@@ -938,9 +945,9 @@ export default function MockCompetitionScreen({ voices }: MockCompetitionScreenP
       }
       setStorage((current) => ({
         ...current,
-        versions: [version, ...current.versions.filter((saved) => (
-          competitionNameKey(saved.name) !== competitionNameKey(parsed.competitionName)
-        ))],
+        versions: matchingVersion
+          ? current.versions.map((saved) => saved.id === matchingVersion.id ? version : saved)
+          : [version, ...current.versions],
       }))
       setSelectedVersionId(version.id)
       setCompetition(parsed)
@@ -962,11 +969,17 @@ export default function MockCompetitionScreen({ voices }: MockCompetitionScreenP
       setError('Competition name cannot be blank.')
       return
     }
+    const previousName = storage.versions.find((version) => version.id === id)?.name
     setStorage((current) => ({
       ...current,
       versions: current.versions.map((version) => version.id === id
         ? { ...version, name, competition: { ...version.competition, competitionName: name }, updatedAt: Date.now() }
         : version),
+      history: previousName ? current.history.map((entry) => (
+        !entry.sourceVersionId && competitionNameKey(entry.competitionName) === competitionNameKey(previousName)
+          ? { ...entry, sourceVersionId: id }
+          : entry
+      )) : current.history,
     }))
     if (selectedVersionId === id && competition) {
       const renamed = { ...competition, competitionName: name }
@@ -976,6 +989,24 @@ export default function MockCompetitionScreen({ voices }: MockCompetitionScreenP
     setRenameId(null)
     setError('')
     setNotice('Competition renamed.')
+  }
+
+  function moveVersion(id: string, direction: -1 | 1) {
+    const version = storage.versions.find((saved) => saved.id === id)
+    const index = storage.versions.findIndex((saved) => saved.id === id)
+    const targetIndex = index + direction
+    if (!version || index < 0 || targetIndex < 0 || targetIndex >= storage.versions.length) return
+    setStorage((current) => {
+      const from = current.versions.findIndex((saved) => saved.id === id)
+      const to = from + direction
+      if (from < 0 || to < 0 || to >= current.versions.length) return current
+      const versions = [...current.versions]
+      const movedVersion = versions[from]
+      versions[from] = versions[to]
+      versions[to] = movedVersion
+      return { ...current, versions }
+    })
+    setNotice(`Moved “${version.name}” ${direction < 0 ? 'up' : 'down'}.`)
   }
 
   function deleteVersion(id: string) {
@@ -1005,6 +1036,48 @@ export default function MockCompetitionScreen({ voices }: MockCompetitionScreenP
     setStorage((current) => ({ ...current, settings: { ...current.settings, ...next } }))
   }
 
+  function toggleCelebrationMute() {
+    if (storage.settings.muted) {
+      try {
+        audioContext.current ??= new AudioContext()
+        void audioContext.current.resume().catch(() => {})
+      } catch {
+        audioContext.current = null
+      }
+    }
+    changeSettings({ muted: !storage.settings.muted })
+  }
+
+  function toggleFavorite(question: CompetitionQuestion) {
+    if (!competition) return
+    const sourceVersionId = selectedVersionId ?? 'unassigned'
+    const id = `${sourceVersionId}:${question.id}`
+    setStorage((current) => {
+      if (current.favorites.some((favorite) => favorite.id === id)) {
+        return { ...current, favorites: current.favorites.filter((favorite) => favorite.id !== id) }
+      }
+      const favorite: CompetitionFavorite = {
+        id,
+        sourceVersionId,
+        questionId: question.id,
+        competitionName: competition.competitionName,
+        round: question.round,
+        number: question.number,
+        category: question.category,
+        difficulty: question.difficulty,
+        points: question.points,
+        type: question.type,
+        question: question.question,
+        choices: question.choices ? { ...question.choices } : null,
+        answer: question.answer,
+        solution: question.solution,
+        timeSeconds: question.timeSeconds ?? (question.difficulty === 'Easy' ? storage.settings.easySeconds : storage.settings.difficultSeconds),
+        savedAt: Date.now(),
+      }
+      return { ...current, favorites: [favorite, ...current.favorites] }
+    })
+  }
+
   function testVoice() {
     if (storage.settings.muted || storage.settings.volume <= 0) {
       setVoiceTestNotice('Turn on sound and raise the volume to hear the test.')
@@ -1024,7 +1097,8 @@ export default function MockCompetitionScreen({ voices }: MockCompetitionScreenP
   const cumulativeScore = totalScore(regularQuestions, outcomes)
   const maxTotal = regularQuestions.reduce((total, question) => total + question.points, 0)
   const maxRound = competition?.rounds[roundIndex]?.questions.reduce((total, question) => total + question.points, 0) ?? 0
-  const currentQuestionOutcome = currentQuestion ? selectedOutcomeMap()[currentQuestion.id] : undefined
+  const currentQuestionFavoriteId = currentQuestion ? `${selectedVersionId ?? 'unassigned'}:${currentQuestion.id}` : ''
+  const isCurrentQuestionFavorite = storage.favorites.some((favorite) => favorite.id === currentQuestionFavoriteId)
   const timerStyle = { '--time-progress': `${activeTimeLimit ? Math.max(0, Math.min(1, remainingSeconds / activeTimeLimit)) * 100 : 0}%` } as CSSProperties
 
   const categoryBreakdown = new Map<string, { score: number; max: number; correct: number; count: number }>()
@@ -1048,6 +1122,14 @@ export default function MockCompetitionScreen({ voices }: MockCompetitionScreenP
     difficulty: question.difficulty,
     points: question.points,
     earnedPoints: results[question.id] === 'correct' ? question.points : 0,
+    snapshot: {
+      category: question.category,
+      type: question.type,
+      question: question.question,
+      choices: question.choices ? { ...question.choices } : null,
+      answer: question.answer,
+      solution: question.solution,
+    },
   }))
 
   function saveScoreToHistory() {
@@ -1056,6 +1138,7 @@ export default function MockCompetitionScreen({ voices }: MockCompetitionScreenP
     const scoredSuddenDeathQuestions = competition.suddenDeath.filter((question) => suddenOutcomes[question.id] !== undefined)
     const entry: CompetitionScoreHistory = {
       id,
+      ...(selectedVersionId ? { sourceVersionId: selectedVersionId } : {}),
       competitionName: competition.competitionName,
       savedAt: Date.now(),
       score: cumulativeScore,
@@ -1146,11 +1229,12 @@ export default function MockCompetitionScreen({ voices }: MockCompetitionScreenP
     <section className="secondary-view competition-view" aria-labelledby="competition-heading">
       <div className="view-heading">
         <p className="eyebrow">Timed rounds, your question sets</p>
-        <h1 id="competition-heading">Mock Competition</h1>
-        <p className="topic-priority-help">Load an AI-extracted text competition or JSON, then keep named versions here to replay whenever you want.</p>
+        <h1 id="competition-heading">{showScoreHistory ? 'Score History' : 'Mock Competition'}</h1>
+        <p className="topic-priority-help">{showScoreHistory ? 'Review saved competition scores and open any question to see its answer and solution.' : 'Load an AI-extracted text competition or JSON, then keep named versions here to replay whenever you want.'}</p>
+        {phase === 'setup' && <button className="secondary-action competition-history-toggle" type="button" aria-expanded={showScoreHistory} aria-controls="score-history-content" onClick={() => setShowScoreHistory((visible) => !visible)}>{showScoreHistory ? 'Back to Mock Competition' : `View Score History (${storage.history.length})`}</button>}
       </div>
 
-      {phase === 'setup' && <>
+      {phase === 'setup' && !showScoreHistory && <>
         <section className="competition-extraction" aria-labelledby="competition-extraction-heading">
           <div className="competition-extraction-copy">
             <p className="eyebrow">From document to competition</p>
@@ -1230,10 +1314,10 @@ export default function MockCompetitionScreen({ voices }: MockCompetitionScreenP
           <div className="competition-transfer-copy">
             <p className="eyebrow">Move between devices</p>
             <h2 id="competition-transfer-heading">Transfer competitions</h2>
-            <p>Download a backup on your laptop, move the file with iCloud Drive, Google Drive, OneDrive, or AirDrop, then import it on your phone from Files. It includes saved competitions and score history; voice settings stay specific to each device.</p>
+            <p>Download a backup on your laptop, move the file with iCloud Drive, Google Drive, OneDrive, or AirDrop, then import it on your phone from Files. It includes saved competitions, score history, and favorite questions; voice settings stay specific to each device.</p>
           </div>
           <div className="competition-transfer-actions">
-            <button className="primary-action" type="button" disabled={!storage.versions.length && !storage.history.length} onClick={exportCompetitionBackup}>Download backup</button>
+            <button className="primary-action" type="button" disabled={!storage.versions.length && !storage.history.length && !storage.favorites.length} onClick={exportCompetitionBackup}>Download backup</button>
             <button className="secondary-action" type="button" onClick={() => backupFileInput.current?.click()}>Import backup</button>
             <input
               ref={backupFileInput}
@@ -1261,26 +1345,35 @@ export default function MockCompetitionScreen({ voices }: MockCompetitionScreenP
           <div className="competition-library-heading"><h2 id="my-competitions-heading">My Competitions</h2><span>{storage.versions.length} saved</span></div>
           {!storage.versions.length && <p className="empty-state">Loaded competitions will be saved here as separate replayable versions.</p>}
           <ul className="competition-version-list">
-            {storage.versions.map((version) => <li key={version.id} className="competition-version">
+            {storage.versions.map((version, index) => {
+              const trialCount = storage.history.filter((entry) => entry.sourceVersionId === version.id
+                || (!entry.sourceVersionId && competitionNameKey(entry.competitionName) === competitionNameKey(version.name))).length
+              return <li key={version.id} className="competition-version">
               <div className="competition-version-copy">
                 {renameId === version.id ? <form onSubmit={(event) => { event.preventDefault(); renameVersion(version.id) }}>
                   <input aria-label="New competition name" autoFocus value={renameDraft} onChange={(event) => setRenameDraft(event.currentTarget.value)} />
                   <button className="text-action" type="submit">Save name</button>
                   <button className="text-action" type="button" onClick={() => setRenameId(null)}>Cancel</button>
-                </form> : <><strong>{version.name}</strong><small>{version.competition.rounds.length} rounds · {version.competition.rounds.reduce((sum, round) => sum + round.questions.length, 0)} questions · Saved {new Date(version.updatedAt).toLocaleDateString()}</small></>}
+                </form> : <><strong>{version.name}</strong><small>{version.competition.rounds.length} rounds · {version.competition.rounds.reduce((sum, round) => sum + round.questions.length, 0)} questions · Saved {new Date(version.updatedAt).toLocaleDateString()}</small><span className={`competition-version-trials${trialCount === 0 ? ' is-new' : ''}`} aria-label={`${trialCount} saved ${trialCount === 1 ? 'trial' : 'trials'} in Score History`}>{trialCount === 0 ? 'No saved trials yet' : `${trialCount} saved ${trialCount === 1 ? 'trial' : 'trials'}`}</span></>}
               </div>
               <div className="competition-version-actions">
+                <div className="competition-version-order" aria-label={`Reorder ${version.name}`}>
+                  <button className="text-action" type="button" disabled={index === 0} aria-label={`Move ${version.name} up`} title="Move up" onClick={() => moveVersion(version.id, -1)}>↑</button>
+                  <button className="text-action" type="button" disabled={index === storage.versions.length - 1} aria-label={`Move ${version.name} down`} title="Move down" onClick={() => moveVersion(version.id, 1)}>↓</button>
+                </div>
                 <button className="text-action" type="button" onClick={() => editVersion(version)}>Edit</button>
                 <button className="text-action" type="button" onClick={() => { setEditingVersionId(null); setSelectedVersionId(version.id); setCompetition(version.competition); setDraft(JSON.stringify(version.competition, null, 2)); setNotice(`Selected “${version.name}”.`); setError('') }}>Select</button>
                 <button className="text-action" type="button" onClick={() => { setRenameId(version.id); setRenameDraft(version.name); setError('') }}>Rename</button>
                 <button className="text-action" type="button" onClick={() => deleteVersion(version.id)}>Delete</button>
                 <button className="secondary-action" type="button" onClick={() => beginCompetition(version)}>Replay</button>
               </div>
-            </li>)}
+            </li>
+            })}
           </ul>
         </section>
+      </>}
 
-        <section className="competition-history" aria-labelledby="competition-history-heading">
+      {phase === 'setup' && showScoreHistory && <section className="competition-history competition-history-page" id="score-history-content" aria-labelledby="competition-history-heading">
           <div className="competition-library-heading"><h2 id="competition-history-heading">Score History</h2><span>{storage.history.length} saved attempts</span></div>
           {!storage.history.length && <p className="empty-state">After both rounds are complete, save a score to keep its results and scoreboard here.</p>}
           <div className="competition-history-list">
@@ -1299,13 +1392,12 @@ export default function MockCompetitionScreen({ voices }: MockCompetitionScreenP
               </div>
               <details className="competition-history-details">
                 <summary>View saved scoreboard</summary>
-                <HistoryScoreboard entry={entry} />
+                <HistoryScoreboard entry={entry} versions={storage.versions} />
               </details>
             </article>)}
           </div>
           {historyNotice && <p className="manage-message" role="status">{historyNotice}</p>}
-        </section>
-      </>}
+      </section>}
 
       {(phase === 'announcing' || phase === 'countdown' || phase === 'answering' || phase === 'paused' || phase === 'revealed') && currentQuestion && <section className="competition-run" aria-label="Competition question">
         <div className="competition-run-heading">
@@ -1316,17 +1408,22 @@ export default function MockCompetitionScreen({ voices }: MockCompetitionScreenP
         {mode === 'competition' && scoreTracker}
         <div className="competition-question-layout">
           <article className="competition-question-card">
-            <div className="competition-question-meta">
-              <span>{currentQuestion.category}</span><span>{currentQuestion.difficulty}</span><span>{currentQuestion.points} {currentQuestion.points === 1 ? 'point' : 'points'}</span><span>{currentQuestion.type}</span>
+            <div className="competition-question-topline">
+              <div className="competition-question-meta">
+                <span>{currentQuestion.category}</span><span>{currentQuestion.difficulty}</span><span>{currentQuestion.points} {currentQuestion.points === 1 ? 'point' : 'points'}</span><span>{currentQuestion.type}</span>
+              </div>
+              <button className={`competition-heart-button${isCurrentQuestionFavorite ? ' is-favorite' : ''}`} type="button" aria-label={isCurrentQuestionFavorite ? 'Remove this question from favorites' : 'Save this question to favorites'} aria-pressed={isCurrentQuestionFavorite} title={isCurrentQuestionFavorite ? 'Saved to favorites' : 'Save question'} onClick={() => toggleFavorite(currentQuestion)}>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8l1.1 1.1L12 21l7.8-7.5 1.1-1.1a5.5 5.5 0 0 0-.1-7.8Z" /></svg>
+              </button>
             </div>
             {phase !== 'revealed' && <button className="secondary-action competition-question-visibility" type="button" aria-expanded={questionVisible} onClick={() => setQuestionVisible((visible) => !visible)}>{questionVisible ? 'Hide Question' : 'Show Question'}</button>}
             {questionVisible && <MathText text={currentQuestion.question} className="competition-question-text" />}
             {questionVisible && questionChoices(currentQuestion).length > 0 && <ol className="competition-choice-list" type="A">
               {questionChoices(currentQuestion).map(([letter, choice]) => <li key={letter}><span className="choice-letter">{letter}.</span><MathText text={choice} /></li>)}
             </ol>}
-            {phase === 'revealed' && <div className="competition-answer-panel">
-              <div><strong>Answer</strong><MathText text={currentQuestion.answer} /></div>
-              <div><strong>Solution</strong><MathText text={currentQuestion.solution} /></div>
+            {(phase === 'revealed' || phase === 'answering' || (phase === 'paused' && pausedFrom === 'answering')) && <div className="competition-answer-panel">
+              <div><strong>The correct answer is:</strong>{' '}<MathText text={currentQuestion.answer} /></div>
+              <div><strong>Solution:</strong>{' '}<MathText text={currentQuestion.solution} /></div>
             </div>}
           </article>
           <aside className="competition-timer-panel">
@@ -1345,9 +1442,8 @@ export default function MockCompetitionScreen({ voices }: MockCompetitionScreenP
             </div>
             {mode === 'sudden-death' && historyNotice && <p className="manage-message" role="status">{historyNotice}</p>}
             {phase === 'revealed' && <div className="competition-marking">
-              <button className={`secondary-action${currentQuestionOutcome === 'correct' ? ' is-selected' : ''}`} type="button" aria-pressed={currentQuestionOutcome === 'correct'} onClick={() => setQuestionOutcome('correct')}>Mark Correct</button>
-              <button className={`secondary-action${currentQuestionOutcome === 'wrong' ? ' is-selected' : ''}`} type="button" aria-pressed={currentQuestionOutcome === 'wrong'} onClick={() => setQuestionOutcome('wrong')}>Mark Wrong</button>
-              <button className="primary-action" type="button" disabled={!currentQuestionOutcome} title={!currentQuestionOutcome ? 'Mark this question correct or wrong to continue.' : undefined} onClick={() => nextQuestion()}>Next Question</button>
+              <button className="secondary-action" type="button" onClick={() => markQuestionOutcome('correct')}>Mark Correct</button>
+              <button className="secondary-action" type="button" onClick={() => markQuestionOutcome('wrong')}>Mark Wrong</button>
             </div>}
             {mode === 'competition' && <p className="competition-score-so-far">This round: {roundScore} / {maxRound} · Total: {cumulativeScore} / {maxTotal}</p>}
           </aside>
@@ -1404,6 +1500,20 @@ export default function MockCompetitionScreen({ voices }: MockCompetitionScreenP
         </div>
         {historyNotice && <p className="manage-message" role="status">{historyNotice}</p>}
       </section>}
+
+      {showRoundCelebration && <FireworksCelebration
+        audioContext={audioContext.current}
+        muted={storage.settings.muted}
+        volume={storage.settings.volume}
+        onToggleMute={toggleCelebrationMute}
+        onDismiss={() => setShowRoundCelebration(false)}
+        onSaveScore={saveCelebrationScore}
+        onSuddenDeath={continueToSuddenDeath}
+        competitionName={competition?.competitionName ?? ''}
+        score={cumulativeScore}
+        maxScore={maxTotal}
+        hasSuddenDeath={Boolean(competition?.suddenDeath.length)}
+      />}
     </section>
   )
 }

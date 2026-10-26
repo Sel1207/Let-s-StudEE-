@@ -43,6 +43,16 @@ export interface CompetitionScoreQuestion {
   difficulty: CompetitionDifficulty
   points: number
   earnedPoints: number
+  snapshot?: CompetitionQuestionSnapshot
+}
+
+export interface CompetitionQuestionSnapshot {
+  category: string
+  type: CompetitionQuestionType
+  question: string
+  choices: CompetitionChoices | null
+  answer: string
+  solution: string
 }
 
 export interface CompetitionScoreRound {
@@ -61,12 +71,32 @@ export interface CompetitionSuddenDeathScore {
 
 export interface CompetitionScoreHistory {
   id: string
+  sourceVersionId?: string
   competitionName: string
   savedAt: number
   score: number
   maxScore: number
   rounds: CompetitionScoreRound[]
   suddenDeath: CompetitionSuddenDeathScore | null
+}
+
+export interface CompetitionFavorite {
+  id: string
+  sourceVersionId: string
+  questionId: string
+  competitionName: string
+  round: number | 'Sudden Death'
+  number: number
+  category: string
+  difficulty: CompetitionDifficulty
+  points: number
+  type: CompetitionQuestionType
+  question: string
+  choices: CompetitionChoices | null
+  answer: string
+  solution: string
+  timeSeconds: number
+  savedAt: number
 }
 
 export interface CompetitionSettings {
@@ -81,6 +111,7 @@ export interface CompetitionSettings {
 export interface CompetitionStorage {
   versions: CompetitionVersion[]
   history: CompetitionScoreHistory[]
+  favorites: CompetitionFavorite[]
   settings: CompetitionSettings
 }
 
@@ -90,6 +121,7 @@ export interface CompetitionBackup {
   exportedAt: number
   competitions: CompetitionVersion[]
   history: CompetitionScoreHistory[]
+  favorites: CompetitionFavorite[]
 }
 
 const STORAGE_KEY = 'lets-studee-mock-competitions-v1'
@@ -120,6 +152,29 @@ function parseScoreQuestion(value: unknown): CompetitionScoreQuestion | null {
     difficulty: value.difficulty,
     points: value.points,
     earnedPoints: value.earnedPoints,
+    snapshot: parseQuestionSnapshot(value.snapshot) ?? undefined,
+  }
+}
+
+function parseQuestionSnapshot(value: unknown): CompetitionQuestionSnapshot | null {
+  if (!isRecord(value) || typeof value.category !== 'string' || !value.category
+    || (value.type !== 'Identification' && value.type !== 'Problem-solving' && value.type !== 'Multiple choice')
+    || typeof value.question !== 'string' || !value.question
+    || typeof value.answer !== 'string' || !value.answer
+    || typeof value.solution !== 'string' || !value.solution) return null
+  let choices: CompetitionChoices | null
+  try {
+    choices = parseChoices(value.choices, 'question snapshot.choices')
+  } catch {
+    return null
+  }
+  return {
+    category: value.category,
+    type: value.type,
+    question: value.question,
+    choices,
+    answer: value.answer,
+    solution: value.solution,
   }
 }
 
@@ -168,12 +223,55 @@ function parseScoreHistory(value: unknown): CompetitionScoreHistory | null {
   if (value.suddenDeath && !suddenDeath) return null
   return {
     id: value.id,
+    ...(typeof value.sourceVersionId === 'string' && value.sourceVersionId ? { sourceVersionId: value.sourceVersionId } : {}),
     competitionName: value.competitionName,
     savedAt: value.savedAt,
     score: value.score,
     maxScore: value.maxScore,
     rounds: rounds as CompetitionScoreRound[],
     suddenDeath,
+  }
+}
+
+function parseFavorite(value: unknown): CompetitionFavorite | null {
+  if (!isRecord(value) || typeof value.id !== 'string' || !value.id
+    || typeof value.sourceVersionId !== 'string' || !value.sourceVersionId
+    || typeof value.questionId !== 'string' || !value.questionId
+    || typeof value.competitionName !== 'string' || !value.competitionName
+    || (value.round !== 'Sudden Death' && (!Number.isInteger(value.round) || Number(value.round) < 1))
+    || !Number.isInteger(value.number) || Number(value.number) < 1
+    || typeof value.category !== 'string' || !value.category
+    || (value.difficulty !== 'Easy' && value.difficulty !== 'Difficult')
+    || !isNonNegativeInteger(value.points) || value.points < 1
+    || (value.type !== 'Identification' && value.type !== 'Problem-solving' && value.type !== 'Multiple choice')
+    || typeof value.question !== 'string' || !value.question
+    || typeof value.answer !== 'string' || !value.answer
+    || typeof value.solution !== 'string' || !value.solution
+    || !isNonNegativeInteger(value.timeSeconds) || value.timeSeconds < 1
+    || !isNonNegativeInteger(value.savedAt)) return null
+  let choices: CompetitionChoices | null
+  try {
+    choices = parseChoices(value.choices, 'favorite.choices')
+  } catch {
+    return null
+  }
+  return {
+    id: value.id,
+    sourceVersionId: value.sourceVersionId,
+    questionId: value.questionId,
+    competitionName: value.competitionName,
+    round: value.round === 'Sudden Death' ? value.round : Number(value.round),
+    number: Number(value.number),
+    category: value.category,
+    difficulty: value.difficulty,
+    points: Number(value.points),
+    type: value.type,
+    question: value.question,
+    choices,
+    answer: value.answer,
+    solution: value.solution,
+    timeSeconds: Number(value.timeSeconds),
+    savedAt: Number(value.savedAt),
   }
 }
 
@@ -486,18 +584,19 @@ export function defaultCompetitionSettings(): CompetitionSettings {
   return { ...DEFAULT_SETTINGS }
 }
 
-export function createCompetitionBackup(storage: Pick<CompetitionStorage, 'versions' | 'history'>): string {
+export function createCompetitionBackup(storage: Pick<CompetitionStorage, 'versions' | 'history' | 'favorites'>): string {
   const backup: CompetitionBackup = {
     format: 'lets-studee-competition-backup',
     version: 1,
     exportedAt: Date.now(),
     competitions: storage.versions,
     history: storage.history,
+    favorites: storage.favorites,
   }
   return JSON.stringify(backup, null, 2)
 }
 
-export function parseCompetitionBackup(source: string): Pick<CompetitionStorage, 'versions' | 'history'> {
+export function parseCompetitionBackup(source: string): Pick<CompetitionStorage, 'versions' | 'history' | 'favorites'> {
   let value: unknown
   try {
     value = JSON.parse(source) as unknown
@@ -539,16 +638,23 @@ export function parseCompetitionBackup(source: string): Pick<CompetitionStorage,
     if (!parsed) fail(`history[${index}]`, 'invalid saved score entry')
     return parsed
   })
-  if (versions.length === 0 && history.length === 0) fail('backup', 'there are no saved competitions or scores to import')
-  return { versions, history }
+  const favorites = Array.isArray(value.favorites)
+    ? value.favorites.map((entry, index): CompetitionFavorite => {
+      const parsed = parseFavorite(entry)
+      if (!parsed) fail(`favorites[${index}]`, 'invalid saved question')
+      return parsed
+    })
+    : []
+  if (versions.length === 0 && history.length === 0 && favorites.length === 0) fail('backup', 'there are no saved competitions, scores, or favorite questions to import')
+  return { versions, history, favorites }
 }
 
 export function loadCompetitionStorage(): CompetitionStorage {
   try {
     const saved = window.localStorage.getItem(STORAGE_KEY)
-    if (!saved) return { versions: [], history: [], settings: defaultCompetitionSettings() }
+    if (!saved) return { versions: [], history: [], favorites: [], settings: defaultCompetitionSettings() }
     const value: unknown = JSON.parse(saved)
-    if (!isRecord(value)) return { versions: [], history: [], settings: defaultCompetitionSettings() }
+    if (!isRecord(value)) return { versions: [], history: [], favorites: [], settings: defaultCompetitionSettings() }
     const versions = Array.isArray(value.versions) ? value.versions.flatMap((entry): CompetitionVersion[] => {
       if (!isRecord(entry) || typeof entry.id !== 'string' || typeof entry.name !== 'string'
         || typeof entry.createdAt !== 'number' || typeof entry.updatedAt !== 'number'
@@ -566,10 +672,17 @@ export function loadCompetitionStorage(): CompetitionStorage {
         return parsed ? [parsed] : []
       })
       : []
+    const favorites = Array.isArray(value.favorites)
+      ? value.favorites.flatMap((entry): CompetitionFavorite[] => {
+        const parsed = parseFavorite(entry)
+        return parsed ? [parsed] : []
+      })
+      : []
     const settings = isRecord(value.settings) ? value.settings : {}
     return {
       versions,
       history,
+      favorites,
       settings: {
         easySeconds: Number.isInteger(settings.easySeconds) && Number(settings.easySeconds) > 0 ? Number(settings.easySeconds) : DEFAULT_SETTINGS.easySeconds,
         difficultSeconds: Number.isInteger(settings.difficultSeconds) && Number(settings.difficultSeconds) > 0 ? Number(settings.difficultSeconds) : DEFAULT_SETTINGS.difficultSeconds,
@@ -580,7 +693,7 @@ export function loadCompetitionStorage(): CompetitionStorage {
       },
     }
   } catch {
-    return { versions: [], history: [], settings: defaultCompetitionSettings() }
+    return { versions: [], history: [], favorites: [], settings: defaultCompetitionSettings() }
   }
 }
 

@@ -62,6 +62,9 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline: 3px solid 
 .is-done .timer-face { background: conic-gradient(var(--coral) 360deg, var(--coral) 0deg); }
 .is-done .session-status { color: #a64b34; font-weight: 700; }
 .answer-reveal { width: min(100%, 370px); margin: 3px 0 14px; padding: 12px 14px; border-left: 3px solid var(--forest); background: #e9ece4; text-align: left; }
+.study-answer-panel { width: min(100%, 560px); display: grid; gap: 12px; margin-top: 18px; padding: 16px 20px; border: 1px solid var(--line); border-left: 3px solid var(--accent); background: var(--accent-soft); text-align: left; }
+.study-answer-panel > div { font-size: 14px; line-height: 1.6; overflow-wrap: anywhere; }
+.study-answer-panel strong { color: var(--accent); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; }
 .answer-label { margin: 0 0 5px; color: var(--muted); font-size: 9px; font-weight: 700; text-transform: uppercase; }
 .answer-text { margin: 0; font-size: 13px; line-height: 1.5; overflow-wrap: anywhere; }
 

@@ -7,6 +7,35 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
+it('migrates legacy calculus banks, preferences, and progress to the renamed topics', () => {
+  const legacyData = createInitialStudyData()
+  const legacyBanks = legacyData.questionBanks as Record<string, Question[]>
+  const legacyPreferences = legacyData.topicPreferences as Record<string, { active: boolean; weight: number }>
+  const legacyUsedIds = legacyData.usedQuestionIds as Record<string, string[]>
+  const legacyResults = legacyData.results as Record<string, { gotIt: number; missedIt: number }>
+  for (const topic of ['Differential Calculus', 'Integral Calculus', 'Series and Multivariable Calculus']) {
+    delete (legacyData.questionBanks as Record<string, unknown>)[topic]
+    delete (legacyData.topicPreferences as Record<string, unknown>)[topic]
+    delete (legacyData.usedQuestionIds as Record<string, unknown>)[topic]
+    delete (legacyData.results as Record<string, unknown>)[topic]
+  }
+  legacyBanks['Calculus 1'] = [{ id: 'diff-1', text: 'Derivative question', seconds: 30 }]
+  legacyBanks['Calculus 2'] = [{ id: 'int-1', text: 'Integral question', seconds: 60 }]
+  legacyBanks['Calculus 3'] = [{ id: 'series-1', text: 'Series question', seconds: 90 }]
+  legacyPreferences['Calculus 1'] = { active: false, weight: 3 }
+  legacyUsedIds['Calculus 2'] = ['int-1']
+  legacyResults['Calculus 3'] = { gotIt: 2, missedIt: 1 }
+
+  const restored = parseStudyBackup(legacyData)
+
+  expect(restored.questionBanks['Differential Calculus']).toEqual(legacyBanks['Calculus 1'])
+  expect(restored.questionBanks['Integral Calculus']).toEqual(legacyBanks['Calculus 2'])
+  expect(restored.questionBanks['Series and Multivariable Calculus']).toEqual(legacyBanks['Calculus 3'])
+  expect(restored.topicPreferences['Differential Calculus']).toEqual({ active: false, weight: 3 })
+  expect(restored.usedQuestionIds['Integral Calculus']).toEqual(['int-1'])
+  expect(restored.results['Series and Multivariable Calculus']).toEqual({ gotIt: 2, missedIt: 1 })
+})
+
 describe('question time limits', () => {
   it.each([
     ['15', 15],
@@ -32,6 +61,38 @@ describe('question time limits', () => {
     expect(parseQuestionLines('15 | Name a triangle with no equal sides.', 60)[0].seconds).toBe(15)
   })
 
+  it('parses the topic study JSON format from a fenced AI response', () => {
+    const questions = parseQuestionLines(`\`\`\`json
+[
+  {
+    "question": "Find $2+2$.",
+    "questionReadAloud": "Find two plus two.",
+    "timeSeconds": 20,
+    "answer": "$4$",
+    "solution": "Add two and two to get $4$."
+  }
+]
+\`\`\``, 60)
+
+    expect(questions).toEqual([
+      expect.objectContaining({
+        text: 'Find $2+2$.',
+        spokenText: 'Find two plus two.',
+        seconds: 20,
+        answer: '$4$',
+        solution: 'Add two and two to get $4$.',
+      }),
+    ])
+  })
+
+  it('rejects JSON questions without an answer and worked solution', () => {
+    expect(() => parseQuestionLines(JSON.stringify([{
+      question: 'Find $2+2$.',
+      questionReadAloud: 'Find two plus two.',
+      timeSeconds: 20,
+    }]), 60)).toThrow('Question 1 needs question, questionReadAloud, answer, and solution text.')
+  })
+
   it('announces compound durations naturally', () => {
     expect(spokenDuration(20)).toBe('twenty seconds')
     expect(spokenDuration(120)).toBe('two minutes')
@@ -40,6 +101,20 @@ describe('question time limits', () => {
 })
 
 describe('study backup compatibility', () => {
+  it('preserves spoken question text, answers, and solutions in backups', () => {
+    const data = createInitialStudyData()
+    data.questionBanks['Foundational Math'][0] = {
+      id: 'with-answer',
+      text: 'Find $2+2$.',
+      spokenText: 'Find two plus two.',
+      seconds: 20,
+      answer: '$4$',
+      solution: 'Add two and two.',
+    }
+
+    expect(parseStudyBackup(data).questionBanks['Foundational Math'][0]).toEqual(data.questionBanks['Foundational Math'][0])
+  })
+
   it('seeds first-time study data with all 30 foundational math questions', () => {
     const data = createInitialStudyData()
     expect(data.questionBanks['Foundational Math']).toHaveLength(30)
@@ -81,7 +156,7 @@ function bankWithTopics(entries: Partial<Record<Topic, Question[]>>) {
   for (const topic of TOPICS) {
     data.topicPreferences[topic] = {
       active: Object.hasOwn(entries, topic),
-      weight: topic === 'Calculus 1' ? 3 : 1,
+      weight: topic === 'Differential Calculus' ? 3 : 1,
     }
     data.questionBanks[topic] = entries[topic] ?? []
   }
@@ -125,7 +200,7 @@ describe('weighted question draws', () => {
         { id: 'math-a', text: 'Math question one', seconds: 20 },
         { id: 'math-b', text: 'Math question two', seconds: 20 },
       ],
-      'Calculus 1': [
+      'Differential Calculus': [
         { id: 'calculus-a', text: 'Calculus question one', seconds: 20 },
         { id: 'calculus-b', text: 'Calculus question two', seconds: 20 },
       ],
@@ -133,7 +208,7 @@ describe('weighted question draws', () => {
     vi.spyOn(Math, 'random').mockReturnValueOnce(0.1).mockReturnValueOnce(0).mockReturnValueOnce(0.3).mockReturnValueOnce(0)
 
     expect(drawQuestion(data)?.topic).toBe('Foundational Math')
-    expect(drawQuestion(data)?.topic).toBe('Calculus 1')
+    expect(drawQuestion(data)?.topic).toBe('Differential Calculus')
   })
 
   it('filters questions by their exact time limit', () => {

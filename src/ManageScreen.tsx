@@ -2,31 +2,45 @@ import { useState, type ChangeEvent } from 'react'
 import { accuracy, formatDuration, parseQuestionLines } from './questionLogic'
 import { parseStudyBackup } from './studyStorage'
 import { ALLOWED_DURATIONS, TOPIC_GROUPS, TOPICS, type Question, type StudyData, type Topic } from './studyTypes'
+import MathText from './MathText'
 
-const QUESTION_EXTRACTION_PROMPT = `Extract only the questions from the attached file for a text-to-speech app.
+function questionExtractionPrompt(topic: Topic) {
+  return `Extract every question for the selected Lets StudEE! study topic: ${topic}.
 
-FORMAT
-One line per question, exactly: time | question
-Output only the questions in ONE code block. No choices, no answers, no asterisks, no numbering, no headers or footers. Join wrapped lines into one line.
+This is a topic-based study bank, not a mock competition set. Include only questions that belong to the selected topic. Preserve the source's question order. Do not omit a question. Keep each question self-contained.
+
+OUTPUT
+Return the complete result as a JSON array inside exactly one \`\`\`json code block. Return no introduction or text outside the code block. Each array entry must have exactly these fields:
+- "question": display-ready question text, retaining all context and using $...$ around mathematical expressions for KaTeX.
+- "questionReadAloud": natural spoken wording for the complete question. Use words rather than symbols or markup.
+- "timeSeconds": a suitable integer from 15, 20, 30, 45, 60, 90, 120, 150, or 180. Preserve any time limit stated by the source; otherwise choose based on difficulty.
+- "answer": the correct answer in display-ready form, using $...$ around mathematical expressions.
+- "solution": a clear, complete worked explanation, also using $...$ around mathematical expressions.
+
+Do not add a subject/topic field; the app will save this bank under the selected topic. Include every question's answer and solution. If the source has multiple-choice questions, include the complete question and choices in "question", identify the correct answer in "answer", and include all necessary reasoning in "solution".
 
 TIME
-15 = identification or recall (name it, state a definition or formula)
-30 = quick, one-step
-60 = standard, a few steps
-2m = multi-step word problems (ages, mixtures, work, motion, towers)
+15 seconds = direct recall, definitions, or a short identification question
+20–30 seconds = quick, one-step questions
+45–90 seconds = standard questions requiring a few steps
+120–180 seconds = challenging, multi-step problems
 
 SPEAKING STYLE
-Write it as spoken: x^2 = "x squared", ° = "degrees", π = "pi", 3/5 = "3 over 5", sin = "sine of", ECE = "E C E". Fix garbled PDF symbols from context and list uncertain fixes after the code block.
+Write "questionReadAloud" exactly as a person should say it: x squared, x sub one, square root of, pi, sine of, three over five, degrees. Expand abbreviations naturally (ECE as E C E). Never put LaTeX, dollar signs, or unexplained symbols in this field. Keep its meaning identical to "question". Correct garbled PDF symbols only when the intended text is clear from context; do not guess at uncertain content.
 
-SAMPLES
-Input: 3. In the expansion of (x+4y)^12, the numerical coefficient of the 5th term is a. 63360 b. 126720*
-Output: 60 | In the expansion of the quantity x plus 4y, raised to the 12th power, find the numerical coefficient of the 5th term.
-
-Input: 27. A certain angle has an explement 5 times the supplement, find the angle. a. 67.5 b. 135*
-Output: 30 | A certain angle has an explement 5 times its supplement. Find the angle.
-
-Input: 12. What do you call a triangle with no equal sides? a. Scalene* b. Isosceles
-Output: 15 | What do you call a triangle with no equal sides?`
+EXAMPLE
+\`\`\`json
+[
+  {
+    "question": "Find the derivative of $f(x)=x^2+3x$.",
+    "questionReadAloud": "Find the derivative of f of x equals x squared plus three x.",
+    "timeSeconds": 30,
+    "answer": "$f'(x)=2x+3$",
+    "solution": "Apply the power rule term by term: $\\frac{d}{dx}(x^2)=2x$ and $\\frac{d}{dx}(3x)=3$. Therefore, $f'(x)=2x+3$."
+  }
+]
+\`\`\``
+}
 
 interface ManageScreenProps {
   data: StudyData
@@ -39,6 +53,9 @@ interface EditingQuestion {
   id: string
   text: string
   seconds: number
+  spokenText: string
+  answer: string
+  solution: string
 }
 
 export default function ManageScreen({ data, onChangeData, onPreview, onRestore }: ManageScreenProps) {
@@ -74,15 +91,19 @@ export default function ManageScreen({ data, onChangeData, onPreview, onRestore 
 
   function saveEdit() {
     if (!editing?.text.trim() || !ALLOWED_DURATIONS.includes(editing.seconds as typeof ALLOWED_DURATIONS[number])) return
-    updateQuestions(questions.map((question) => question.id === editing.id
-      ? { ...question, text: editing.text.trim(), seconds: editing.seconds as Question['seconds'] }
-      : question))
     onChangeData({
       ...data,
       questionBanks: {
         ...data.questionBanks,
         [activeTopic]: questions.map((question) => question.id === editing.id
-          ? { ...question, text: editing.text.trim(), seconds: editing.seconds as Question['seconds'] }
+          ? {
+            ...question,
+            text: editing.text.trim(),
+            seconds: editing.seconds as Question['seconds'],
+            spokenText: editing.spokenText.trim() || undefined,
+            answer: editing.answer.trim() || undefined,
+            solution: editing.solution.trim() || undefined,
+          }
           : question),
       },
       usedQuestionIds: {
@@ -137,7 +158,7 @@ export default function ManageScreen({ data, onChangeData, onPreview, onRestore 
 
   async function copyExtractionPrompt() {
     try {
-      await navigator.clipboard.writeText(QUESTION_EXTRACTION_PROMPT)
+      await navigator.clipboard.writeText(questionExtractionPrompt(activeTopic))
       setMessage('Question extraction prompt copied.')
       setError('')
     } catch {
@@ -164,7 +185,7 @@ export default function ManageScreen({ data, onChangeData, onPreview, onRestore 
       <details className="question-tutorial">
         <summary>Copy question-extraction instructions</summary>
         <div className="question-tutorial-content">
-          <textarea aria-label="Question extraction instructions" readOnly value={QUESTION_EXTRACTION_PROMPT} rows={12} />
+          <textarea aria-label="Question extraction instructions" readOnly value={questionExtractionPrompt(activeTopic)} rows={12} />
           <button className="secondary-action" type="button" onClick={copyExtractionPrompt}>Copy prompt</button>
         </div>
       </details>
@@ -213,16 +234,16 @@ export default function ManageScreen({ data, onChangeData, onPreview, onRestore 
           <span>{score === null ? 'No results yet' : `${Math.round(score)}% accuracy · ${attempts} tries`}</span>
         </div>
 
-        <label className="paste-label" htmlFor="question-lines">Paste one question per line</label>
+        <label className="paste-label" htmlFor="question-lines">Paste questions for {activeTopic}</label>
         <textarea
           id="question-lines"
           className="question-paste"
           value={draft}
           onChange={(event) => setDraft(event.currentTarget.value)}
-          placeholder={'20 | What is seven times eight?\n2m | Find the derivative of x squared.'}
+          placeholder={'Paste the JSON array from the AI prompt, or enter legacy questions one per line:\n20 | What is seven times eight?'}
           rows={4}
         />
-        <p className="question-hint">Start a line with a time and |, such as 20 | or 2m |. Without a time, the default applies. Write it how it sounds: “x squared,” not “x².”</p>
+        <p className="question-hint">Use the topic-specific JSON prompt above to add questions with spoken wording, an answer, and a worked solution. Legacy “time | question” lines are still supported.</p>
         <button className="primary-action add-questions" type="button" onClick={addQuestions}>Add questions</button>
 
         <ol className="question-list">
@@ -230,7 +251,10 @@ export default function ManageScreen({ data, onChangeData, onPreview, onRestore 
             <li className="question-item" key={question.id}>
               {editing?.id === question.id ? (
                 <div className="edit-question">
-                  <textarea aria-label="Edit question text" rows={2} value={editing.text} onChange={(event) => setEditing({ ...editing, text: event.currentTarget.value })} />
+                  <label>Question<textarea aria-label="Edit question text" rows={2} value={editing.text} onChange={(event) => setEditing({ ...editing, text: event.currentTarget.value })} /></label>
+                  <label>Question read aloud<textarea aria-label="Edit question read aloud" rows={2} value={editing.spokenText} onChange={(event) => setEditing({ ...editing, spokenText: event.currentTarget.value })} /></label>
+                  <label>Answer<textarea aria-label="Edit answer" rows={2} value={editing.answer} onChange={(event) => setEditing({ ...editing, answer: event.currentTarget.value })} /></label>
+                  <label>Solution<textarea aria-label="Edit solution" rows={3} value={editing.solution} onChange={(event) => setEditing({ ...editing, solution: event.currentTarget.value })} /></label>
                   <label>Time limit
                     <select value={editing.seconds} onChange={(event) => setEditing({ ...editing, seconds: Number(event.currentTarget.value) })}>
                       {ALLOWED_DURATIONS.map((seconds) => <option value={seconds} key={seconds}>{formatDuration(seconds)}</option>)}
@@ -242,13 +266,24 @@ export default function ManageScreen({ data, onChangeData, onPreview, onRestore 
               ) : (
                 <>
                   <span className="question-time">{formatDuration(question.seconds)}</span>
-                  <p>{question.text}</p>
+                  <MathText text={question.text} className="manage-question-text" />
+                  <div className="manage-question-answer">
+                    <strong>Answer:</strong>{' '}
+                    <MathText text={question.answer ?? 'No answer added yet.'} />
+                  </div>
                   <div className="question-actions">
                     <button className="text-action" type="button" onClick={() => {
-                      if (!onPreview(question.text, activeTopic)) setError('Speech synthesis is not available in this browser.')
+                      if (!onPreview(question.spokenText ?? question.text, activeTopic)) setError('Speech synthesis is not available in this browser.')
                       else setMessage('Previewing question.')
                     }}>Preview voice</button>
-                    <button className="text-action" type="button" onClick={() => setEditing({ id: question.id, text: question.text, seconds: question.seconds })}>Edit</button>
+                    <button className="text-action" type="button" onClick={() => setEditing({
+                      id: question.id,
+                      text: question.text,
+                      seconds: question.seconds,
+                      spokenText: question.spokenText ?? '',
+                      answer: question.answer ?? '',
+                      solution: question.solution ?? '',
+                    })}>Edit</button>
                     <button className="text-action" type="button" onClick={() => deleteQuestion(question.id)}>Delete</button>
                   </div>
                 </>

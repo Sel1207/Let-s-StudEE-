@@ -1,8 +1,8 @@
 export const SUBJECTS = [
   'Foundational Math',
-  'Calculus 1',
-  'Calculus 2',
-  'Calculus 3',
+  'Differential Calculus',
+  'Integral Calculus',
+  'Series and Multivariable Calculus',
   'Linear Algebra',
   'Advanced Mathematics',
   'Differential Equations',

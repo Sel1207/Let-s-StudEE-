@@ -23,6 +23,52 @@ export function parseDurationToken(token: string): AllowedDuration | null {
 }
 
 export function parseQuestionLines(text: string, defaultSeconds: AllowedDuration): Question[] {
+  const trimmedText = text.trim()
+  const jsonText = trimmedText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '')
+  if (jsonText.startsWith('[') || jsonText.startsWith('{')) {
+    let parsed: unknown
+    try {
+      parsed = JSON.parse(jsonText) as unknown
+    } catch {
+      throw new Error('The question JSON is invalid. Check the copied code block and try again.')
+    }
+    const entries = Array.isArray(parsed)
+      ? parsed
+      : typeof parsed === 'object' && parsed !== null && 'questions' in parsed && Array.isArray(parsed.questions)
+        ? parsed.questions
+        : null
+    if (!entries?.length) throw new Error('The question JSON must contain a non-empty questions array.')
+
+    return entries.map((entry, index) => {
+      if (typeof entry !== 'object' || entry === null || Array.isArray(entry)) {
+        throw new Error(`Question ${index + 1} must be an object.`)
+      }
+      const item = entry as Record<string, unknown>
+      const question = item.question
+      const spokenText = item.questionReadAloud
+      const answer = item.answer
+      const solution = item.solution
+      const seconds = item.timeSeconds ?? defaultSeconds
+      if (typeof question !== 'string' || !question.trim()
+        || typeof spokenText !== 'string' || !spokenText.trim()
+        || typeof answer !== 'string' || !answer.trim()
+        || typeof solution !== 'string' || !solution.trim()) {
+        throw new Error(`Question ${index + 1} needs question, questionReadAloud, answer, and solution text.`)
+      }
+      if (!ALLOWED_DURATIONS.includes(seconds as AllowedDuration)) {
+        throw new Error(`Question ${index + 1} timeSeconds must be one of: ${ALLOWED_DURATIONS.join(', ')}.`)
+      }
+      return {
+        id: createQuestionId(),
+        text: question.trim(),
+        spokenText: spokenText.trim(),
+        answer: answer.trim(),
+        solution: solution.trim(),
+        seconds: seconds as AllowedDuration,
+      }
+    })
+  }
+
   const questions: Question[] = []
 
   text.split(/\r?\n/).forEach((line, index) => {

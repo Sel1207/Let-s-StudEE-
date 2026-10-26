@@ -1,0 +1,26 @@
+.favorites-view { max-width: 1050px; }
+.competition-favorites { margin-top: 30px; }
+.competition-favorite-list { border-top: 1px solid var(--line); }
+.competition-favorite-card { padding: 18px 0 22px; border-bottom: 1px solid var(--line); }
+.competition-favorite-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.competition-favorite-heading > div { min-width: 0; }
+.competition-favorite-heading .eyebrow { overflow-wrap: anywhere; }
+.competition-favorite-heading h3 { margin: 0; font-size: 14px; font-weight: 600; }
+.competition-favorite-remove { flex: 0 0 auto; }
+.competition-favorite-remove span { margin-left: 4px; color: var(--danger); }
+.competition-favorite-card .competition-question-meta { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0 15px; }
+.competition-favorite-card .competition-question-meta span { padding: 7px 10px; background: var(--accent-soft); color: var(--accent); font-size: 10px; font-weight: 600; }
+.competition-favorite-question { display: block; font-size: 15px; line-height: 1.6; overflow-wrap: anywhere; }
+.competition-favorite-card .competition-choice-list { display: grid; gap: 10px; margin: 12px 0 0; padding: 0; list-style: none; }
+.competition-favorite-card .competition-choice-list li { display: flex; align-items: baseline; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--line); font-size: 12px; line-height: 1.5; }
+.competition-favorite-card .choice-letter { color: var(--accent); font-size: 11px; font-weight: 700; }
+.competition-favorite-answer { margin-top: 12px; border-top: 1px solid var(--line); }
+.competition-favorite-answer summary { width: fit-content; min-height: 42px; display: flex; align-items: center; color: var(--accent); font-size: 10px; font-weight: 600; cursor: pointer; }
+.competition-favorite-answer > div { display: grid; gap: 5px; margin: 8px 0 14px; font-size: 12px; line-height: 1.55; overflow-wrap: anywhere; }
+.competition-favorite-answer strong { color: var(--accent); font-size: 10px; text-transform: uppercase; }
+
+@media (max-width: 520px) {
+  .competition-favorite-heading { gap: 4px; }
+  .competition-favorite-heading .eyebrow { font-size: 8px; }
+  .competition-favorite-remove { padding-inline: 4px; }
+}

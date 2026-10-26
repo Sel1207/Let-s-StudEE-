@@ -6,17 +6,24 @@ import StudyScreen from './StudyScreen'
 import { drawQuestion, spokenDuration } from './questionLogic'
 import { loadStudyData, saveStudyData } from './studyStorage'
 import { speechRate } from './speechRate'
+import { mathToSpeech } from './mathSpeech'
 import { loadThemePreference, saveThemePreference, type ThemePreference } from './themePreference'
-import { PREFERRED_VOICE_NAME, type Question, type StudyData, type StudySettings, type Topic, type TopicGroupName } from './studyTypes'
+import { PREFERRED_VOICE_NAME, type Question, type SpeechSpeed, type StudyData, type StudySettings, type Topic, type TopicGroupName } from './studyTypes'
 
-type View = 'study' | 'manage' | 'settings' | 'competitions'
+type View = 'study' | 'manage' | 'settings' | 'competitions' | 'favorites'
 type SessionPhase = 'ready' | 'speaking' | 'countdown' | 'paused' | 'time-up' | 'revealed' | 'rated'
 type Rating = 'gotIt' | 'missedIt'
+interface SpeechLine {
+  text: string
+  speed?: SpeechSpeed
+}
+
 let speechRun = 0
 const MockCompetitionScreen = lazy(() => import('./MockCompetitionScreen'))
+const FavoriteQuestionsScreen = lazy(() => import('./FavoriteQuestionsScreen'))
 
 function speakLines(
-  lines: string[],
+  lines: SpeechLine[],
   settings: StudySettings,
   voices: SpeechSynthesisVoice[],
   onComplete: () => void,
@@ -26,27 +33,121 @@ function speakLines(
   const selectedVoice = voices.find((voice) => voice.voiceURI === settings.voiceURI)
     ?? voices.find((voice) => voice.name.includes(PREFERRED_VOICE_NAME))
     ?? voices.find((voice) => /^en([_-]|$)/i.test(voice.lang))
+  const fallbackVoice = voices.find((voice) => /^en([_-]|$)/i.test(voice.lang) && voice !== selectedVoice)
   const run = ++speechRun
   let index = 0
+  let nextScheduled = false
   let completed = false
+  let attempt = 0
+  let attemptId = 0
+  let watchdogId = 0
+  let startedAt = 0
+  let queuedAt = 0
+  let expectedDuration = 0
+  let utteranceText = ''
+  let currentSpeed: SpeechSpeed = 'fast'
   const finish = () => {
     if (completed) return
     completed = true
+    window.clearTimeout(watchdogId)
     onComplete()
   }
-  const speakNext = () => {
+  const scheduleNext = () => {
+    if (run !== speechRun || nextScheduled) return
+    window.clearTimeout(watchdogId)
+    nextScheduled = true
+    window.setTimeout(() => {
+      if (run !== speechRun) return
+      nextScheduled = false
+      attempt = 0
+      speakNext()
+    }, 80)
+  }
+  const recoverPlayback = () => {
     if (run !== speechRun) return
+    if (window.speechSynthesis.paused) {
+      watchdogId = window.setTimeout(recoverPlayback, 1500)
+      return
+    }
+    if (window.speechSynthesis.speaking || window.speechSynthesis.pending) {
+      if (Date.now() - queuedAt > expectedDuration + 10000) {
+        attemptId += 1
+        window.speechSynthesis.cancel()
+        if (attempt < 1) {
+          attempt += 1
+          speakCurrent(currentSpeed)
+        } else {
+          scheduleNext()
+        }
+        return
+      }
+      watchdogId = window.setTimeout(recoverPlayback, 1500)
+      return
+    }
+
+    const elapsed = Date.now() - startedAt
+    if (startedAt && elapsed >= expectedDuration) {
+      scheduleNext()
+      return
+    }
+    if (startedAt) {
+      watchdogId = window.setTimeout(recoverPlayback, Math.min(1500, expectedDuration - elapsed))
+      return
+    }
+    if (attempt < 1) {
+      attempt += 1
+      speakCurrent(currentSpeed)
+      return
+    }
+    scheduleNext()
+  }
+  const speakNext = () => {
+    if (run !== speechRun || nextScheduled) return
     if (index >= lines.length) {
       finish()
       return
     }
-    const utterance = new SpeechSynthesisUtterance(lines[index])
-    utterance.rate = speechRate(settings.speechSpeed)
-    if (selectedVoice) utterance.voice = selectedVoice
-    utterance.onend = speakNext
-    utterance.onerror = speakNext
-    window.speechSynthesis.speak(utterance)
+    const line = lines[index]
     index += 1
+    utteranceText = mathToSpeech(line.text)
+    currentSpeed = line.speed ?? 'fast'
+    attempt = 0
+    speakCurrent(currentSpeed)
+  }
+  const speakCurrent = (speed?: SpeechSpeed) => {
+    if (run !== speechRun) return
+    const currentAttemptId = ++attemptId
+    startedAt = 0
+    queuedAt = Date.now()
+    const selectedSpeed = speed ?? currentSpeed
+    expectedDuration = Math.max(2500, (utteranceText.trim().split(/\s+/).length * 60000) / (160 * speechRate(selectedSpeed)) + 2500)
+    const utterance = new SpeechSynthesisUtterance(utteranceText)
+    utterance.rate = speechRate(selectedSpeed)
+    if (attempt === 0 && selectedVoice) utterance.voice = selectedVoice
+    else if (fallbackVoice) utterance.voice = fallbackVoice
+    const isCurrentAttempt = () => run === speechRun && currentAttemptId === attemptId
+    utterance.onstart = () => {
+      if (!isCurrentAttempt()) return
+      startedAt = Date.now()
+      watchdogId = window.setTimeout(recoverPlayback, 1500)
+    }
+    utterance.onend = () => {
+      if (isCurrentAttempt()) scheduleNext()
+    }
+    utterance.onerror = () => {
+      if (!isCurrentAttempt()) return
+      window.clearTimeout(watchdogId)
+      if (attempt < 1) {
+        attempt += 1
+        attemptId += 1
+        window.speechSynthesis.cancel()
+        window.setTimeout(() => speakCurrent(speed), 100)
+      } else {
+        scheduleNext()
+      }
+    }
+    watchdogId = window.setTimeout(recoverPlayback, 5000)
+    window.speechSynthesis.speak(utterance)
   }
 
   try {
@@ -70,16 +171,19 @@ function StudyApp() {
   const [topic, setTopic] = useState<Topic | null>(null)
   const [remainingSeconds, setRemainingSeconds] = useState<number>(data.settings.defaultSeconds)
   const [questionVisible, setQuestionVisible] = useState(false)
+  const [answerVisible, setAnswerVisible] = useState(false)
   const [timeIsUp, setTimeIsUp] = useState(false)
   const [rated, setRated] = useState(false)
   const [notice, setNotice] = useState('')
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([])
   const remainingRef = useRef<number>(remainingSeconds)
+  const countdownDeadline = useRef<number | null>(null)
   const sessionToken = useRef(0)
   const audioContext = useRef<AudioContext | null>(null)
   const pausedFrom = useRef<'speaking' | 'countdown'>('countdown')
   const sessionPaused = useRef(false)
   const resumeSpeech = useRef(false)
+  const pendingAnswerSpeech = useRef(false)
 
   useEffect(() => {
     saveStudyData(data)
@@ -87,7 +191,7 @@ function StudyApp() {
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme
-    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'dark' ? '#151b17' : '#f7f8f5')
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'dark' ? '#111214' : '#f7f8f5')
     saveThemePreference(theme)
   }, [theme])
 
@@ -162,6 +266,25 @@ function StudyApp() {
     }).catch(() => {})
   }
 
+  function playFiveSecondCue() {
+    const context = audioContext.current
+    if (!context) return
+    void context.resume().then(() => {
+      const oscillator = context.createOscillator()
+      const volume = context.createGain()
+      const startAt = context.currentTime
+      volume.gain.setValueAtTime(0.001, startAt)
+      volume.gain.exponentialRampToValueAtTime(0.09, startAt + 0.01)
+      volume.gain.exponentialRampToValueAtTime(0.001, startAt + 0.13)
+      oscillator.type = 'triangle'
+      oscillator.frequency.value = 560
+      oscillator.connect(volume)
+      volume.connect(context.destination)
+      oscillator.start(startAt)
+      oscillator.stop(startAt + 0.14)
+    }).catch(() => {})
+  }
+
   function stopSpeech() {
     sessionToken.current += 1
     speechRun += 1
@@ -171,28 +294,45 @@ function StudyApp() {
   }
 
   function announceTimeUp() {
+    countdownDeadline.current = null
     setPhase('time-up')
     setTimeIsUp(true)
-    setQuestionVisible(false)
+    setQuestionVisible(true)
     setRated(false)
-    setNotice("Time's up!")
+    setNotice(question?.answer ? "Time's up! The answer and solution are ready." : "Time's up! This question has no saved answer yet.")
     beep()
     stopSpeech()
-    speakLines(["Time's up!"], data.settings, voices, () => {})
+    const answerSpeech: SpeechLine[] = question?.answer
+      ? [
+        { text: 'Time is up.' },
+        { text: 'The correct answer is.' },
+        { text: question.answer, speed: 'normal' },
+      ]
+      : [{ text: "Time's up!" }]
+    speakLines(answerSpeech, data.settings, voices, () => {})
   }
 
   const tickTimer = useEffectEvent(() => {
-    if (phase !== 'countdown') return
-    const next = Math.max(0, remainingRef.current - 1)
+    if (phase !== 'countdown' || countdownDeadline.current === null) return
+    const next = Math.max(0, Math.ceil((countdownDeadline.current - Date.now()) / 1000))
+    if (next === remainingRef.current) return
     remainingRef.current = next
     setRemainingSeconds(next)
+    if (next <= 5 && next > 0) playFiveSecondCue()
     if (next === 0) announceTimeUp()
   })
 
   useEffect(() => {
     if (phase !== 'countdown') return
-    const timerId = window.setInterval(tickTimer, 1000)
-    return () => window.clearInterval(timerId)
+    const timerId = window.setInterval(tickTimer, 250)
+    const syncWhenVisible = () => {
+      if (document.visibilityState === 'visible') tickTimer()
+    }
+    document.addEventListener('visibilitychange', syncWhenVisible)
+    return () => {
+      window.clearInterval(timerId)
+      document.removeEventListener('visibilitychange', syncWhenVisible)
+    }
   }, [phase])
 
   function readQuestion() {
@@ -206,10 +346,13 @@ function StudyApp() {
     setQuestion(draw.question)
     setTopic(draw.topic)
     setQuestionVisible(false)
+    setAnswerVisible(false)
     setTimeIsUp(false)
+    pendingAnswerSpeech.current = false
     setRated(false)
     setNotice('')
     sessionPaused.current = false
+    countdownDeadline.current = null
     remainingRef.current = draw.question.seconds
     setRemainingSeconds(draw.question.seconds)
     const token = ++sessionToken.current
@@ -221,14 +364,27 @@ function StudyApp() {
         pausedFrom.current = 'countdown'
         return
       }
+      countdownDeadline.current = Date.now() + remainingRef.current * 1000
       setPhase('countdown')
       playTimerStartCue()
+      if (pendingAnswerSpeech.current) {
+        pendingAnswerSpeech.current = false
+        speakAnswer(draw.question)
+      }
     }
 
-    const topicAnnouncement = `Topic: ${draw.topic}`
-    const speech = data.settings.announceDuration
-      ? [topicAnnouncement, spokenDuration(draw.question.seconds), draw.question.text, 'Again.', draw.question.text]
-      : [topicAnnouncement, draw.question.text, 'Again.', draw.question.text]
+    const topicAnnouncement = `Topic: ${draw.topic}${data.settings.announceDuration ? `. ${spokenDuration(draw.question.seconds)}` : ''}`
+    const questionLine: SpeechLine = {
+      text: draw.question.spokenText ?? draw.question.text,
+      speed: data.settings.speechSpeed,
+    }
+    const speech: SpeechLine[] = [
+      { text: topicAnnouncement },
+      questionLine,
+      { text: 'Again.' },
+      questionLine,
+      { text: 'Time starts now.' },
+    ]
     const started = speakLines(speech, data.settings, voices, beginCountdown)
 
     if (!started) {
@@ -240,7 +396,11 @@ function StudyApp() {
   function repeatQuestion() {
     if (!question || phase !== 'countdown') return
     const token = ++sessionToken.current
-    const started = speakLines([`Topic: ${topic}`, 'Again.', question.text], data.settings, voices, () => {
+    const started = speakLines([
+      { text: `Topic: ${topic}` },
+      { text: 'Again.' },
+      { text: question.spokenText ?? question.text, speed: data.settings.speechSpeed },
+    ], data.settings, voices, () => {
       if (sessionToken.current === token) setNotice('')
     })
     setNotice(started ? 'The timer keeps running.' : 'Speech synthesis is unavailable.')
@@ -248,11 +408,14 @@ function StudyApp() {
 
   function stopSession() {
     stopSpeech()
+    countdownDeadline.current = null
     setPhase('ready')
     setQuestion(null)
     setTopic(null)
     setQuestionVisible(false)
+    setAnswerVisible(false)
     setTimeIsUp(false)
+    pendingAnswerSpeech.current = false
     setRated(false)
     setNotice('')
     remainingRef.current = data.settings.defaultSeconds
@@ -261,6 +424,16 @@ function StudyApp() {
 
   function pauseSession() {
     if (phase !== 'speaking' && phase !== 'countdown') return
+    if (phase === 'countdown') {
+      const next = Math.max(0, Math.ceil(((countdownDeadline.current ?? Date.now()) - Date.now()) / 1000))
+      countdownDeadline.current = null
+      remainingRef.current = next
+      setRemainingSeconds(next)
+      if (next === 0) {
+        announceTimeUp()
+        return
+      }
+    }
     pausedFrom.current = phase
     sessionPaused.current = true
     resumeSpeech.current = phase === 'speaking'
@@ -278,6 +451,7 @@ function StudyApp() {
     if (pausedFrom.current === 'speaking') {
       setPhase('speaking')
     } else {
+      countdownDeadline.current = Date.now() + remainingRef.current * 1000
       setPhase('countdown')
     }
     setNotice('Session resumed.')
@@ -292,6 +466,30 @@ function StudyApp() {
     if (!question) return
     setQuestionVisible((visible) => !visible)
     setNotice('')
+  }
+
+  function toggleAnswerVisibility() {
+    if (!question) return
+    if (answerVisible) {
+      setAnswerVisible(false)
+      pendingAnswerSpeech.current = false
+    } else {
+      setQuestionVisible(true)
+      setAnswerVisible(true)
+      if (phase === 'speaking') {
+        pendingAnswerSpeech.current = true
+      } else {
+        speakAnswer(question)
+      }
+    }
+    setNotice('')
+  }
+
+  function speakAnswer(targetQuestion: Question) {
+    speakLines([{
+      text: targetQuestion.answer ? `The answer is. ${targetQuestion.answer}` : 'No answer was included for this question.',
+      speed: 'normal',
+    }], data.settings, voices, () => {})
   }
 
   function rateQuestion(rating: Rating) {
@@ -328,18 +526,23 @@ function StudyApp() {
 
   function previewQuestion(text: string, questionTopic: Topic): boolean {
     const token = ++sessionToken.current
-    return speakLines([`Topic: ${questionTopic}`, text], data.settings, voices, () => {
+    return speakLines([
+      { text: `Topic: ${questionTopic}` },
+      { text, speed: data.settings.speechSpeed },
+    ], data.settings, voices, () => {
       if (sessionToken.current === token) setNotice('')
     })
   }
 
   function restoreBackup(backup: StudyData) {
     stopSpeech()
+    countdownDeadline.current = null
     setData(backup)
     setPhase('ready')
     setQuestion(null)
     setTopic(null)
     setQuestionVisible(false)
+    setAnswerVisible(false)
     setTimeIsUp(false)
     setRated(false)
     remainingRef.current = backup.settings.defaultSeconds
@@ -382,6 +585,7 @@ function StudyApp() {
     currentQuestion: question,
     currentTopic: topic,
     questionVisible,
+    answerVisible,
     timeIsUp,
     rated,
     notice,
@@ -392,14 +596,14 @@ function StudyApp() {
       <header className="app-header">
         <a className="wordmark" href="/" onClick={(event) => { event.preventDefault(); navigate('study') }}>Lets StudEE!</a>
         <nav className="main-nav" aria-label="Main navigation">
-          {(['study', 'competitions', 'manage', 'settings'] as const).map((item) => (
+          {(['study', 'competitions', 'favorites', 'manage', 'settings'] as const).map((item) => (
             <button
               key={item}
               type="button"
               aria-current={view === item ? 'page' : undefined}
               onClick={() => navigate(item)}
             >
-              {item === 'study' ? 'Study' : item === 'competitions' ? 'Mock Competition' : item === 'manage' ? 'Manage questions' : 'Settings'}
+              {item === 'study' ? 'Study' : item === 'competitions' ? 'Mock Competition' : item === 'favorites' ? 'Favorites' : item === 'manage' ? 'Manage questions' : 'Settings'}
             </button>
           ))}
         </nav>
@@ -420,6 +624,7 @@ function StudyApp() {
             onResume={resumeSession}
             onSkip={skipQuestion}
             onToggleQuestion={toggleQuestionVisibility}
+            onToggleAnswer={toggleAnswerVisibility}
             onNext={readQuestion}
             onRate={rateQuestion}
           />
@@ -436,10 +641,11 @@ function StudyApp() {
           <SettingsScreen data={data} voices={voices} theme={theme} onChangeTheme={setTheme} onChangeSettings={updateSettings} />
         )}
         {view === 'competitions' && <Suspense fallback={<p className="session-notice">Loading Mock Competition…</p>}><MockCompetitionScreen voices={voices} /></Suspense>}
+        {view === 'favorites' && <Suspense fallback={<p className="session-notice">Loading favorites…</p>}><FavoriteQuestionsScreen /></Suspense>}
       </main>
 
       <footer className="app-footer">
-        <span>{view === 'competitions' ? 'Competitions and settings save automatically in this browser.' : 'Export a backup to keep a copy of your progress.'}</span>
+        <span>{view === 'competitions' || view === 'favorites' ? 'Competitions, favorites, and settings save automatically in this browser.' : 'Export a backup to keep a copy of your progress.'}</span>
         <span>Space read / next · R repeat · Q show question</span>
       </footer>
     </div>
