@@ -14,6 +14,7 @@ export interface SearchTarget {
   competitionSubject?: string
   favoritesSection?: 'favorites' | 'notes'
   focusId?: string
+  competitionQuestion?: { versionId: string; round: number | 'Sudden Death'; questionId: string }
 }
 
 export interface SearchEntry {
@@ -31,6 +32,8 @@ export interface SearchEntry {
 export interface SearchResult {
   entry: SearchEntry
   score: number
+  /** The title, windowed so the matched words are visible instead of cut off. */
+  displayTitle: string
   /** A short excerpt around the match when it was found outside the title. */
   excerpt: string
 }
@@ -77,10 +80,6 @@ export function normalize(value: string): string {
 
 export function searchTokens(query: string): string[] {
   return normalize(query).split(/\s+/).map((token) => token.trim()).filter(Boolean)
-}
-
-function truncate(value: string, length: number): string {
-  return value.length > length ? `${value.slice(0, length - 1).trimEnd()}…` : value
 }
 
 function groupNameForTopic(topic: Topic): string {
@@ -131,7 +130,7 @@ export function buildSearchIndex(
         id: `question:${topic}:${question.id}`,
         kind: 'question',
         group: 'Study questions',
-        title: truncate(text, 140),
+        title: text,
         subtitle: `Manage questions › ${topic}`,
         body: [question.answer, question.note, question.solution].filter(Boolean).map((part) => plainText(part ?? '')).join(' · '),
         target: { view: 'manage', manageTopic: topic, focusId: `study-${question.id}` },
@@ -175,11 +174,15 @@ export function buildSearchIndex(
         id: `competition-question:${version.id}:${question.id}`,
         kind: 'competition-question',
         group: 'Mock competitions',
-        title: truncate(text, 140),
+        title: text,
         subtitle: `${version.name} › ${place} · Q${question.number}${question.category ? ` · ${question.category}` : ''}`,
         body: [question.answer, question.note, question.solution, ...Object.values(question.choices ?? {})].filter(Boolean).map((part) => plainText(part ?? '')).join(' · '),
         keywords: version.subject,
-        target,
+        target: {
+          view: 'competitions',
+          competitionSubject: version.subject,
+          competitionQuestion: { versionId: version.id, round: question.round, questionId: question.id },
+        },
       })
     }
   }
@@ -191,7 +194,7 @@ export function buildSearchIndex(
       id: `favorite:${favorite.id}`,
       kind: 'favorite',
       group: 'My Questions',
-      title: truncate(text, 140),
+      title: text,
       subtitle: `My Questions › ${favorite.studyTopic ?? favorite.competitionName}`,
       body: [favorite.answer, favorite.solution].filter(Boolean).map((part) => plainText(part)).join(' · '),
       keywords: favorite.category,
@@ -202,15 +205,27 @@ export function buildSearchIndex(
   return entries
 }
 
-function excerptAround(text: string, tokens: string[], radius = 46): string {
+/** Finds where the match is: the whole phrase if present, otherwise the longest matching word. */
+export function matchIndex(text: string, tokens: string[]): number {
   const normalized = normalize(text)
-  const index = tokens.reduce((best, token) => {
-    const found = normalized.indexOf(token)
-    return found >= 0 && (best < 0 || found < best) ? found : best
-  }, -1)
-  if (index < 0) return ''
-  const start = Math.max(0, index - radius)
-  const end = Math.min(text.length, index + radius * 2)
+  const phraseIndex = normalized.indexOf(tokens.join(' '))
+  if (phraseIndex >= 0) return phraseIndex
+  const longestFirst = [...tokens].sort((a, b) => b.length - a.length)
+  for (const token of longestFirst) {
+    const index = normalized.indexOf(token)
+    if (index >= 0) return index
+  }
+  return -1
+}
+
+/** Cuts a window of text that starts a little before the match, so the match is always on screen. */
+export function windowAround(text: string, index: number, before = 32, maxLength = 220): string {
+  let start = index > before ? index - before : 0
+  if (start > 0) {
+    const space = text.indexOf(' ', start)
+    if (space >= 0 && space < index) start = space + 1
+  }
+  const end = Math.min(text.length, start + maxLength)
   return `${start > 0 ? '…' : ''}${text.slice(start, end).trim()}${end < text.length ? '…' : ''}`
 }
 
@@ -230,7 +245,7 @@ export function prepareSearchIndex(entries: SearchEntry[]): PreparedEntry[] {
 export function runSearch(prepared: PreparedEntry[], query: string, perGroup = 5): SearchResultGroup[] {
   const tokens = searchTokens(query)
   if (!tokens.length) {
-    return [{ group: 'Go to', results: prepared.filter(({ entry }) => entry.kind === 'page').map(({ entry }) => ({ entry, score: 0, excerpt: '' })) }]
+    return [{ group: 'Go to', results: prepared.filter(({ entry }) => entry.kind === 'page').map(({ entry }) => ({ entry, score: 0, displayTitle: entry.title, excerpt: '' })) }]
   }
   const phrase = tokens.join(' ')
   const matches: SearchResult[] = []
@@ -244,7 +259,11 @@ export function runSearch(prepared: PreparedEntry[], query: string, perGroup = 5
     const titleTokenHits = tokens.filter((token) => item.title.includes(token)).length
     score += titleTokenHits * 6
     const inTitle = titleTokenHits === tokens.length
-    matches.push({ entry: item.entry, score, excerpt: inTitle ? '' : excerptAround(item.entry.body || item.entry.subtitle, tokens) })
+    const titleIndex = titleTokenHits ? matchIndex(item.entry.title, tokens) : -1
+    const displayTitle = titleIndex >= 0 ? windowAround(item.entry.title, titleIndex) : windowAround(item.entry.title, 0)
+    const bodyText = item.entry.body || item.entry.subtitle
+    const bodyIndex = inTitle ? -1 : matchIndex(bodyText, tokens.filter((token) => !item.title.includes(token)))
+    matches.push({ entry: item.entry, score, displayTitle, excerpt: bodyIndex >= 0 ? windowAround(bodyText, bodyIndex) : '' })
   }
   const groups = GROUP_ORDER
     .map((group) => ({

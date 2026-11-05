@@ -695,9 +695,10 @@ interface MockCompetitionScreenProps {
   onDeleteStudyQuestion: (topic: Topic, questionId: string, randomizedQuestionId: string) => { deleted: boolean; message?: string }
   onSubjectChange: (subject: string) => void
   onDailyProgressChange: (progress: CompetitionDailyProgress) => void
+  onViewVersion?: (versionId: string) => void
 }
 
-export default function MockCompetitionScreen({ voices, studyData, onDeleteStudyQuestion, onSubjectChange, onDailyProgressChange }: MockCompetitionScreenProps) {
+export default function MockCompetitionScreen({ voices, studyData, onDeleteStudyQuestion, onSubjectChange, onDailyProgressChange, onViewVersion }: MockCompetitionScreenProps) {
   const [storage, setStorage] = useState<CompetitionStorage>(initialStorage)
   const [dailyProgress, setDailyProgress] = useState<CompetitionDailyProgress>(loadCompetitionDailyProgress)
   const [today, setToday] = useState(localDateKey)
@@ -2214,6 +2215,7 @@ export default function MockCompetitionScreen({ voices, studyData, onDeleteStudy
                   <button className="text-action" type="button" disabled={index === 0} aria-label={`Move ${version.name} up`} title="Move up" onClick={() => moveVersion(version.id, -1)}>↑</button>
                   <button className="text-action" type="button" disabled={index === visibleVersions.length - 1} aria-label={`Move ${version.name} down`} title="Move down" onClick={() => moveVersion(version.id, 1)}>↓</button>
                 </div>
+                {onViewVersion && <button className="text-action" type="button" onClick={() => onViewVersion(version.id)}>View</button>}
                 <button className="text-action" type="button" onClick={() => editVersion(version)}>Edit</button>
                 <button className="text-action" type="button" onClick={() => { setEditingVersionId(null); setSelectedVersionId(version.id); selectCompetitionSubject(version.subject); setCompetition(version.competition); setDraft(JSON.stringify(version.competition, null, 2)); setNotice(`Selected “${version.name}”.`); setError('') }}>Select</button>
                 <button className="text-action" type="button" onClick={() => { setRenameId(version.id); setRenameDraft(version.name); setError('') }}>Rename</button>

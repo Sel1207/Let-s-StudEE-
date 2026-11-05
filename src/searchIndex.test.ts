@@ -71,7 +71,11 @@ describe('global search', () => {
   it('finds mock competition questions and links to the saved competition', () => {
     const result = search('carnot efficiency').flatMap((group) => group.results).find(({ entry }) => entry.kind === 'competition-question')
     expect(result?.entry.subtitle).toContain('Round 1 · Q3')
-    expect(result?.entry.target).toEqual({ view: 'competitions', competitionSubject: 'ESAS', focusId: 'version-v1' })
+    expect(result?.entry.target).toEqual({
+      view: 'competitions',
+      competitionSubject: 'ESAS',
+      competitionQuestion: { versionId: 'v1', round: 1, questionId: 'cq-1' },
+    })
   })
 
   it('finds lecture notes and opens the lecture', () => {
@@ -81,6 +85,21 @@ describe('global search', () => {
 
   it('ranks an exact topic name first', () => {
     expect(search('transformers')[0].results[0].entry.title).toBe('Transformers')
+  })
+
+  it('windows long question titles so a match near the end is visible', () => {
+    const data = studyData()
+    const long = `${'Background sentence about generators and loads. '.repeat(8)}Determine the regulation of the alternator.`
+    data.questionBanks['DC Generators'].push({ id: 'long-1', text: long, seconds: 60, answer: 'a', solution: 's' })
+    const groups = runSearch(prepareSearchIndex(buildSearchIndex(data, { versions: [], favorites: [] }, {})), 'regulation of the alternator')
+    const result = groups.flatMap((group) => group.results).find(({ entry }) => entry.id.endsWith('long-1'))
+    expect(result?.displayTitle.startsWith('…')).toBe(true)
+    expect(result?.displayTitle.indexOf('regulation')).toBeLessThan(40)
+  })
+
+  it('shows an answer excerpt that starts near the match', () => {
+    const result = search('52.5').flatMap((group) => group.results).find(({ entry }) => entry.kind === 'question')
+    expect(result?.excerpt.indexOf('52.5')).toBeLessThan(40)
   })
 
   it('requires every word to match', () => {

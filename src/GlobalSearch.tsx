@@ -247,12 +247,9 @@ export default function GlobalSearch({
                   >
                     <span className={`search-option-icon is-${iconKind(result.entry.id, result.entry.kind)}`}><KindIcon kind={iconKind(result.entry.id, result.entry.kind)} /></span>
                     <span className="search-option-copy">
-                      <span className="search-option-title"><Highlight text={result.entry.title} tokens={tokens} /></span>
-                      <span className="search-option-subtitle">
-                        {result.excerpt
-                          ? <><span className="search-option-path">{result.entry.subtitle}</span><span className="search-option-dot" aria-hidden="true"> · </span><Highlight text={result.excerpt} tokens={tokens} /></>
-                          : <span className="search-option-path">{result.entry.subtitle}</span>}
-                      </span>
+                      <span className="search-option-title"><Highlight text={result.displayTitle} tokens={tokens} /></span>
+                      {result.excerpt && <span className="search-option-excerpt"><Highlight text={result.excerpt} tokens={tokens} /></span>}
+                      <span className="search-option-subtitle">{result.entry.subtitle}</span>
                     </span>
                     <span className="search-option-enter" aria-hidden="true">↵</span>
                   </div>

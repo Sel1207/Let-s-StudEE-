@@ -9,6 +9,7 @@ import { drawQuestion, spokenDuration } from './questionLogic'
 import { loadStudyData, saveStudyData } from './studyStorage'
 import { competitionNameKey, loadCompetitionStorage, saveCompetitionStorage } from './competitionData'
 import GlobalSearch, { SearchButton } from './GlobalSearch'
+import CompetitionRoundViewer, { type CompetitionViewerRequest } from './CompetitionRoundViewer'
 import type { SearchTarget } from './searchIndex'
 import {
   daysUntilTarget,
@@ -335,6 +336,7 @@ function StudyApp() {
   const [searchOpen, setSearchOpen] = useState(false)
   const [screenKeys, setScreenKeys] = useState({ manage: 0, competitions: 0, favorites: 0 })
   const [lectureRequest, setLectureRequest] = useState<{ topic: Topic; nonce: number } | null>(null)
+  const [viewerRequest, setViewerRequest] = useState<CompetitionViewerRequest | null>(null)
   const [activeTopicGroup, setActiveTopicGroup] = useState<TopicGroupName>(
     () => restoredSession?.topicGroup ?? loadActiveStudyGroup(),
   )
@@ -890,6 +892,7 @@ function StudyApp() {
       setScreenKeys((current) => ({ ...current, [remountView]: current[remountView] + 1 }))
     }
     navigate(target.view)
+    if (target.competitionQuestion) setViewerRequest({ ...target.competitionQuestion, nonce: Date.now() })
     if (target.focusId) revealSearchTarget(target.focusId)
     else window.scrollTo({ top: 0 })
   }
@@ -1007,13 +1010,14 @@ function StudyApp() {
         {view === 'settings' && (
           <SettingsScreen data={data} voices={voices} theme={theme} onChangeTheme={setTheme} onChangeSettings={updateSettings} />
         )}
-        {view === 'competitions' && <MockCompetitionErrorBoundary><Suspense fallback={<p className="session-notice">Loading Mock Competition…</p>}><MockCompetitionScreen key={screenKeys.competitions} voices={voices} studyData={data} onDeleteStudyQuestion={deleteStudyQuestionFromRandomizedCompetition} onSubjectChange={setCompetitionSubject} onDailyProgressChange={setDailyProgress} /></Suspense></MockCompetitionErrorBoundary>}
+        {view === 'competitions' && <MockCompetitionErrorBoundary><Suspense fallback={<p className="session-notice">Loading Mock Competition…</p>}><MockCompetitionScreen key={screenKeys.competitions} onViewVersion={(versionId) => setViewerRequest({ versionId, nonce: Date.now() })} voices={voices} studyData={data} onDeleteStudyQuestion={deleteStudyQuestionFromRandomizedCompetition} onSubjectChange={setCompetitionSubject} onDailyProgressChange={setDailyProgress} /></Suspense></MockCompetitionErrorBoundary>}
         {view === 'favorites' && <Suspense fallback={<p className="session-notice">Loading saved questions…</p>}><FavoriteQuestionsScreen key={screenKeys.favorites} data={data} onChangeData={updateData} /></Suspense>}
       </main>
 
       <footer className="app-footer">
         <span>{view === 'competitions' || view === 'favorites' ? 'Competitions, favorites, and settings save automatically in this browser.' : 'Export a backup to keep a copy of your progress.'}</span>
       </footer>
+      <CompetitionRoundViewer request={viewerRequest} onClose={() => setViewerRequest(null)} />
       <GlobalSearch open={searchOpen} data={data} onClose={() => setSearchOpen(false)} onSelect={openSearchResult} />
       {showBackToTop && <button className="back-to-top" type="button" aria-label="Back to top" title="Back to top" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 14 6-6 6 6" /></svg>
