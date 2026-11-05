@@ -71,7 +71,7 @@ export default function SettingsScreen({ data, voices, theme, onChangeTheme, onC
       </div>
 
       <div className="settings-list">
-        <label className="setting-row" htmlFor="default-seconds">
+        <label className="setting-row" htmlFor="default-seconds" data-search-id="setting-default-seconds">
           <span><strong>Default time</strong><small>Used when a question line has no time prefix.</small></span>
           <select
             id="default-seconds"
@@ -82,7 +82,7 @@ export default function SettingsScreen({ data, voices, theme, onChangeTheme, onC
           </select>
         </label>
 
-        <fieldset className="setting-row speed-setting">
+        <fieldset className="setting-row speed-setting" data-search-id="setting-speech-speed">
           <legend><strong>Speech speed</strong></legend>
           <div className="segmented-control">
             {(['slow', 'normal', 'fast'] as const).map((speed) => (
@@ -98,7 +98,7 @@ export default function SettingsScreen({ data, voices, theme, onChangeTheme, onC
           </div>
         </fieldset>
 
-        <label className="setting-row" htmlFor="voice-select">
+        <label className="setting-row" htmlFor="voice-select" data-search-id="setting-voice">
           <span><strong>Voice</strong><small>Prefers Microsoft Liam Online (Natural) when available.</small></span>
           <select
             id="voice-select"
@@ -110,7 +110,7 @@ export default function SettingsScreen({ data, voices, theme, onChangeTheme, onC
           </select>
         </label>
 
-        <label className="setting-row toggle-setting" htmlFor="announce-time">
+        <label className="setting-row toggle-setting" htmlFor="announce-time" data-search-id="setting-announce">
           <span><strong>Announce time limit</strong><small>Voice says the time before each question.</small></span>
           <input
             id="announce-time"
@@ -119,7 +119,7 @@ export default function SettingsScreen({ data, voices, theme, onChangeTheme, onC
             onChange={(event) => onChangeSettings({ ...data.settings, announceDuration: event.currentTarget.checked })}
           />
         </label>
-        <div className="setting-row toggle-setting theme-setting">
+        <div className="setting-row toggle-setting theme-setting" data-search-id="setting-theme">
           <span><strong>Dark mode</strong><small>Switch to a darker color theme across the app.</small></span>
           <button
             className="theme-switch"
@@ -135,7 +135,7 @@ export default function SettingsScreen({ data, voices, theme, onChangeTheme, onC
         </div>
       </div>
 
-      <section className="app-backup-section" aria-labelledby="full-backup-heading">
+      <section className="app-backup-section" aria-labelledby="full-backup-heading" data-search-id="setting-backup">
         <div className="app-backup-heading">
           <div>
             <h2 id="full-backup-heading">Full app backup</h2>
@@ -154,7 +154,7 @@ export default function SettingsScreen({ data, voices, theme, onChangeTheme, onC
         <p className="app-backup-warning">Restoring replaces all Let’s StudEE! data in this browser. It does not affect unrelated websites.</p>
       </section>
 
-      <section className="app-update-section" aria-labelledby="app-update-heading">
+      <section className="app-update-section" aria-labelledby="app-update-heading" data-search-id="setting-update">
         <div>
           <h2 id="app-update-heading">Website update</h2>
           <p>Load the latest published version. Your bookmark and saved study data will stay in place.</p>

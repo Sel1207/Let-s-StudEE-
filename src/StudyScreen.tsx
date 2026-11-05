@@ -146,6 +146,7 @@ Solution: ${target.question.solution ?? 'Not provided'}`
 }
 
 interface StudyScreenProps {
+  lectureRequest?: { topic: Topic; nonce: number } | null
   data: StudyData
   dailyProgress: CompetitionDailyProgress
   activeGroup: TopicGroupName
@@ -230,10 +231,16 @@ export default function StudyScreen({
   onDailyCorrectAnswer,
   onManageTopic,
   visible,
+  lectureRequest = null,
 }: StudyScreenProps) {
   const [savedWrittenTest] = useState(loadWrittenTest)
   const [writtenTest, setWrittenTest] = useState(savedWrittenTest.enabled)
   const [lectureTopic, setLectureTopic] = useState<Topic | null>(loadLectureTopic)
+  const [handledLectureRequest, setHandledLectureRequest] = useState(lectureRequest?.nonce ?? 0)
+  if (lectureRequest && lectureRequest.nonce !== handledLectureRequest) {
+    setHandledLectureRequest(lectureRequest.nonce)
+    setLectureTopic(lectureRequest.topic)
+  }
   const [topicsWithLectureNotes, setTopicsWithLectureNotes] = useState(() => {
     const { notes } = loadLectureNotes()
     return new Set(TOPICS.filter((topic) => (notes[topic] ?? '').trim().length > 0))

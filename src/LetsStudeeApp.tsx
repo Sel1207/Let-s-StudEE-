@@ -7,7 +7,9 @@ import StudyScreen from './StudyScreen'
 import MockCompetitionErrorBoundary from './MockCompetitionErrorBoundary'
 import { drawQuestion, spokenDuration } from './questionLogic'
 import { loadStudyData, saveStudyData } from './studyStorage'
-import { loadCompetitionStorage, saveCompetitionStorage } from './competitionData'
+import { competitionNameKey, loadCompetitionStorage, saveCompetitionStorage } from './competitionData'
+import GlobalSearch, { SearchButton } from './GlobalSearch'
+import type { SearchTarget } from './searchIndex'
 import {
   daysUntilTarget,
   EE_TARGET_DATE,
@@ -47,6 +49,26 @@ const ACTIVE_VIEW_STORAGE_KEY = 'lets-studee-active-view-v1'
 const STUDY_SESSION_STORAGE_KEY = 'lets-studee-active-study-session-v1'
 const STUDY_GROUP_STORAGE_KEY = 'lets-studee-active-study-group-v1'
 const TARGET_COMPETITION_STORAGE_KEY = 'lets-studee-target-competition-v1'
+const MY_QUESTIONS_SECTION_STORAGE_KEY = 'lets-studee-my-questions-section-v1'
+
+function revealSearchTarget(focusId: string) {
+  let attempts = 0
+  const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+  const find = () => {
+    const element = document.querySelector<HTMLElement>(`[data-search-id="${CSS.escape(focusId)}"]`)
+    if (element && element.offsetParent !== null) {
+      element.scrollIntoView({ block: 'center', behavior: reducedMotion ? 'auto' : 'smooth' })
+      element.classList.remove('search-hit')
+      void element.offsetWidth
+      element.classList.add('search-hit')
+      window.setTimeout(() => element.classList.remove('search-hit'), 2600)
+      return
+    }
+    attempts += 1
+    if (attempts < 120) window.requestAnimationFrame(find)
+  }
+  window.requestAnimationFrame(find)
+}
 type TargetCompetition = 'Math' | 'EE' | 'ESAS'
 const MockCompetitionScreen = lazy(() => import('./MockCompetitionScreen'))
 const FavoriteQuestionsScreen = lazy(() => import('./FavoriteQuestionsScreen'))
@@ -310,6 +332,9 @@ function StudyApp() {
   const [targetCompetition, setTargetCompetition] = useState<TargetCompetition>(loadTargetCompetition)
   const [restoredSession] = useState(() => loadStudySession(data))
   const [view, setView] = useState<View>(loadActiveView)
+  const [searchOpen, setSearchOpen] = useState(false)
+  const [screenKeys, setScreenKeys] = useState({ manage: 0, competitions: 0, favorites: 0 })
+  const [lectureRequest, setLectureRequest] = useState<{ topic: Topic; nonce: number } | null>(null)
   const [activeTopicGroup, setActiveTopicGroup] = useState<TopicGroupName>(
     () => restoredSession?.topicGroup ?? loadActiveStudyGroup(),
   )
@@ -826,6 +851,50 @@ function StudyApp() {
   }
 
   useEffect(() => {
+    function handleSearchShortcut(event: KeyboardEvent) {
+      if ((event.metaKey || event.ctrlKey) && !event.altKey && !event.shiftKey && event.key.toLowerCase() === 'k') {
+        event.preventDefault()
+        setSearchOpen((current) => !current)
+        return
+      }
+      if (event.key !== '/' || event.metaKey || event.ctrlKey || event.altKey) return
+      const target = event.target
+      if (target instanceof HTMLElement && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))) return
+      if (document.querySelector('dialog[open]')) return
+      event.preventDefault()
+      setSearchOpen(true)
+    }
+    window.addEventListener('keydown', handleSearchShortcut)
+    return () => window.removeEventListener('keydown', handleSearchShortcut)
+  }, [])
+
+  function openSearchResult(target: SearchTarget) {
+    if (target.manageTopic) saveManageTopic(target.manageTopic)
+    if (target.favoritesSection) {
+      try {
+        window.localStorage.setItem(MY_QUESTIONS_SECTION_STORAGE_KEY, target.favoritesSection)
+      } catch (error) {
+        console.error('Could not open the My Questions section.', error)
+      }
+    }
+    let competitionSubjectChanged = false
+    if (target.competitionSubject) {
+      const competitionStorage = loadCompetitionStorage()
+      if (competitionNameKey(competitionStorage.activeSubject) !== competitionNameKey(target.competitionSubject)) {
+        competitionSubjectChanged = saveCompetitionStorage({ ...competitionStorage, activeSubject: target.competitionSubject })
+      }
+    }
+    if (target.lectureTopic) setLectureRequest({ topic: target.lectureTopic, nonce: Date.now() })
+    if (view === target.view && (target.view === 'manage' || target.view === 'favorites' || (target.view === 'competitions' && competitionSubjectChanged))) {
+      const remountView = target.view
+      setScreenKeys((current) => ({ ...current, [remountView]: current[remountView] + 1 }))
+    }
+    navigate(target.view)
+    if (target.focusId) revealSearchTarget(target.focusId)
+    else window.scrollTo({ top: 0 })
+  }
+
+  useEffect(() => {
     const updateBackToTopVisibility = () => setShowBackToTop(window.scrollY > 420)
     window.addEventListener('scroll', updateBackToTopVisibility, { passive: true })
     updateBackToTopVisibility()
@@ -893,6 +962,7 @@ function StudyApp() {
               <span className="nav-label-mobile">{item === 'competitions' ? 'Compete' : item === 'manage' ? 'Manage' : item === 'favorites' ? 'Saved' : item === 'study' ? 'Study' : 'Settings'}</span>
             </button>
           ))}
+          <SearchButton onOpen={() => setSearchOpen(true)} />
         </nav>
       </header>
 
@@ -917,6 +987,7 @@ function StudyApp() {
             onRate={rateQuestion}
             onDailyCorrectAnswer={recordStudyCorrect}
             visible={view === 'study'}
+            lectureRequest={lectureRequest}
             onManageTopic={(manageTopic) => {
               saveManageTopic(manageTopic)
               navigate('manage')
@@ -926,6 +997,7 @@ function StudyApp() {
         </div>
         {view === 'manage' && (
           <ManageScreen
+            key={screenKeys.manage}
             data={data}
             onChangeData={updateData}
             onPreview={previewQuestion}
@@ -935,13 +1007,14 @@ function StudyApp() {
         {view === 'settings' && (
           <SettingsScreen data={data} voices={voices} theme={theme} onChangeTheme={setTheme} onChangeSettings={updateSettings} />
         )}
-        {view === 'competitions' && <MockCompetitionErrorBoundary><Suspense fallback={<p className="session-notice">Loading Mock Competition…</p>}><MockCompetitionScreen voices={voices} studyData={data} onDeleteStudyQuestion={deleteStudyQuestionFromRandomizedCompetition} onSubjectChange={setCompetitionSubject} onDailyProgressChange={setDailyProgress} /></Suspense></MockCompetitionErrorBoundary>}
-        {view === 'favorites' && <Suspense fallback={<p className="session-notice">Loading saved questions…</p>}><FavoriteQuestionsScreen data={data} onChangeData={updateData} /></Suspense>}
+        {view === 'competitions' && <MockCompetitionErrorBoundary><Suspense fallback={<p className="session-notice">Loading Mock Competition…</p>}><MockCompetitionScreen key={screenKeys.competitions} voices={voices} studyData={data} onDeleteStudyQuestion={deleteStudyQuestionFromRandomizedCompetition} onSubjectChange={setCompetitionSubject} onDailyProgressChange={setDailyProgress} /></Suspense></MockCompetitionErrorBoundary>}
+        {view === 'favorites' && <Suspense fallback={<p className="session-notice">Loading saved questions…</p>}><FavoriteQuestionsScreen key={screenKeys.favorites} data={data} onChangeData={updateData} /></Suspense>}
       </main>
 
       <footer className="app-footer">
         <span>{view === 'competitions' || view === 'favorites' ? 'Competitions, favorites, and settings save automatically in this browser.' : 'Export a backup to keep a copy of your progress.'}</span>
       </footer>
+      <GlobalSearch open={searchOpen} data={data} onClose={() => setSearchOpen(false)} onSelect={openSearchResult} />
       {showBackToTop && <button className="back-to-top" type="button" aria-label="Back to top" title="Back to top" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 14 6-6 6 6" /></svg>
       </button>}

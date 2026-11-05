@@ -394,7 +394,7 @@ export default function ManageScreen({ data, onChangeData, onPreview, onRestore 
 
         <ol className="question-list">
           {questions.map((question) => (
-            <li className="question-item" key={question.id}>
+            <li className="question-item" key={question.id} data-search-id={`study-${question.id}`}>
               {editing?.id === question.id ? (
                 <div className="edit-question">
                   <label>Question<textarea aria-label="Edit question text" rows={2} value={editing.text} onChange={(event) => setEditing({ ...editing, text: event.currentTarget.value })} /></label>

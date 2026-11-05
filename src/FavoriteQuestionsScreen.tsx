@@ -488,7 +488,7 @@ export default function FavoriteQuestionsScreen({ data, onChangeData }: { data: 
           const studyNote = studyFavoriteNote(favorite)
           const competitionNote = competitionFavoriteNote(favorite)
           const note = studyNote?.question.note ?? competitionNote?.question.note
-          return <article className="competition-favorite-card" key={favorite.id}>
+          return <article className="competition-favorite-card" key={favorite.id} data-search-id={`favorite-${favorite.id}`}>
           <div className="competition-favorite-heading">
             <div>
               <p className="eyebrow">

@@ -2201,7 +2201,7 @@ export default function MockCompetitionScreen({ voices, studyData, onDeleteStudy
             {visibleVersions.map((version, index) => {
               const trialCount = storage.history.filter((entry) => entry.sourceVersionId === version.id
                 || (!entry.sourceVersionId && competitionNameKey(entry.competitionName) === competitionNameKey(version.name))).length
-              return <li key={version.id} className="competition-version">
+              return <li key={version.id} className="competition-version" data-search-id={`version-${version.id}`}>
               <div className="competition-version-copy">
                 {renameId === version.id ? <form onSubmit={(event) => { event.preventDefault(); renameVersion(version.id) }}>
                   <input aria-label="New competition name" autoFocus value={renameDraft} onChange={(event) => setRenameDraft(event.currentTarget.value)} />
