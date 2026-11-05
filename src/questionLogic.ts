@@ -47,13 +47,15 @@ export function parseQuestionLines(text: string, defaultSeconds: AllowedDuration
       const question = item.question
       const spokenText = item.questionReadAloud
       const answer = item.answer
+      const spokenAnswer = item.answerReadAloud
       const solution = item.solution
       const seconds = item.timeSeconds ?? defaultSeconds
       if (typeof question !== 'string' || !question.trim()
         || typeof spokenText !== 'string' || !spokenText.trim()
         || typeof answer !== 'string' || !answer.trim()
+        || typeof spokenAnswer !== 'string' || !spokenAnswer.trim()
         || typeof solution !== 'string' || !solution.trim()) {
-        throw new Error(`Question ${index + 1} needs question, questionReadAloud, answer, and solution text.`)
+        throw new Error(`Question ${index + 1} needs question, questionReadAloud, answer, answerReadAloud, and solution text.`)
       }
       if (!ALLOWED_DURATIONS.includes(seconds as AllowedDuration)) {
         throw new Error(`Question ${index + 1} timeSeconds must be one of: ${ALLOWED_DURATIONS.join(', ')}.`)
@@ -63,6 +65,7 @@ export function parseQuestionLines(text: string, defaultSeconds: AllowedDuration
         text: question.trim(),
         spokenText: spokenText.trim(),
         answer: answer.trim(),
+        spokenAnswer: spokenAnswer.trim(),
         solution: solution.trim(),
         seconds: seconds as AllowedDuration,
       }
@@ -120,6 +123,52 @@ export function spokenDuration(seconds: number): string {
 
 export function matchesTimeFilter(question: Question, filter: TimeFilter): boolean {
   return filter === 'any' || question.seconds === filter
+}
+
+function stableRandom(seed: number, key: string): number {
+  let hash = (seed ^ 0x811c9dc5) >>> 0
+  for (let index = 0; index < key.length; index += 1) {
+    hash ^= key.charCodeAt(index)
+    hash = Math.imul(hash, 0x01000193)
+  }
+  hash ^= hash >>> 16
+  hash = Math.imul(hash, 0x85ebca6b)
+  hash ^= hash >>> 13
+  hash = Math.imul(hash, 0xc2b2ae35)
+  hash ^= hash >>> 16
+  return ((hash >>> 0) + 0.5) / 2 ** 32
+}
+
+export function writtenTestQuestions(
+  data: StudyData,
+  topicSelection: Topic | 'random',
+  seed: number,
+  group?: TopicGroupName,
+  includeAllTopicQuestions = false,
+) {
+  // Each question's position depends only on the seed and its own key, so adding, editing,
+  // deleting, or filtering questions never reshuffles the rest of the list.
+  if (topicSelection !== 'random') {
+    return data.questionBanks[topicSelection]
+      .filter((question) => includeAllTopicQuestions || matchesTimeFilter(question, data.settings.timeFilter))
+      .map((question) => ({ topic: topicSelection, question, key: `${topicSelection}:${question.id}` }))
+      .map((item) => ({ item, rank: stableRandom(seed, item.key) }))
+      .sort((left, right) => left.rank - right.rank)
+      .map(({ item }) => item)
+  }
+
+  // Weighted random order: each topic gets a share proportional to its priority, regardless of its size.
+  return getTopicsInGroup(group).flatMap((topic) => {
+    const preference = data.topicPreferences[topic]
+    if (!preference.active || preference.weight <= 0) return []
+    const questions = data.questionBanks[topic].filter((question) => matchesTimeFilter(question, data.settings.timeFilter))
+    return questions.map((question) => {
+      const key = `${topic}:${question.id}`
+      return { item: { topic, question, key }, rank: -Math.log(stableRandom(seed, key)) * questions.length / preference.weight }
+    })
+  })
+    .sort((left, right) => left.rank - right.rank)
+    .map(({ item }) => item)
 }
 
 function getTopicsInGroup(group?: TopicGroupName): readonly Topic[] {

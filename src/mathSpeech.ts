@@ -55,6 +55,9 @@ function fractionsToSpeech(text: string): string {
 
 export function mathToSpeech(text: string): string {
   return fractionsToSpeech(text)
+    .replace(/(\d)\s*[-−]\s*(\d)/g, '$1 minus $2')
+    .replace(/([A-Za-z0-9)])\s+[-−]\s+([A-Za-z0-9(])/g, '$1 minus $2')
+    .replace(/(^|[\s=(:,[{$])[-−]\s*(?=[0-9A-Za-z(])/g, '$1negative ')
     .replace(/\$\$?|\\\(|\\\)|\\\[|\\\]/g, '')
     .replace(/\\{2,}(?=[A-Za-z])/g, '\\')
     .replace(/\\(?:,|;|!|quad|qquad)/g, ' ')

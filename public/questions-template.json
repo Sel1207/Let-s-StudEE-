@@ -1,9 +1,10 @@
-{
-  "questions": [
-    {
-      "subject": "Foundational Math",
-      "question": "What is 2 + 2?",
-      "answer": "4"
-    }
-  ]
-}
+[
+  {
+    "question": "What is $2+2$?",
+    "questionReadAloud": "What is two plus two?",
+    "timeSeconds": 20,
+    "answer": "$4$",
+    "answerReadAloud": "Four.",
+    "solution": "Add two and two: $2+2=4$."
+  }
+]

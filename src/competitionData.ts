@@ -1,4 +1,6 @@
-export type CompetitionDifficulty = 'Easy' | 'Difficult'
+import { LEGACY_TOPIC_ALIASES, TOPICS, type Topic } from './studyTypes'
+
+export type CompetitionDifficulty = 'Easy' | 'Average' | 'Difficult'
 export type CompetitionQuestionType = 'Identification' | 'Problem-solving' | 'Multiple choice'
 export type CompetitionChoices = Partial<Record<'A' | 'B' | 'C' | 'D', string>>
 
@@ -15,8 +17,11 @@ export interface CompetitionQuestion {
   choices: CompetitionChoices | null
   spokenChoices: CompetitionChoices | null
   answer: string
+  spokenAnswer: string | null
   solution: string
   timeSeconds: number | null
+  note?: string
+  studySource?: { topic: Topic; questionId: string }
 }
 
 export interface CompetitionRound {
@@ -33,6 +38,7 @@ export interface Competition {
 export interface CompetitionVersion {
   id: string
   name: string
+  subject: string
   competition: Competition
   createdAt: number
   updatedAt: number
@@ -84,6 +90,8 @@ export interface CompetitionFavorite {
   id: string
   sourceVersionId: string
   questionId: string
+  source?: 'study'
+  studyTopic?: string
   competitionName: string
   round: number | 'Sudden Death'
   number: number
@@ -101,6 +109,7 @@ export interface CompetitionFavorite {
 
 export interface CompetitionSettings {
   easySeconds: number
+  averageSeconds: number
   difficultSeconds: number
   speechSpeed: 'slow' | 'normal' | 'fast'
   voiceURI: string
@@ -113,6 +122,8 @@ export interface CompetitionStorage {
   history: CompetitionScoreHistory[]
   favorites: CompetitionFavorite[]
   settings: CompetitionSettings
+  subjects: string[]
+  activeSubject: string
 }
 
 export interface CompetitionBackup {
@@ -122,11 +133,13 @@ export interface CompetitionBackup {
   competitions: CompetitionVersion[]
   history: CompetitionScoreHistory[]
   favorites: CompetitionFavorite[]
+  subjects?: string[]
 }
 
 const STORAGE_KEY = 'lets-studee-mock-competitions-v1'
 const DEFAULT_SETTINGS: CompetitionSettings = {
   easySeconds: 30,
+  averageSeconds: 90,
   difficultSeconds: 180,
   speechSpeed: 'normal',
   voiceURI: '',
@@ -138,13 +151,60 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
+function isDifficulty(value: unknown): value is CompetitionDifficulty {
+  return value === 'Easy' || value === 'Average' || value === 'Difficult'
+}
+
+function isEsasSubject(subject: string): boolean {
+  return competitionNameKey(subject) === 'esas'
+}
+
+function isElectricalEngineeringSubject(subject: string): boolean {
+  const key = competitionNameKey(subject)
+  return key === 'ee' || key === 'electrical engineering'
+}
+
+function usesThreeDifficultyLevels(subject: string): boolean {
+  return isEsasSubject(subject) || isElectricalEngineeringSubject(subject)
+}
+
+function expectedPoints(difficulty: CompetitionDifficulty, subject: string): number | null {
+  if (usesThreeDifficultyLevels(subject)) {
+    return difficulty === 'Easy' ? 1 : difficulty === 'Average' ? 3 : 5
+  }
+  if (difficulty === 'Easy') return 1
+  if (difficulty === 'Difficult') return 3
+  return null
+}
+
+function validateSubjectFormat(competition: Competition, subject: string): Competition {
+  if (isEsasSubject(subject)
+    && (competition.rounds.length !== 2
+      || competition.rounds.some((round, index) => round.round !== index + 1 || round.questions.length !== 7))) {
+    fail('rounds', 'ESAS competitions must have exactly two rounds, with seven questions in each round')
+  }
+  if (isElectricalEngineeringSubject(subject)) {
+    const expectedDifficulties: CompetitionDifficulty[] = ['Easy', 'Average', 'Difficult']
+    if (competition.rounds.length !== expectedDifficulties.length
+      || competition.rounds.some((round, index) => round.round !== index + 1 || round.questions.length !== 5)) {
+      fail('rounds', 'EE competitions must have exactly three rounds, with five questions in each round')
+    }
+    competition.rounds.forEach((round, index) => {
+      if (round.questions.some((question) => question.difficulty !== expectedDifficulties[index])) {
+        fail(`rounds[${index}].questions`, `all questions in Round ${index + 1} must be ${expectedDifficulties[index]}`)
+      }
+    })
+  }
+  return competition
+}
+
 function isNonNegativeInteger(value: unknown): value is number {
   return typeof value === 'number' && Number.isInteger(value) && value >= 0
 }
 
 function parseScoreQuestion(value: unknown): CompetitionScoreQuestion | null {
   if (!isRecord(value) || !Number.isInteger(value.number) || Number(value.number) < 1
-    || (value.difficulty !== 'Easy' && value.difficulty !== 'Difficult')
+    || !isDifficulty(value.difficulty)
     || !isNonNegativeInteger(value.points) || value.points < 1
     || !isNonNegativeInteger(value.earnedPoints) || value.earnedPoints > value.points) return null
   return {
@@ -241,7 +301,7 @@ function parseFavorite(value: unknown): CompetitionFavorite | null {
     || (value.round !== 'Sudden Death' && (!Number.isInteger(value.round) || Number(value.round) < 1))
     || !Number.isInteger(value.number) || Number(value.number) < 1
     || typeof value.category !== 'string' || !value.category
-    || (value.difficulty !== 'Easy' && value.difficulty !== 'Difficult')
+    || !isDifficulty(value.difficulty)
     || !isNonNegativeInteger(value.points) || value.points < 1
     || (value.type !== 'Identification' && value.type !== 'Problem-solving' && value.type !== 'Multiple choice')
     || typeof value.question !== 'string' || !value.question
@@ -255,10 +315,18 @@ function parseFavorite(value: unknown): CompetitionFavorite | null {
   } catch {
     return null
   }
+  const savedStudyTopic = typeof value.studyTopic === 'string' ? value.studyTopic : undefined
+  const normalizedStudyTopic = savedStudyTopic
+    ? TOPICS.find((topic) => topic === savedStudyTopic) ?? LEGACY_TOPIC_ALIASES[savedStudyTopic]
+    : undefined
   return {
-    id: value.id,
+    id: value.source === 'study' && normalizedStudyTopic
+      ? `study:${encodeURIComponent(normalizedStudyTopic)}:${encodeURIComponent(value.questionId)}`
+      : value.id,
     sourceVersionId: value.sourceVersionId,
     questionId: value.questionId,
+    ...(value.source === 'study' ? { source: 'study' as const } : {}),
+    ...(savedStudyTopic ? { studyTopic: normalizedStudyTopic ?? savedStudyTopic } : {}),
     competitionName: value.competitionName,
     round: value.round === 'Sudden Death' ? value.round : Number(value.round),
     number: Number(value.number),
@@ -315,17 +383,17 @@ function parseChoices(value: unknown, path: string): CompetitionChoices | null {
   return Object.keys(choices).length ? choices : null
 }
 
-function parseQuestion(value: unknown, path: string, round: number | 'Sudden Death', index: number): CompetitionQuestion {
+function parseQuestion(value: unknown, path: string, round: number | 'Sudden Death', index: number, subject: string): CompetitionQuestion {
   if (!isRecord(value)) fail(path, 'expected an object')
   const number = readPositiveInteger(value.number, `${path}.number`)
   const category = readString(value.category, `${path}.category`)
-  if (value.difficulty !== 'Easy' && value.difficulty !== 'Difficult') {
-    fail(`${path}.difficulty`, 'expected "Easy" or "Difficult"')
+  if (!isDifficulty(value.difficulty) || (!usesThreeDifficultyLevels(subject) && value.difficulty === 'Average')) {
+    fail(`${path}.difficulty`, usesThreeDifficultyLevels(subject) ? 'expected "Easy", "Average", or "Difficult"' : 'expected "Easy" or "Difficult"')
   }
   const difficulty = value.difficulty
-  const expectedPoints = difficulty === 'Easy' ? 1 : 3
+  const expectedQuestionPoints = expectedPoints(difficulty, subject)
   const points = readPositiveInteger(value.points, `${path}.points`)
-  if (points !== expectedPoints) fail(`${path}.points`, `must be ${expectedPoints} for ${difficulty}`)
+  if (points !== expectedQuestionPoints) fail(`${path}.points`, `must be ${expectedQuestionPoints} for ${difficulty}`)
   if (value.type !== 'Identification' && value.type !== 'Problem-solving' && value.type !== 'Multiple choice') {
     fail(`${path}.type`, 'expected "Identification", "Problem-solving", or "Multiple choice"')
   }
@@ -336,6 +404,20 @@ function parseQuestion(value: unknown, path: string, round: number | 'Sudden Dea
   let timeSeconds: number | null = null
   if (value.timeSeconds !== undefined && value.timeSeconds !== null) {
     timeSeconds = readPositiveInteger(value.timeSeconds, `${path}.timeSeconds`)
+  }
+  let studySource: CompetitionQuestion['studySource']
+  if (value.studySource !== undefined) {
+    const savedTopic = isRecord(value.studySource) && typeof value.studySource.topic === 'string'
+      ? value.studySource.topic
+      : ''
+    const topic = TOPICS.find((item) => item === savedTopic) ?? LEGACY_TOPIC_ALIASES[savedTopic]
+    if (!isRecord(value.studySource) || !topic) {
+      fail(`${path}.studySource`, 'expected a Study topic and question ID')
+    }
+    studySource = {
+      topic,
+      questionId: readString(value.studySource.questionId, `${path}.studySource.questionId`),
+    }
   }
 
   return {
@@ -351,8 +433,11 @@ function parseQuestion(value: unknown, path: string, round: number | 'Sudden Dea
     choices,
     spokenChoices,
     answer: readString(value.answer, `${path}.answer`),
+    spokenAnswer: readOptionalString(value.spokenAnswer, `${path}.spokenAnswer`),
     solution: readString(value.solution, `${path}.solution`),
     timeSeconds,
+    ...(typeof value.note === 'string' && value.note.trim() ? { note: value.note.trim() } : {}),
+    ...(studySource ? { studySource } : {}),
   }
 }
 
@@ -362,7 +447,7 @@ function syntaxLocation(source: string, position: number): string {
   return `line ${lines.length}, column ${lines.at(-1)!.length + 1}`
 }
 
-export function parseCompetitionText(source: string): Competition {
+export function parseCompetitionText(source: string, subject = 'Math'): Competition {
   let value: unknown
   try {
     value = JSON.parse(source) as unknown
@@ -370,7 +455,7 @@ export function parseCompetitionText(source: string): Competition {
     const message = error instanceof Error ? error.message : 'Invalid JSON.'
     const match = message.match(/position\s+(\d+)/i)
     const where = match ? ` (${syntaxLocation(source, Number(match[1]))})` : ''
-    throw new Error(`Invalid JSON${where}: ${message}`)
+    throw new Error(`Invalid JSON${where}: ${message}`, { cause: error })
   }
   if (!isRecord(value)) fail('root', 'expected a JSON object')
   const competitionName = readString(value.competitionName, 'competitionName')
@@ -386,7 +471,7 @@ export function parseCompetitionText(source: string): Competition {
       fail(`${path}.questions`, 'expected a non-empty array of questions')
     }
     const questions = rawRound.questions.map((rawQuestion, itemIndex) => (
-      parseQuestion(rawQuestion, `${path}.questions[${itemIndex}]`, round, questionIndex++)
+      parseQuestion(rawQuestion, `${path}.questions[${itemIndex}]`, round, questionIndex++, subject)
     ))
     return { round, questions }
   })
@@ -394,10 +479,10 @@ export function parseCompetitionText(source: string): Competition {
   if (value.suddenDeath !== undefined) {
     if (!Array.isArray(value.suddenDeath)) fail('suddenDeath', 'expected an array')
     suddenDeath = value.suddenDeath.map((question, index) => (
-      parseQuestion(question, `suddenDeath[${index}]`, 'Sudden Death', questionIndex++)
+      parseQuestion(question, `suddenDeath[${index}]`, 'Sudden Death', questionIndex++, subject)
     ))
   }
-  return { competitionName, rounds, suddenDeath }
+  return validateSubjectFormat({ competitionName, rounds, suddenDeath }, subject)
 }
 
 type CompetitionTextFields = Record<string, string>
@@ -436,6 +521,8 @@ function textFieldName(label: string): string | null {
     spokenchoicec: 'spokenChoiceC',
     spokenchoiced: 'spokenChoiceD',
     answer: 'answer',
+    answerreadaloud: 'spokenAnswer',
+    spokenanswer: 'spokenAnswer',
     solution: 'solution',
     extractionnotes: 'notes',
     uncertainfixes: 'notes',
@@ -455,11 +542,11 @@ function parseTextTime(value: string | undefined, path: string): number | null {
 }
 
 /** Accept the labeled, speaker-friendly plain-text format as well as the legacy JSON format. */
-export function parseCompetitionInput(source: string): Competition {
+export function parseCompetitionInput(source: string, subject = 'Math'): Competition {
   const plainText = source.trim()
     .replace(/^```[^\r\n]*\r?\n/, '')
     .replace(/\r?\n```\s*$/, '')
-  if (plainText.startsWith('{') || plainText.startsWith('[')) return parseCompetitionText(plainText)
+  if (plainText.startsWith('{') || plainText.startsWith('[')) return parseCompetitionText(plainText, subject)
 
   const records: CompetitionTextFields[] = []
   const recordLines: number[] = []
@@ -549,16 +636,17 @@ export function parseCompetitionInput(source: string): Competition {
       choices: Object.keys(choices).length ? choices : null,
       spokenChoices: Object.keys(spokenChoices).length ? spokenChoices : null,
       answer: record.answer,
+      spokenAnswer: record.spokenAnswer,
       solution: record.solution,
       timeSeconds,
     }
     if (isSuddenDeath) {
-      suddenDeath.push(parseQuestion(rawQuestion, path, 'Sudden Death', questionIndex++))
+      suddenDeath.push(parseQuestion(rawQuestion, path, 'Sudden Death', questionIndex++, subject))
       return
     }
 
     const round = readPositiveInteger(Number(roundText), `${path}.round`)
-    const parsed = parseQuestion(rawQuestion, path, round, questionIndex++)
+    const parsed = parseQuestion(rawQuestion, path, round, questionIndex++, subject)
     if (previousRound !== round) {
       if (seenRounds.has(round)) fail(`${path}.round`, 'round questions must be grouped together to preserve their order')
       rounds.push({ round, questions: [] })
@@ -569,7 +657,7 @@ export function parseCompetitionInput(source: string): Competition {
   })
 
   if (!rounds.length) fail('rounds', 'expected at least one regular round')
-  return { competitionName: name, rounds, suddenDeath }
+  return validateSubjectFormat({ competitionName: name, rounds, suddenDeath }, subject)
 }
 
 export function createCompetitionId(): string {
@@ -584,7 +672,11 @@ export function defaultCompetitionSettings(): CompetitionSettings {
   return { ...DEFAULT_SETTINGS }
 }
 
-export function createCompetitionBackup(storage: Pick<CompetitionStorage, 'versions' | 'history' | 'favorites'>): string {
+export function defaultCompetitionSubjects(): string[] {
+  return ['Math', 'EE', 'ESAS']
+}
+
+export function createCompetitionBackup(storage: Pick<CompetitionStorage, 'versions' | 'history' | 'favorites'> & Partial<Pick<CompetitionStorage, 'subjects'>>): string {
   const backup: CompetitionBackup = {
     format: 'lets-studee-competition-backup',
     version: 1,
@@ -592,17 +684,18 @@ export function createCompetitionBackup(storage: Pick<CompetitionStorage, 'versi
     competitions: storage.versions,
     history: storage.history,
     favorites: storage.favorites,
+    subjects: storage.subjects ?? defaultCompetitionSubjects(),
   }
   return JSON.stringify(backup, null, 2)
 }
 
-export function parseCompetitionBackup(source: string): Pick<CompetitionStorage, 'versions' | 'history' | 'favorites'> {
+export function parseCompetitionBackup(source: string): Pick<CompetitionStorage, 'versions' | 'history' | 'favorites' | 'subjects'> {
   let value: unknown
   try {
     value = JSON.parse(source) as unknown
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Invalid JSON.'
-    throw new Error(`This backup is not valid JSON: ${message}`)
+    throw new Error(`This backup is not valid JSON: ${message}`, { cause: error })
   }
   if (!isRecord(value)) fail('backup', 'expected a JSON object')
   if (value.format !== 'lets-studee-competition-backup' || value.version !== 1) {
@@ -618,15 +711,17 @@ export function parseCompetitionBackup(source: string): Pick<CompetitionStorage,
       || typeof entry.createdAt !== 'number' || !Number.isFinite(entry.createdAt) || entry.createdAt <= 0
       || typeof entry.updatedAt !== 'number' || !Number.isFinite(entry.updatedAt) || entry.updatedAt <= 0
       || !isRecord(entry.competition)) fail(path, 'expected a saved competition with its name, dates, and question data')
+    const subject = typeof entry.subject === 'string' && entry.subject.trim() ? entry.subject.trim() : 'Math'
     let competition: Competition
     try {
-      competition = parseCompetitionText(JSON.stringify(entry.competition))
+      competition = parseCompetitionText(JSON.stringify(entry.competition), subject)
     } catch (error) {
       fail(`${path}.competition`, error instanceof Error ? error.message : 'invalid competition data')
     }
     return {
       id: entry.id,
       name: entry.name,
+      subject,
       createdAt: entry.createdAt,
       updatedAt: entry.updatedAt,
       competition,
@@ -645,23 +740,36 @@ export function parseCompetitionBackup(source: string): Pick<CompetitionStorage,
       return parsed
     })
     : []
+  const importedSubjects = Array.isArray(value.subjects)
+    ? value.subjects.filter((subject): subject is string => typeof subject === 'string' && Boolean(subject.trim())).map((subject) => subject.trim())
+    : []
+  const subjects = [...new Map([...defaultCompetitionSubjects(), ...versions.map((version) => version.subject), ...importedSubjects]
+    .map((subject) => [subject.normalize('NFKC').toLowerCase(), subject])).values()]
   if (versions.length === 0 && history.length === 0 && favorites.length === 0) fail('backup', 'there are no saved competitions, scores, or favorite questions to import')
-  return { versions, history, favorites }
+  return { versions, history, favorites, subjects }
 }
 
 export function loadCompetitionStorage(): CompetitionStorage {
   try {
     const saved = window.localStorage.getItem(STORAGE_KEY)
-    if (!saved) return { versions: [], history: [], favorites: [], settings: defaultCompetitionSettings() }
+    if (!saved) return { versions: [], history: [], favorites: [], settings: defaultCompetitionSettings(), subjects: defaultCompetitionSubjects(), activeSubject: 'Math' }
     const value: unknown = JSON.parse(saved)
-    if (!isRecord(value)) return { versions: [], history: [], favorites: [], settings: defaultCompetitionSettings() }
+    if (!isRecord(value)) return { versions: [], history: [], favorites: [], settings: defaultCompetitionSettings(), subjects: defaultCompetitionSubjects(), activeSubject: 'Math' }
     const versions = Array.isArray(value.versions) ? value.versions.flatMap((entry): CompetitionVersion[] => {
       if (!isRecord(entry) || typeof entry.id !== 'string' || typeof entry.name !== 'string'
         || typeof entry.createdAt !== 'number' || typeof entry.updatedAt !== 'number'
         || !isRecord(entry.competition)) return []
+      const subject = typeof entry.subject === 'string' && entry.subject.trim() ? entry.subject.trim() : 'Math'
       try {
-        const competition = parseCompetitionText(JSON.stringify(entry.competition))
-        return [{ id: entry.id, name: entry.name, competition, createdAt: entry.createdAt, updatedAt: entry.updatedAt }]
+        const competition = parseCompetitionText(JSON.stringify(entry.competition), subject)
+        return [{
+          id: entry.id,
+          name: entry.name,
+          subject,
+          competition,
+          createdAt: entry.createdAt,
+          updatedAt: entry.updatedAt,
+        }]
       } catch {
         return []
       }
@@ -679,12 +787,25 @@ export function loadCompetitionStorage(): CompetitionStorage {
       })
       : []
     const settings = isRecord(value.settings) ? value.settings : {}
+    const subjects = Array.isArray(value.subjects)
+      ? value.subjects.filter((subject): subject is string => typeof subject === 'string' && Boolean(subject.trim())).map((subject) => subject.trim())
+      : []
+    const normalizedSubjects = [...new Map([...defaultCompetitionSubjects(), ...versions.map((version) => version.subject), ...subjects]
+      .map((subject) => [subject.normalize('NFKC').toLowerCase(), subject])).values()]
+    const savedActiveSubject = typeof value.activeSubject === 'string' ? value.activeSubject : 'Math'
+    const activeSubject = normalizedSubjects.find((subject) => (
+      subject.normalize('NFKC').toLowerCase() === savedActiveSubject.normalize('NFKC').toLowerCase()
+    ))
+      ?? 'Math'
     return {
       versions,
       history,
       favorites,
+      subjects: normalizedSubjects,
+      activeSubject,
       settings: {
         easySeconds: Number.isInteger(settings.easySeconds) && Number(settings.easySeconds) > 0 ? Number(settings.easySeconds) : DEFAULT_SETTINGS.easySeconds,
+        averageSeconds: Number.isInteger(settings.averageSeconds) && Number(settings.averageSeconds) > 0 ? Number(settings.averageSeconds) : DEFAULT_SETTINGS.averageSeconds,
         difficultSeconds: Number.isInteger(settings.difficultSeconds) && Number(settings.difficultSeconds) > 0 ? Number(settings.difficultSeconds) : DEFAULT_SETTINGS.difficultSeconds,
         speechSpeed: settings.speechSpeed === 'slow' || settings.speechSpeed === 'fast' ? settings.speechSpeed : 'normal',
         voiceURI: typeof settings.voiceURI === 'string' ? settings.voiceURI : '',
@@ -693,7 +814,7 @@ export function loadCompetitionStorage(): CompetitionStorage {
       },
     }
   } catch {
-    return { versions: [], history: [], favorites: [], settings: defaultCompetitionSettings() }
+    return { versions: [], history: [], favorites: [], settings: defaultCompetitionSettings(), subjects: defaultCompetitionSubjects(), activeSubject: 'Math' }
   }
 }
 

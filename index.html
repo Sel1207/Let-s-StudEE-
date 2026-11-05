@@ -3,8 +3,22 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script>
+      if (window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches) {
+        document.querySelector('meta[name="viewport"]')?.setAttribute(
+          'content',
+          'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no',
+        )
+      }
+    </script>
     <meta name="theme-color" content="#f7f8f5" />
     <meta name="description" content="Timed listening practice for math topics." />
+    <link rel="icon" type="image/svg+xml" href="/studee-icon.svg" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="StudEE!" />
     <title>Lets StudEE!</title>
   </head>
   <body>

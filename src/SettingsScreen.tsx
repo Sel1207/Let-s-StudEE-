@@ -1,5 +1,7 @@
-import { accuracy, formatDuration } from './questionLogic'
-import { ALLOWED_DURATIONS, PREFERRED_VOICE_NAME, TOPICS, type StudyData, type StudySettings } from './studyTypes'
+import { useState, type ChangeEvent } from 'react'
+import { formatDuration } from './questionLogic'
+import { createFullAppBackup, parseFullAppBackup, restoreFullAppBackup } from './appBackup'
+import { ALLOWED_DURATIONS, PREFERRED_VOICE_NAME, type StudyData, type StudySettings } from './studyTypes'
 import type { ThemePreference } from './themePreference'
 
 interface SettingsScreenProps {
@@ -11,6 +13,8 @@ interface SettingsScreenProps {
 }
 
 export default function SettingsScreen({ data, voices, theme, onChangeTheme, onChangeSettings }: SettingsScreenProps) {
+  const [backupNotice, setBackupNotice] = useState('')
+  const [backupError, setBackupError] = useState('')
   const englishVoices = voices.filter((voice) => /^en([_-]|$)/i.test(voice.lang))
   const voiceOptions = englishVoices.length ? englishVoices : voices
   const defaultVoice = voiceOptions.find((voice) => voice.name.includes(PREFERRED_VOICE_NAME)) ?? voiceOptions[0]
@@ -19,6 +23,44 @@ export default function SettingsScreen({ data, voices, theme, onChangeTheme, onC
     const url = new URL(window.location.href)
     url.searchParams.set('__app_update', `settings-${Date.now()}`)
     window.location.replace(url.toString())
+  }
+
+  function exportFullBackup() {
+    try {
+      const backup = createFullAppBackup(data, theme)
+      const url = URL.createObjectURL(new Blob([backup], { type: 'application/json' }))
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `lets-studee-full-backup-${new Date().toISOString().slice(0, 10)}.json`
+      link.click()
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000)
+      setBackupError('')
+      setBackupNotice('Full backup downloaded. Keep the file somewhere safe.')
+    } catch (error) {
+      console.error('Could not export the full app backup.', error)
+      setBackupNotice('')
+      setBackupError('Could not create the backup. Check that browser storage is available and try again.')
+    }
+  }
+
+  async function importFullBackup(event: ChangeEvent<HTMLInputElement>) {
+    const input = event.currentTarget
+    const file = input.files?.[0]
+    if (!file) return
+    try {
+      const backupStorage = parseFullAppBackup(await file.text())
+      if (!window.confirm('Restoring this full backup will replace all Let’s StudEE! data currently saved in this browser. Continue?')) return
+      restoreFullAppBackup(backupStorage)
+      setBackupError('')
+      setBackupNotice('Full backup restored. Reloading the app…')
+      window.setTimeout(() => window.location.reload(), 250)
+    } catch (error) {
+      console.error('Could not restore the full app backup.', error)
+      setBackupNotice('')
+      setBackupError(error instanceof Error ? error.message : 'Could not restore this full backup.')
+    } finally {
+      input.value = ''
+    }
   }
 
   return (
@@ -77,18 +119,40 @@ export default function SettingsScreen({ data, voices, theme, onChangeTheme, onC
             onChange={(event) => onChangeSettings({ ...data.settings, announceDuration: event.currentTarget.checked })}
           />
         </label>
-        <label className="setting-row toggle-setting theme-setting" htmlFor="dark-mode">
+        <div className="setting-row toggle-setting theme-setting">
           <span><strong>Dark mode</strong><small>Switch to a darker color theme across the app.</small></span>
-          <input
-            id="dark-mode"
-            type="checkbox"
+          <button
+            className="theme-switch"
+            type="button"
             role="switch"
+            id="dark-mode"
             aria-checked={theme === 'dark'}
-            checked={theme === 'dark'}
-            onChange={(event) => onChangeTheme(event.currentTarget.checked ? 'dark' : 'light')}
-          />
-        </label>
+            aria-label="Dark mode"
+            onClick={() => onChangeTheme(theme === 'dark' ? 'light' : 'dark')}
+          >
+            <span className="theme-switch-thumb" aria-hidden="true" />
+          </button>
+        </div>
       </div>
+
+      <section className="app-backup-section" aria-labelledby="full-backup-heading">
+        <div className="app-backup-heading">
+          <div>
+            <h2 id="full-backup-heading">Full app backup</h2>
+            <p>Download or restore your Study banks and progress, Mock Competitions, score history, favorites, lecture notes, and settings in one file.</p>
+          </div>
+        </div>
+        <div className="app-backup-actions">
+          <button className="secondary-action" type="button" onClick={exportFullBackup}>Download full backup</button>
+          <label className="file-import">
+            Restore full backup
+            <input type="file" accept=".json,application/json" onChange={(event) => { void importFullBackup(event) }} />
+          </label>
+        </div>
+        {backupNotice && <p className="manage-message" role="status">{backupNotice}</p>}
+        {backupError && <p className="form-error" role="alert">{backupError}</p>}
+        <p className="app-backup-warning">Restoring replaces all Let’s StudEE! data in this browser. It does not affect unrelated websites.</p>
+      </section>
 
       <section className="app-update-section" aria-labelledby="app-update-heading">
         <div>
@@ -98,22 +162,6 @@ export default function SettingsScreen({ data, voices, theme, onChangeTheme, onC
         <button className="secondary-action" type="button" onClick={updateApp}>Update app</button>
       </section>
 
-      <section className="accuracy-section" aria-labelledby="accuracy-heading">
-        <h2 id="accuracy-heading">Topic accuracy</h2>
-        {TOPICS.map((topic) => {
-          const result = data.results[topic]
-          const attempts = result.gotIt + result.missedIt
-          const score = accuracy(result)
-          return (
-            <div className="accuracy-row" key={topic}>
-              <span>{topic}</span>
-              <span className="accuracy-bar"><span style={{ width: `${score ?? 0}%` }} /></span>
-              <span>{score === null ? '—' : `${Math.round(score)}%`}</span>
-              <small>{attempts} {attempts === 1 ? 'try' : 'tries'}</small>
-            </div>
-          )
-        })}
-      </section>
     </section>
   )
 }

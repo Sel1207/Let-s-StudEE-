@@ -1,5 +1,25 @@
 .competition-view { max-width: 1260px; }
 .competition-view > .view-heading { margin-bottom: 24px; }
+.competition-daily-focus { position: sticky; top: 0; z-index: 20; margin: 0 0 18px; padding: 10px 13px; border: 1px solid var(--line); background: var(--surface); }
+.competition-daily-focus.is-stuck { outline: 1px solid rgb(105 113 108 / 24%); outline-offset: 0; box-shadow: 0 4px 12px rgb(0 0 0 / 6%); }
+.competition-daily-focus-top { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 16px; }
+.competition-streak, .competition-daily-goal { margin: 0; font-size: 11px; }
+.competition-streak { color: var(--accent); font-weight: 700; }
+.competition-streak span { margin-right: 4px; }
+.competition-daily-goal { color: var(--ink); }
+.competition-daily-goal strong { font-size: 14px; }
+.competition-daily-goal > span, .competition-daily-hint { color: var(--muted); }
+.competition-daily-focus progress { width: 100%; height: 6px; display: block; margin-top: 8px; border: 0; border-radius: 999px; overflow: hidden; accent-color: var(--accent); }
+.competition-daily-focus progress::-webkit-progress-bar { border-radius: 999px; background: var(--line); }
+.competition-daily-focus progress::-webkit-progress-value { border-radius: 999px; background: var(--accent); }
+.competition-daily-focus progress::-moz-progress-bar { border-radius: 999px; background: var(--accent); }
+.competition-daily-hint { margin: 6px 0 0; font-size: 9px; }
+.competition-subject-picker { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 0 0 24px; }
+.competition-subject-options { display: flex; flex-wrap: wrap; gap: 5px; }
+.competition-subject-options button { min-height: 38px; padding: 0 12px; border: 1px solid var(--line); background: transparent; color: var(--muted); font-size: 10px; cursor: pointer; }
+.competition-subject-options button[aria-pressed='true'] { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); font-weight: 700; }
+.competition-subject-help { flex-basis: 100%; margin: -5px 0 0; color: var(--muted); font-size: 9px; }
+.competition-current-subject { margin: -12px 0 18px; color: var(--accent); font-size: 10px; font-weight: 700; }
 .competition-history-toggle { min-height: 40px; margin-top: 12px; padding-inline: 12px; font-size: 10px; }
 .competition-extraction { margin: 0 0 30px; padding: 20px 22px; border: 1px solid var(--line); background: var(--accent-soft); }
 .competition-extraction-copy h2 { margin: 0 0 6px; font-size: 17px; font-weight: 600; }
@@ -19,6 +39,13 @@
 .competition-editor .question-hint { max-width: 75ch; }
 .competition-editor .question-hint code { padding: 1px 4px; font-size: inherit; }
 .competition-settings { padding: 17px 18px; border: 1px solid var(--line); }
+.competition-settings-trigger { min-height: 40px; display: inline-flex; align-items: center; gap: 8px; margin: 0 0 18px; padding-inline: 12px; }
+.competition-settings-trigger svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.competition-settings-dialog { width: min(940px, calc(100% - 28px)); max-height: min(88vh, 900px); overflow: auto; margin: auto; padding: 22px 24px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); }
+.competition-settings-dialog::backdrop { background: rgb(0 0 0 / 72%); backdrop-filter: blur(2px); }
+.competition-settings-dialog-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 18px; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
+.competition-settings-dialog-heading .eyebrow { margin: 0 0 4px; }
+.competition-settings-dialog-heading h2 { margin: 0; font-size: 19px; font-weight: 600; }
 .competition-settings h2, .competition-library-heading h2 { margin: 0; font-size: 15px; font-weight: 600; }
 .competition-number-setting, .competition-select-setting, .competition-volume, .competition-mute { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 13px 0; border-bottom: 1px solid var(--line); }
 .competition-number-setting > span:first-child { display: grid; gap: 4px; }
@@ -91,6 +118,7 @@
 .competition-scoreboard-heading { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; margin-bottom: 9px; }
 .competition-scoreboard-heading h3 { margin: 0; font-size: 12px; font-weight: 600; }
 .competition-scoreboard-heading span { color: var(--muted); font-size: 9px; }
+.competition-scoreboard-mobile { display: none; }
 .competition-scoreboard-scroll { width: 100%; }
 .competition-scoreboard-table { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: 9px; text-align: center; }
 .competition-scoreboard-table th, .competition-scoreboard-table td { min-width: 0; padding: 8px 5px; border: 1px solid var(--line); white-space: normal; overflow-wrap: anywhere; }
@@ -121,11 +149,22 @@
 .competition-question-meta span { padding: 7px 10px; background: var(--accent-soft); color: var(--accent); font-size: 10px; font-weight: 600; }
 .competition-question-topline { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
 .competition-question-topline .competition-question-meta { min-width: 0; }
-.competition-heart-button { width: 42px; height: 42px; flex: 0 0 42px; display: grid; place-items: center; margin: -5px -8px 0 0; padding: 0; border: 0; border-radius: 50%; background: transparent; color: var(--muted); cursor: pointer; transition: color .16s ease, background-color .16s ease, transform .16s ease; }
+.competition-question-actions { display: flex; flex: 0 0 auto; align-items: center; gap: 4px; }
+.competition-question-actions .competition-question-tool { height: 36px; min-height: 36px; display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center; gap: 6px; padding: 0 9px; border-color: var(--line); color: var(--muted); font-size: 11px; text-decoration: none; }
+.competition-question-tool:hover { border-color: var(--accent); color: var(--accent); }
+.competition-question-tool svg { display: none; width: 17px; height: 17px; fill: none; stroke: var(--accent); stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.competition-question-delete svg { stroke: var(--danger); }
+.competition-question-actions .competition-question-delete { width: 36px; height: 36px; min-height: 36px; flex: 0 0 36px; padding: 0; font-size: 0; }
+.competition-question-delete span { display: none; }
+.competition-question-delete svg { display: block; }
+.competition-question-actions .written-note-button, .competition-question-actions .competition-heart-button { width: 36px; height: 36px; min-height: 36px; flex: 0 0 36px; margin: 0; }
+.competition-question-actions .written-note-button { border-color: var(--line); background: transparent; color: var(--muted); }
+.competition-question-actions .written-note-button svg { width: 16px; height: 16px; }
+.competition-heart-button { width: 36px; height: 36px; flex: 0 0 36px; display: grid; place-items: center; margin: 0; padding: 0; border: 1px solid var(--line); border-radius: 50%; background: transparent; color: var(--muted); cursor: pointer; transition: color .16s ease, background-color .16s ease, transform .16s ease; }
 .competition-heart-button:hover { background: var(--accent-soft); color: var(--danger); }
 .competition-heart-button.is-favorite { color: var(--danger); }
 .competition-heart-button:active { transform: scale(.92); }
-.competition-heart-button svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.competition-heart-button svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .competition-heart-button.is-favorite svg { fill: currentColor; }
 .competition-question-visibility { margin: 0 0 18px; }
 .competition-question-text { display: block; font-size: 24px; line-height: 1.55; overflow-wrap: anywhere; }
@@ -143,6 +182,11 @@
 .competition-controls button:disabled { opacity: .5; }
 .competition-marking { margin-top: 11px; }
 .competition-marking .is-selected { background: var(--accent-soft); }
+.competition-marking .competition-next-question { flex-basis: 100%; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+.competition-next-question kbd { border-color: color-mix(in srgb, var(--paper) 45%, transparent); color: var(--paper); }
+.competition-shortcut-hint { display: flex; flex-wrap: wrap; justify-content: center; gap: 5px 10px; margin: 12px 0 0; color: var(--muted); font-size: 9px; line-height: 1.4; }
+.competition-shortcut-hint > span { display: inline-flex; align-items: center; gap: 3px; white-space: nowrap; }
+.competition-shortcut-hint kbd { min-width: 17px; padding: 1px 3px; border: 1px solid var(--line); border-radius: 3px; background: var(--surface); color: var(--muted); font: inherit; text-align: center; }
 .competition-marking .primary-action { flex-basis: 100%; }
 .competition-controls .competition-save-progress { flex-basis: 100%; }
 .competition-score-so-far { margin: 18px 0 0; color: var(--muted); font-size: 10px; }
@@ -204,6 +248,8 @@
 }
 
 @media (max-width: 520px) {
+  .competition-settings-dialog { width: calc(100% - 20px); max-height: 92vh; padding: 16px 13px; }
+  .competition-settings-dialog-heading h2 { font-size: 16px; }
   .competition-extraction { padding: 16px 14px; }
   .competition-extraction-tools > button, .competition-extraction-tools > label { flex: 1 1 100%; justify-content: center; }
   .competition-json { min-height: 290px; }
@@ -221,18 +267,30 @@
   .competition-question-topline { gap: 2px; }
   .competition-question-topline .competition-question-meta { gap: 5px; }
   .competition-question-topline .competition-question-meta span { padding: 6px 7px; font-size: 9px; }
-  .competition-heart-button { margin-right: -5px; }
   .competition-question-text { font-size: 18px; }
   .competition-choice-list li { font-size: 13px; }
   .competition-timer { font-size: 68px; }
   .competition-breakdowns { grid-template-columns: 1fr; gap: 20px; }
   .competition-score-large { font-size: 52px; }
   .competition-scoreboard { padding: 8px 5px; }
-  .competition-scoreboard-table { font-size: 7px; }
-  .competition-scoreboard-table th, .competition-scoreboard-table td { padding: 5px 1px; }
-  .competition-scoreboard-question-button { padding-inline: 2px; font-size: 7px; }
-  .competition-scoreboard-table .competition-scoreboard-row-label { width: 54px; font-size: 7px; }
-  .competition-scoreboard-points { font-size: 10px; }
+  .competition-scoreboard-scroll, .competition-history-scoreboard > .competition-scoreboard-table { display: none; }
+  .competition-scoreboard-mobile { display: grid; gap: 0; }
+  .competition-scoreboard-mobile-row { min-width: 0; display: grid; grid-template-columns: 58px minmax(0, 1fr) auto; align-items: center; gap: 4px; padding: 5px 0; border-top: 1px solid var(--line); font-size: 8px; }
+  .competition-scoreboard-mobile-label { color: var(--ink); font-size: 8px; }
+  .competition-scoreboard-mobile-questions { min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 2px 4px; color: var(--muted); }
+  .competition-scoreboard-mobile-question { display: inline-flex; align-items: center; gap: 1px; padding: 0 3px; border-radius: 2px; background: var(--accent-soft); color: var(--ink); white-space: nowrap; }
+  .competition-scoreboard-mobile-question.is-correct { color: var(--success); }
+  .competition-scoreboard-mobile-question.is-wrong { color: var(--danger); }
+  .competition-scoreboard-mobile .competition-scoreboard-question-button { min-height: 20px; padding: 0 1px; font-size: 8px; }
+  .competition-scoreboard-mobile-total { padding-left: 4px; color: var(--accent); font-size: 8px; white-space: nowrap; }
+  .competition-scoreboard-mobile-row.is-total { border-top: 1px solid var(--accent); background: var(--accent-soft); }
+  .competition-question-actions { gap: 3px; }
+  .competition-question-actions .written-note-button, .competition-question-actions .competition-heart-button,
+  .competition-question-tool { width: 32px; height: 32px; min-height: 32px; flex-basis: 32px; margin: 0; }
+  .competition-question-actions .competition-question-tool { width: 32px; height: 32px; min-height: 32px; flex-basis: 32px; display: grid; place-items: center; padding: 0; font-size: 0; }
+  .competition-question-tool svg { display: block; }
+  .competition-question-actions .written-note-button svg, .competition-question-actions .competition-heart-button svg,
+  .competition-question-tool svg { width: 16px; height: 16px; }
   .competition-history-question-dialog { padding: 17px 15px; }
   .competition-history-question-dialog-heading .eyebrow { font-size: 8px; }
   .competition-history-question-dialog-heading h2 { font-size: 16px; }

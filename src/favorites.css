@@ -1,11 +1,28 @@
 .favorites-view { max-width: 1050px; }
+.saved-question-tabs { display: flex; gap: 6px; margin: 0 0 20px; border-bottom: 1px solid var(--line); }
+.saved-question-tabs button { min-height: 42px; display: inline-flex; align-items: center; gap: 7px; padding: 0 12px; border: 0; border-bottom: 2px solid transparent; background: transparent; color: var(--muted); font-size: 11px; cursor: pointer; }
+.saved-question-tabs button[aria-selected='true'] { border-bottom-color: var(--accent); color: var(--accent); font-weight: 700; }
+.saved-question-tabs button span { min-width: 18px; padding: 2px 5px; border-radius: 999px; background: var(--accent-soft); color: var(--muted); font-size: 9px; text-align: center; }
 .competition-favorites { margin-top: 30px; }
+.saved-question-tabs + [role='tabpanel'] { margin-top: 0; }
+.favorite-card-note { margin-top: 14px; }
+.favorite-status-heart { width: 22px; height: 22px; display: grid; flex: 0 0 22px; place-items: center; color: color-mix(in srgb, var(--danger) 68%, var(--surface)); }
+.favorite-status-heart svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.favorite-filters { display: flex; flex-wrap: wrap; gap: 10px 14px; margin: 12px 0 18px; }
+.favorite-filters label { display: grid; gap: 5px; color: var(--muted); font-size: 10px; }
+.favorite-filters select { min-width: 190px; min-height: 38px; font-size: 11px; }
 .competition-favorite-list { border-top: 1px solid var(--line); }
 .competition-favorite-card { padding: 18px 0 22px; border-bottom: 1px solid var(--line); }
 .competition-favorite-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .competition-favorite-heading > div { min-width: 0; }
 .competition-favorite-heading .eyebrow { overflow-wrap: anywhere; }
+.favorite-study-time { color: var(--muted); font-weight: 500; }
 .competition-favorite-heading h3 { margin: 0; font-size: 14px; font-weight: 600; }
+.favorite-card-actions { display: inline-flex; flex: 0 0 auto; flex-wrap: nowrap; align-items: center; gap: 2px; white-space: nowrap; }
+.favorite-card-actions .text-action { min-height: 32px; display: inline-flex; align-items: center; justify-content: center; padding: 0 7px; font-size: 10px; white-space: nowrap; }
+.favorite-card-actions .competition-favorite-remove { color: var(--danger); }
+.favorite-search-web { color: var(--muted); text-decoration: none; }
+.favorite-search-web:hover { color: var(--accent); }
 .competition-favorite-remove { flex: 0 0 auto; }
 .competition-favorite-remove span { margin-left: 4px; color: var(--danger); }
 .competition-favorite-card .competition-question-meta { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0 15px; }
@@ -18,9 +35,33 @@
 .competition-favorite-answer summary { width: fit-content; min-height: 42px; display: flex; align-items: center; color: var(--accent); font-size: 10px; font-weight: 600; cursor: pointer; }
 .competition-favorite-answer > div { display: grid; gap: 5px; margin: 8px 0 14px; font-size: 12px; line-height: 1.55; overflow-wrap: anywhere; }
 .competition-favorite-answer strong { color: var(--accent); font-size: 10px; text-transform: uppercase; }
+.noted-questions { margin-top: 30px; }
+.noted-question-card .competition-favorite-heading { align-items: flex-start; margin-bottom: 12px; }
+.noted-question-card .competition-favorite-heading > div:first-child { min-width: 0; }
+.noted-question-note { width: 100%; display: grid; gap: 6px; margin-top: 12px; padding: 12px 14px; border: 1px solid var(--line); border-left: 3px solid var(--accent); border-radius: 0; background: var(--accent-soft); color: var(--ink); text-align: left; font: inherit; font-size: 12px; line-height: 1.55; overflow-wrap: anywhere; cursor: pointer; }
+.noted-question-note strong { color: var(--accent); font-size: 10px; text-transform: uppercase; }
+.noted-question-edit-hint { color: var(--muted); font-size: 9px; }
+.noted-question-note:hover { border-color: var(--accent); }
+.noted-question-card .competition-favorite-answer { margin-top: 3px; border-top: 0; }
+.noted-question-card .competition-favorite-answer summary { min-height: 30px; font-size: 9px; }
+.noted-question-card .competition-favorite-answer > div { margin: 4px 0 8px; font-size: 11px; }
+.noted-question-actions { display: flex; flex: 0 0 auto; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 4px 8px; }
+.noted-question-actions .secondary-action { min-height: 34px; display: inline-flex; align-items: center; justify-content: center; padding-inline: 10px; font-size: 10px; text-decoration: none; }
+.remove-question-note { color: var(--danger); }
 
 @media (max-width: 520px) {
+  .saved-question-tabs { gap: 0; }
+  .saved-question-tabs button { min-height: 40px; gap: 5px; padding-inline: 8px; font-size: 10px; }
+  .saved-question-tabs button span { min-width: 16px; padding-inline: 4px; font-size: 8px; }
+  .favorite-filters { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .favorite-filters select { width: 100%; min-width: 0; }
   .competition-favorite-heading { gap: 4px; }
   .competition-favorite-heading .eyebrow { font-size: 8px; }
+  .favorite-card-actions { gap: 0; }
+  .favorite-card-actions .text-action { min-height: 30px; padding-inline: 5px; font-size: 9px; }
+  .noted-question-card .competition-favorite-heading { gap: 6px; }
+  .noted-question-actions { gap: 2px; }
+  .noted-question-actions .secondary-action { min-height: 32px; padding-inline: 6px; font-size: 9px; }
+  .noted-question-actions .text-action { padding-inline: 4px; font-size: 9px; white-space: nowrap; }
   .competition-favorite-remove { padding-inline: 4px; }
 }

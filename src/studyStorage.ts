@@ -1,5 +1,4 @@
 import { ALLOWED_DURATIONS, TOPICS, type AllowedDuration, type Question, type StudyData, type StudySettings, type Topic, type TopicPreference, type TopicResult } from './studyTypes'
-import { DEFAULT_FOUNDATIONAL_QUESTIONS } from './defaultFoundationalQuestions'
 
 const STORAGE_KEY = 'lets-studee-study-data-v1'
 const DEFAULTS_MIGRATION_KEY = 'lets-studee-defaults-migration-v1'
@@ -9,6 +8,13 @@ const LEGACY_TOPIC_NAMES: Partial<Record<Topic, string>> = {
   'Differential Calculus': 'Calculus 1',
   'Integral Calculus': 'Calculus 2',
   'Series and Multivariable Calculus': 'Calculus 3',
+  'DC Generators': 'DC Machines',
+  'AC Motors': 'AC Machines',
+  'Power System Analysis': 'Power Systems',
+  'Distribution Systems': 'Distribution System',
+  'Electrical Transients': 'Transient Analysis',
+  'Feedback & Control Systems': 'Control Systems',
+  'AC Polyphase': 'Polyphase Circuits',
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -25,17 +31,10 @@ function getTopicValue(record: Record<string, unknown>, topic: Topic): unknown {
   return legacyName && Object.hasOwn(record, legacyName) ? record[legacyName] : undefined
 }
 
-function createDefaultFoundationalQuestions(): Question[] {
-  return DEFAULT_FOUNDATIONAL_QUESTIONS.map((question, index) => ({
-    id: `foundational-default-${String(index + 1).padStart(2, '0')}`,
-    ...question,
-  }))
-}
-
 export function createInitialStudyData(): StudyData {
   return {
     version: 1,
-    questionBanks: topicRecord((topic) => topic === 'Foundational Math' ? createDefaultFoundationalQuestions() : []),
+    questionBanks: topicRecord(() => []),
     topicPreferences: topicRecord(() => ({ active: true, weight: 1 })),
     settings: {
       defaultSeconds: 60,
@@ -59,7 +58,9 @@ function parseQuestionList(value: unknown, topic: Topic): Question[] {
       || !entry.text.trim()
       || (entry.spokenText !== undefined && (typeof entry.spokenText !== 'string' || !entry.spokenText.trim()))
       || (entry.answer !== undefined && typeof entry.answer !== 'string')
+      || (entry.spokenAnswer !== undefined && (typeof entry.spokenAnswer !== 'string' || !entry.spokenAnswer.trim()))
       || (entry.solution !== undefined && typeof entry.solution !== 'string')
+      || (entry.note !== undefined && (typeof entry.note !== 'string' || !entry.note.trim()))
       || !ALLOWED_DURATIONS.includes(entry.seconds as AllowedDuration)) {
       throw new Error(`Question ${index + 1} in ${topic} is invalid.`)
     }
@@ -71,7 +72,9 @@ function parseQuestionList(value: unknown, topic: Topic): Question[] {
       seconds: entry.seconds as AllowedDuration,
       ...(typeof entry.spokenText === 'string' ? { spokenText: entry.spokenText.trim() } : {}),
       ...(typeof entry.answer === 'string' ? { answer: entry.answer.trim() } : {}),
+      ...(typeof entry.spokenAnswer === 'string' ? { spokenAnswer: entry.spokenAnswer.trim() } : {}),
       ...(typeof entry.solution === 'string' ? { solution: entry.solution.trim() } : {}),
+      ...(typeof entry.note === 'string' ? { note: entry.note.trim() } : {}),
     }
   })
 }
@@ -163,9 +166,6 @@ export function loadStudyData(): StudyData {
 
     const data = parseStudyBackup(JSON.parse(saved) as unknown)
     if (window.localStorage.getItem(DEFAULTS_MIGRATION_KEY) !== 'complete') {
-      if (!data.questionBanks['Foundational Math'].length) {
-        data.questionBanks['Foundational Math'] = createDefaultFoundationalQuestions()
-      }
       window.localStorage.setItem(DEFAULTS_MIGRATION_KEY, 'complete')
     }
     return data
@@ -180,5 +180,25 @@ export function saveStudyData(data: StudyData): boolean {
     return true
   } catch {
     return false
+  }
+}
+
+const MANAGE_TOPIC_STORAGE_KEY = 'lets-studee-manage-topic-v1'
+
+export function loadManageTopic(): Topic {
+  try {
+    const savedTopic = window.localStorage.getItem(MANAGE_TOPIC_STORAGE_KEY)
+    return TOPICS.find((topic) => topic === savedTopic) ?? TOPICS[0]
+  } catch (error) {
+    console.error('Could not restore the selected question-bank topic.', error)
+    return TOPICS[0]
+  }
+}
+
+export function saveManageTopic(topic: Topic) {
+  try {
+    window.localStorage.setItem(MANAGE_TOPIC_STORAGE_KEY, topic)
+  } catch (error) {
+    console.error('Could not save the selected question-bank topic.', error)
   }
 }
