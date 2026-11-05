@@ -179,9 +179,9 @@ function expectedPoints(difficulty: CompetitionDifficulty, subject: string): num
 
 function validateSubjectFormat(competition: Competition, subject: string): Competition {
   if (isEsasSubject(subject)
-    && (competition.rounds.length !== 2
+    && (competition.rounds.length !== 3
       || competition.rounds.some((round, index) => round.round !== index + 1 || round.questions.length !== 7))) {
-    fail('rounds', 'ESAS competitions must have exactly two rounds, with seven questions in each round')
+    fail('rounds', 'ESAS competitions must have exactly three rounds, with seven questions in each round')
   }
   if (isElectricalEngineeringSubject(subject)) {
     const expectedDifficulties: CompetitionDifficulty[] = ['Easy', 'Average', 'Difficult']

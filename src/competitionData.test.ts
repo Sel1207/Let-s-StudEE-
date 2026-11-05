@@ -57,7 +57,7 @@ Solution: Solve for $x$.`)
     })
     const esasCompetition = {
       competitionName: 'ESAS practice',
-      rounds: [1, 2].map((round) => ({
+      rounds: [1, 2, 3].map((round) => ({
         round,
         questions: Array.from({ length: 7 }, (_, index) => {
           const number = index + 1
@@ -68,15 +68,15 @@ Solution: Solve for $x$.`)
       })),
     }
 
-    it('accepts two seven-question rounds with 1/3/5 point difficulty values', () => {
+    it('accepts three seven-question rounds with 1/3/5 point difficulty values', () => {
       const competition = parseCompetitionText(JSON.stringify(esasCompetition), 'ESAS')
 
-      expect(competition.rounds.map((round) => round.questions.length)).toEqual([7, 7])
+      expect(competition.rounds.map((round) => round.questions.length)).toEqual([7, 7, 7])
       expect(competition.rounds.flatMap((round) => round.questions).map(({ difficulty, points }) => [difficulty, points])).toContainEqual(['Average', 3])
       expect(competition.rounds.flatMap((round) => round.questions).map(({ difficulty, points }) => [difficulty, points])).toContainEqual(['Difficult', 5])
     })
 
-    it('rejects ESAS competitions that do not have exactly two seven-question rounds', () => {
+    it('rejects ESAS competitions that do not have exactly three seven-question rounds', () => {
       const incomplete = {
         ...esasCompetition,
         rounds: esasCompetition.rounds.map((round, index) => index === 0
@@ -84,7 +84,7 @@ Solution: Solve for $x$.`)
           : round),
       }
 
-      expect(() => parseCompetitionText(JSON.stringify(incomplete), 'ESAS')).toThrow('exactly two rounds, with seven questions in each')
+      expect(() => parseCompetitionText(JSON.stringify(incomplete), 'ESAS')).toThrow('exactly three rounds, with seven questions in each')
     })
 
     it('includes ESAS among the default competition subjects', () => {

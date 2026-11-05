@@ -50,6 +50,7 @@ function competitionQuestion(question: Question, category: Topic, round: number,
 
 function questionCounts(subject: string): number[] {
   if (subject === 'Electrical Engineering') return [5, 5, 5]
+  if (subject === 'ESAS') return [7, 7, 7]
   return [7, 7]
 }
 
@@ -61,9 +62,9 @@ function randomizedDifficulties(subject: string, questionCount: number, random: 
   }
   const difficulties: CompetitionQuestion['difficulty'][] = subject === 'Math'
     ? [...Array<CompetitionQuestion['difficulty']>(7).fill('Easy'), ...Array<CompetitionQuestion['difficulty']>(7).fill('Difficult')]
-    : [...Array<CompetitionQuestion['difficulty']>(5).fill('Easy'),
-      ...Array<CompetitionQuestion['difficulty']>(5).fill('Average'),
-      ...Array<CompetitionQuestion['difficulty']>(4).fill('Difficult')]
+    : [...Array<CompetitionQuestion['difficulty']>(7).fill('Easy'),
+      ...Array<CompetitionQuestion['difficulty']>(7).fill('Average'),
+      ...Array<CompetitionQuestion['difficulty']>(7).fill('Difficult')]
   return shuffle(difficulties, random)
 }
 
@@ -99,7 +100,7 @@ export function randomizedCompetitionFormat(subject: string): string {
   if (!group) return 'the selected subject format'
   const key = group.name
   if (key === 'Electrical Engineering') return '3 rounds of 5 questions (Easy, Average, then Difficult)'
-  if (key === 'ESAS') return '2 rounds of 7 questions, with Easy, Average, and Difficult questions mixed across both rounds'
+  if (key === 'ESAS') return '3 rounds of 7 questions, with Easy, Average, and Difficult questions mixed across all three rounds'
   return '2 rounds of 7 questions, with Easy and Difficult questions mixed across both rounds'
 }
 

@@ -85,19 +85,19 @@ describe('randomized Mock Competition generation', () => {
       .every((question) => EE_TOPICS.includes(question.studySource?.topic as typeof EE_TOPICS[number]))).toBe(true)
   })
 
-  it('mixes ESAS difficulty levels across both rounds with valid point values', () => {
-    const banks = banksWith(14, ESAS_TOPICS)
+  it('mixes ESAS difficulty levels across all three rounds with valid point values', () => {
+    const banks = banksWith(21, ESAS_TOPICS)
     const result = buildRandomizedCompetition('ESAS', banks, () => 0)
 
-    expect(result.competition?.rounds.map((round) => round.questions.length)).toEqual([7, 7])
+    expect(result.competition?.rounds.map((round) => round.questions.length)).toEqual([7, 7, 7])
     expect(() => parseCompetitionInput(JSON.stringify(result.competition), 'ESAS')).not.toThrow()
-    expect(randomizedCompetitionFormat('ESAS')).toContain('Easy, Average, and Difficult questions mixed across both rounds')
+    expect(randomizedCompetitionFormat('ESAS')).toContain('Easy, Average, and Difficult questions mixed across all three rounds')
     expect(result.competition?.rounds.every((round) => new Set(round.questions.map(({ difficulty }) => difficulty)).size > 1)).toBe(true)
     expect(result.competition?.rounds.flatMap((round) => round.questions).map(({ difficulty }) => difficulty)
       .reduce<Record<string, number>>((counts, difficulty) => {
         counts[difficulty] = (counts[difficulty] ?? 0) + 1
         return counts
-      }, {})).toEqual({ Easy: 5, Average: 5, Difficult: 4 })
+      }, {})).toEqual({ Easy: 7, Average: 7, Difficult: 7 })
     expect(result.competition?.rounds.flatMap((round) => round.questions).every(({ difficulty, points }) => (
       points === (difficulty === 'Easy' ? 1 : difficulty === 'Average' ? 3 : 5)
     ))).toBe(true)
