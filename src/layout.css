@@ -54,6 +54,10 @@
 .manage-view .topic-tabs { margin-top: 9px; }
 .manage-view .ee-topic-groups { margin-top: 24px; }
 .topic-list { border-top: 1px solid var(--line); }
+.study-layout > .topic-panel .topic-list { max-height: min(58vh, 560px); overflow-y: auto; overscroll-behavior: contain; padding-right: 8px; border-bottom: 1px solid var(--line); scrollbar-width: thin; scrollbar-color: var(--line) transparent; }
+.study-layout > .topic-panel .topic-list::-webkit-scrollbar { width: 6px; }
+.study-layout > .topic-panel .topic-list::-webkit-scrollbar-thumb { border-radius: 999px; background: var(--line); }
+.study-layout > .topic-panel .topic-list::-webkit-scrollbar-track { background: transparent; }
 .topic-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(120px, .72fr) auto; column-gap: 12px; padding: 8px 0 5px; border-bottom: 1px solid var(--line); }
 .topic-switch { min-width: 0; min-height: 36px; display: flex; align-items: center; gap: 9px; cursor: pointer; }
 .topic-switch input, .setting-row input[type='checkbox'] { width: 18px; height: 18px; flex: 0 0 auto; }
