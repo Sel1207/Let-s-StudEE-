@@ -6,6 +6,7 @@ import { currentDailyStreak, DAILY_CORRECT_GOAL, localDateKey, type CompetitionD
 import { mathToSpeech } from './mathSpeech'
 import MathText from './MathText'
 import NoteText from './NoteText'
+import { playCorrectChime } from './correctChime'
 import { useCollapseOnOutsidePress } from './useCollapseOnOutsidePress'
 import { isStuckToTop } from './useAutoHideHeader'
 import LectureScreen from './LectureScreen'
@@ -171,6 +172,7 @@ interface StudyScreenProps {
   onNext: () => void
   onRate: (rating: Rating) => void
   onDailyCorrectAnswer: () => void
+  onDailyCorrectAnswerUndone: () => void
   onManageTopic: (topic: Topic) => void
   visible: boolean
 }
@@ -228,6 +230,7 @@ export default function StudyScreen({
   onNext,
   onRate,
   onDailyCorrectAnswer,
+  onDailyCorrectAnswerUndone,
   onManageTopic,
   visible,
   lectureRequest = null,
@@ -449,12 +452,19 @@ export default function StudyScreen({
     window.scrollTo({ top: 0 })
   }
 
-  function markWrittenCorrect(key: string) {
+  function toggleWrittenCorrect(key: string) {
     const outcomeKey = `${localDateKey()}:${key}`
-    if (writtenOutcomesRef.current[outcomeKey] === 'gotIt') return
-    const outcomes: Record<string, Rating> = { ...writtenOutcomesRef.current, [outcomeKey]: 'gotIt' }
+    const outcomes: Record<string, Rating> = { ...writtenOutcomesRef.current }
+    const wasCorrect = outcomes[outcomeKey] === 'gotIt'
+    if (wasCorrect) delete outcomes[outcomeKey]
+    else outcomes[outcomeKey] = 'gotIt'
     writtenOutcomesRef.current = outcomes
     setWrittenOutcomes(outcomes)
+    if (wasCorrect) {
+      onDailyCorrectAnswerUndone()
+      return
+    }
+    playCorrectChime()
     onDailyCorrectAnswer()
   }
 
@@ -911,10 +921,9 @@ export default function StudyScreen({
                       className={`secondary-action written-rating-button${writtenOutcomes[`${localDateKey()}:${key}`] === 'gotIt' ? ' is-correct' : ''}`}
                       type="button"
                       aria-label={`Mark question ${index + 1} correct`}
-                      title="I got it right"
+                      title={writtenOutcomes[`${localDateKey()}:${key}`] === 'gotIt' ? 'Click to uncheck' : 'I got it right'}
                       aria-pressed={writtenOutcomes[`${localDateKey()}:${key}`] === 'gotIt'}
-                      disabled={writtenOutcomes[`${localDateKey()}:${key}`] === 'gotIt'}
-                      onClick={() => markWrittenCorrect(key)}
+                      onClick={() => toggleWrittenCorrect(key)}
                     >
                       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5" /></svg>
                     </button>}

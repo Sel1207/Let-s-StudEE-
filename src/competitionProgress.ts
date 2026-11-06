@@ -57,6 +57,15 @@ export function recordDailyCorrectAnswer(date = localDateKey()): void {
   saveCompetitionDailyProgress(addCorrectAnswer(progress, date))
 }
 
+export function removeCorrectAnswer(progress: CompetitionDailyProgress, date = localDateKey()): CompetitionDailyProgress {
+  const { [date]: count = 0, ...otherDates } = progress.correctByDate
+  return { correctByDate: count > 1 ? { ...otherDates, [date]: count - 1 } : otherDates }
+}
+
+export function undoDailyCorrectAnswer(date = localDateKey()): void {
+  saveCompetitionDailyProgress(removeCorrectAnswer(loadCompetitionDailyProgress(), date))
+}
+
 export function currentDailyStreak(progress: CompetitionDailyProgress, today = localDateKey()): number {
   const [year, month, day] = today.split('-').map(Number)
   const date = new Date(Date.UTC(year, month - 1, day))

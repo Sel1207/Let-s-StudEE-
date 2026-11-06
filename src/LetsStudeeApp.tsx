@@ -21,6 +21,7 @@ import {
   localDateKey,
   MATH_TARGET_DATE,
   recordDailyCorrectAnswer,
+  undoDailyCorrectAnswer,
   type CompetitionDailyProgress,
 } from './competitionProgress'
 import { speechRate } from './speechRate'
@@ -919,6 +920,10 @@ function StudyApp() {
     recordDailyCorrectAnswer(today)
     setDailyProgress(loadCompetitionDailyProgress())
   }
+  const undoStudyCorrect = () => {
+    undoDailyCorrectAnswer(today)
+    setDailyProgress(loadCompetitionDailyProgress())
+  }
 
   return (
     <div className="app-shell">
@@ -982,6 +987,7 @@ function StudyApp() {
             onNext={readQuestion}
             onRate={rateQuestion}
             onDailyCorrectAnswer={recordStudyCorrect}
+            onDailyCorrectAnswerUndone={undoStudyCorrect}
             visible={view === 'study'}
             lectureRequest={lectureRequest}
             onManageTopic={(manageTopic) => {

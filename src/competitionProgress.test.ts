@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   addCorrectAnswer,
+  removeCorrectAnswer,
   currentDailyStreak,
   daysUntilTarget,
   daysUntilMathTarget,
@@ -14,6 +15,22 @@ describe('Mock Competition daily progress', () => {
     const progress = addCorrectAnswer({ correctByDate: {} }, '2026-10-26')
     expect(addCorrectAnswer(progress, '2026-10-26').correctByDate['2026-10-26']).toBe(2)
     expect(progress.correctByDate['2026-10-26']).toBe(1)
+  })
+
+  it('takes back one correct answer and never goes below zero', () => {
+    const progress: CompetitionDailyProgress = { correctByDate: { '2026-10-25': 4, '2026-10-26': 2 } }
+    const once = removeCorrectAnswer(progress, '2026-10-26')
+    expect(once.correctByDate).toEqual({ '2026-10-25': 4, '2026-10-26': 1 })
+    expect(progress.correctByDate['2026-10-26']).toBe(2)
+    const twice = removeCorrectAnswer(once, '2026-10-26')
+    expect(twice.correctByDate).toEqual({ '2026-10-25': 4 })
+    expect(removeCorrectAnswer(twice, '2026-10-26').correctByDate).toEqual({ '2026-10-25': 4 })
+  })
+
+  it('keeps an earlier streak alive after today is unchecked back to zero', () => {
+    const progress: CompetitionDailyProgress = { correctByDate: { '2026-10-25': 3, '2026-10-26': 1 } }
+    expect(currentDailyStreak(progress, '2026-10-26')).toBe(2)
+    expect(currentDailyStreak(removeCorrectAnswer(progress, '2026-10-26'), '2026-10-26')).toBe(1)
   })
 
   it('keeps the streak through yesterday and continues it when today is active', () => {
