@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
+import LectureHighlighter from './LectureHighlighter'
 import LectureNotesPicker from './LectureNotesPicker'
 import LectureStickyNotes from './LectureStickyNotes'
 import MathText from './MathText'
@@ -196,6 +197,7 @@ export default function LectureScreen({
   const editorRef = useRef<HTMLTextAreaElement>(null)
   const noteDialogRef = useRef<HTMLDialogElement>(null)
   const promptRef = useRef<HTMLDetailsElement>(null)
+  const paperRef = useRef<HTMLDivElement>(null)
   const note = notes[topic] ?? ''
   const topicGroup = TOPIC_GROUPS.find((group) => group.topics.some((item) => item === topic))?.name ?? 'Study'
   const prompt = lectureNotesPrompt(topic, topicGroup)
@@ -379,11 +381,12 @@ export default function LectureScreen({
       <LectureStickyNotes key={topic} topic={topic} group={topicGroup} notes={stickyNotes[topic] ?? []} onSave={saveStickyNote} onDelete={deleteStickyNotes} />
 
       <article className="lecture-notebook" aria-label={`${topic} lecture notebook`}>
-        <div className="lecture-notebook-paper">
+        <div ref={paperRef} className="lecture-notebook-paper">
           {note.trim()
             ? <LectureNoteContent note={note} />
             : <p className="lecture-notebook-empty">Your lecture notes will appear here. Use the AI prompt above to create a first draft, then paste it using “Edit notes / LaTeX”.</p>}
         </div>
+        {note.trim() && <LectureHighlighter key={topic} topic={topic} note={note} paperRef={paperRef} onSaveProblem={setSaveNotice} />}
       </article>
       <button
         className="secondary-action lecture-back-to-top"

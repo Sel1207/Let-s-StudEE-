@@ -14,6 +14,11 @@
   --alert: #b24738;
   --success: #247b56;
   --danger: #b24738;
+  --highlight-yellow: #fff0a0;
+  --highlight-green: #bfeec8;
+  --highlight-blue: #bcdffb;
+  --highlight-pink: #fdc8dc;
+  --highlight-orange: #ffd5a6;
   font-family: 'DM Sans', sans-serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -37,6 +42,11 @@
   --alert: #e58b78;
   --success: #73ba89;
   --danger: #e88979;
+  --highlight-yellow: #6a5c10;
+  --highlight-green: #1e5a37;
+  --highlight-blue: #1d4f7c;
+  --highlight-pink: #7a2b52;
+  --highlight-orange: #7a4712;
 }
 
 * { box-sizing: border-box; }
