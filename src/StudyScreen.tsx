@@ -9,6 +9,7 @@ import NoteText from './NoteText'
 import { playCorrectChime, preloadCorrectChime } from './correctChime'
 import { useCollapseOnOutsidePress } from './useCollapseOnOutsidePress'
 import { isStuckToTop } from './useAutoHideHeader'
+import LectureNotesPicker from './LectureNotesPicker'
 import LectureScreen from './LectureScreen'
 import { loadLectureNotes } from './lectureNotesStorage'
 import { loadStickyNotes } from './stickyNotesStorage'
@@ -803,6 +804,15 @@ export default function StudyScreen({
               ))}
             </div>
           )}
+          <div className="study-mode-tools">
+          <LectureNotesPicker
+            startIn={visibleGroup.topics[0]}
+            hasNotes={(topic) => topicsWithLectureNotes.has(topic)}
+            onOpen={(topic) => {
+              onStop()
+              setLectureTopic(topic)
+            }}
+          />
           <div className="segmented-control study-mode-toggle" role="group" aria-label="Study mode">
             <button
               type="button"
@@ -826,6 +836,7 @@ export default function StudyScreen({
             >
               Written test
             </button>
+          </div>
           </div>
         </div>
 

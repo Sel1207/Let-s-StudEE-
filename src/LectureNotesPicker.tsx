@@ -14,10 +14,12 @@ const SECTIONS: readonly { group: Group; name: string; topics: readonly Topic[] 
 
 export default function LectureNotesPicker({
   topic,
+  startIn,
   hasNotes,
   onOpen,
 }: {
-  topic: Topic
+  topic?: Topic
+  startIn?: Topic
   hasNotes: (topic: Topic) => boolean
   onOpen: (topic: Topic) => void
 }) {
@@ -35,7 +37,8 @@ export default function LectureNotesPicker({
   function open() {
     flushSync(() => {
       setFilter('')
-      setGroup(SECTIONS.find((section) => section.topics.includes(topic))?.group ?? 'Math')
+      const shownTopic = topic ?? startIn
+      setGroup(SECTIONS.find((section) => shownTopic && section.topics.includes(shownTopic))?.group ?? 'Math')
     })
     dialogRef.current?.showModal()
     dialogRef.current?.querySelector('[aria-current="true"]')?.scrollIntoView({ block: 'center' })
