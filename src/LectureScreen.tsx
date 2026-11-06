@@ -6,7 +6,7 @@ import MathText from './MathText'
 import { contestPreparationContext, shortcutGuidanceInstruction, topicScopeInstruction } from './aiPromptContext'
 import { EE_TOPIC_GUIDANCE, TOPIC_GROUPS, type Topic } from './studyTypes'
 import { LECTURE_NOTES_STORAGE_KEY, loadLectureNotes } from './lectureNotesStorage'
-import { loadStickyNotes, STICKY_NOTES_STORAGE_KEY, writeStickyNote } from './stickyNotesStorage'
+import { loadStickyNotes, STICKY_NOTES_STORAGE_KEY, writeStickyNote, type StickyNotes } from './stickyNotesStorage'
 import './lecture.css'
 
 const mathShortcuts = [
@@ -261,7 +261,14 @@ export default function LectureScreen({
   }
 
   function saveStickyNote(id: string | null, text: string) {
-    const nextNotes = writeStickyNote(stickyNotes, topic, id, text)
+    persistStickyNotes(writeStickyNote(stickyNotes, topic, id, text))
+  }
+
+  function deleteStickyNotes(ids: ReadonlySet<string>) {
+    persistStickyNotes([...ids].reduce((current, id) => writeStickyNote(current, topic, id, ''), stickyNotes))
+  }
+
+  function persistStickyNotes(nextNotes: StickyNotes) {
     setStickyNotes(nextNotes)
     try {
       window.localStorage.setItem(STICKY_NOTES_STORAGE_KEY, JSON.stringify(nextNotes))
@@ -369,7 +376,7 @@ export default function LectureScreen({
         </div>
       </details>
 
-      <LectureStickyNotes topic={topic} group={topicGroup} notes={stickyNotes[topic] ?? []} onSave={saveStickyNote} />
+      <LectureStickyNotes key={topic} topic={topic} group={topicGroup} notes={stickyNotes[topic] ?? []} onSave={saveStickyNote} onDelete={deleteStickyNotes} />
 
       <article className="lecture-notebook" aria-label={`${topic} lecture notebook`}>
         <div className="lecture-notebook-paper">

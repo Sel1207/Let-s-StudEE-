@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { noteLines } from './noteLines'
+import { noteLines, splitNoteTitle } from './noteLines'
 
 describe('noteLines', () => {
   it('keeps each line and marks the line after a blank gap', () => {
@@ -29,6 +29,18 @@ describe('noteLines', () => {
   it('keeps multi-line display math together', () => {
     const math = '$$\\begin{pmatrix}1\n2\\end{pmatrix}$$'
     expect(noteLines(`Before\n${math}\nAfter`).map((line) => line.text)).toEqual(['Before', math, 'After'])
+  })
+
+  it('splits the first line off as the title', () => {
+    expect(splitNoteTitle('Separable $y$\r\n\r\n- Move $y$ left\n- Integrate')).toEqual({ title: 'Separable $y$', body: '- Move $y$ left\n- Integrate' })
+    expect(splitNoteTitle('Just a title')).toEqual({ title: 'Just a title', body: '' })
+    expect(splitNoteTitle('Title: Euler\nBody').title).toBe('Euler')
+    expect(splitNoteTitle('## Euler\nBody').title).toBe('Euler')
+  })
+
+  it('keeps multi-line display math whole in a title', () => {
+    const math = '$$a\n+b$$'
+    expect(splitNoteTitle(`${math}\nBody`)).toEqual({ title: math, body: 'Body' })
   })
 
   it('handles Windows line breaks and several blank lines', () => {

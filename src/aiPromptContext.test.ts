@@ -17,6 +17,13 @@ describe('question note prompt', () => {
     expect(prompt.endsWith('What I noticed: ')).toBe(true)
   })
 
+  it('asks for a title only when the note needs one', () => {
+    expect(prompt).not.toContain('short title')
+    const titled = noteDetailsPrompt({ Topic: 'Algebra' }, { subject: 'this topic', titled: true })
+    expect(titled).toContain('short title')
+    expect(titled).toContain('I noticed for this topic')
+  })
+
   it('passes along the question details and no study instructions', () => {
     expect(prompt).toContain('Topic: Linear Algebra\nQuestion: Find $k$.\nAnswer: $k=2$\nSolution: Dot product.')
     expect(prompt).not.toContain('CONTEST PREPARATION')
