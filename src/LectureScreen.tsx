@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
+import LectureNotesPicker from './LectureNotesPicker'
 import MathText from './MathText'
 import { contestPreparationContext, shortcutGuidanceInstruction, topicScopeInstruction } from './aiPromptContext'
 import { EE_TOPIC_GUIDANCE, TOPIC_GROUPS, type Topic } from './studyTypes'
@@ -167,17 +168,21 @@ function LectureNoteContent({ note }: { note: string }) {
 
 export default function LectureScreen({
   topic,
+  previousTopic: openedBefore,
   onBack,
   onStartWrittenTest,
   onNotesChange,
   onChangeTopic,
+  onBacktrack,
   onManageQuestions,
 }: {
   topic: Topic
+  previousTopic?: Topic
   onBack: () => void
   onStartWrittenTest: () => void
   onNotesChange: (topic: Topic, hasNotes: boolean) => void
   onChangeTopic: (topic: Topic) => void
+  onBacktrack: () => void
   onManageQuestions: () => void
 }) {
   const [savedState] = useState(loadLectureNotes)
@@ -225,11 +230,15 @@ export default function LectureScreen({
     }
   }, [])
 
-  function changeTopic(nextTopic: Topic) {
+  function leaveTopic(go: () => void) {
     if (promptRef.current) promptRef.current.open = false
     setPromptNotice('')
-    onChangeTopic(nextTopic)
+    go()
     window.scrollTo({ top: 0 })
+  }
+
+  function changeTopic(nextTopic: Topic) {
+    leaveTopic(() => onChangeTopic(nextTopic))
   }
 
   function updateNotes(value: string) {
@@ -292,6 +301,12 @@ export default function LectureScreen({
         <button className="lecture-back-button" type="button" onClick={onBack}>
           <span aria-hidden="true">←</span> Back to topics
         </button>
+        <LectureNotesPicker topic={topic} notes={notes} onOpen={changeTopic} />
+        {openedBefore && (
+          <button className="lecture-back-button lecture-backtrack" type="button" title={`Back to ${openedBefore}`} onClick={() => leaveTopic(onBacktrack)}>
+            <span aria-hidden="true">↩</span> <span className="lecture-backtrack-label">{openedBefore}</span>
+          </button>
+        )}
         <nav className="lecture-topic-nav" aria-label={`${topicGroup} lecture notes`}>
           {previousTopic && (
             <button type="button" title={`Previous: ${previousTopic}`} onClick={() => changeTopic(previousTopic)}>

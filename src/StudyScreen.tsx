@@ -238,9 +238,11 @@ export default function StudyScreen({
   const [savedWrittenTest] = useState(loadWrittenTest)
   const [writtenTest, setWrittenTest] = useState(savedWrittenTest.enabled)
   const [lectureTopic, setLectureTopic] = useState<Topic | null>(loadLectureTopic)
+  const [lectureTrail, setLectureTrail] = useState<Topic[]>([])
   const [handledLectureRequest, setHandledLectureRequest] = useState(lectureRequest?.nonce ?? 0)
   if (lectureRequest && lectureRequest.nonce !== handledLectureRequest) {
     setHandledLectureRequest(lectureRequest.nonce)
+    if (lectureTopic && lectureTopic !== lectureRequest.topic) setLectureTrail([...lectureTrail, lectureTopic])
     setLectureTopic(lectureRequest.topic)
   }
   const [topicsWithLectureNotes, setTopicsWithLectureNotes] = useState(() => {
@@ -711,9 +713,20 @@ export default function StudyScreen({
       {lectureTopic ? (
         <LectureScreen
           topic={lectureTopic}
-          onBack={() => setLectureTopic(null)}
+          previousTopic={lectureTrail.at(-1)}
+          onBack={() => {
+            setLectureTrail([])
+            setLectureTopic(null)
+          }}
           onStartWrittenTest={() => startLectureWrittenTest(lectureTopic)}
-          onChangeTopic={setLectureTopic}
+          onChangeTopic={(nextTopic) => {
+            setLectureTrail([...lectureTrail, lectureTopic])
+            setLectureTopic(nextTopic)
+          }}
+          onBacktrack={() => {
+            setLectureTopic(lectureTrail.at(-1) ?? lectureTopic)
+            setLectureTrail(lectureTrail.slice(0, -1))
+          }}
           onManageQuestions={() => onManageTopic(lectureTopic)}
           onNotesChange={(topic, hasNotes) => {
             setTopicsWithLectureNotes((current) => {

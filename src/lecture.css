@@ -2,8 +2,10 @@
 .lecture-back-button { min-height: 38px; align-self: flex-start; display: inline-flex; align-items: center; gap: 7px; padding: 0 11px; border: 1px solid var(--line); background: transparent; color: var(--muted); font-size: 11px; cursor: pointer; }
 .lecture-back-button:hover { border-color: var(--accent); color: var(--accent); }
 .lecture-back-button > span { font-size: 16px; }
-.lecture-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-width: 0; }
-.lecture-topic-nav { display: flex; align-items: center; justify-content: flex-end; gap: 6px; min-width: 0; }
+.lecture-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-width: 0; }
+.lecture-backtrack { max-width: 220px; min-width: 0; }
+.lecture-back-button > .lecture-backtrack-label { min-width: 0; overflow: hidden; font-size: 11px; white-space: nowrap; text-overflow: ellipsis; }
+.lecture-topic-nav { display: flex; align-items: center; justify-content: flex-end; gap: 6px; min-width: 0; margin-left: auto; }
 .lecture-topic-nav button { min-height: 38px; max-width: 220px; min-width: 0; display: inline-flex; align-items: center; gap: 7px; padding: 0 8px; border: 1px solid transparent; background: transparent; color: var(--muted); font-size: 10px; text-align: left; cursor: pointer; }
 .lecture-topic-nav button:last-child:not(:first-child) { text-align: right; }
 .lecture-topic-nav button:hover { border-color: var(--line); color: var(--accent); }
@@ -59,8 +61,23 @@
 .lecture-editor-dialog-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 12px; }
 .lecture-editor-dialog-actions > span { color: var(--muted); font-size: 9px; }
 .lecture-editor-dialog-actions .primary-action { min-width: 100px; min-height: 38px; }
+.lecture-picker-dialog { width: min(640px, calc(100% - 28px)); height: min(80vh, 720px); overflow: hidden; }
+.lecture-picker-dialog[open] { display: flex; flex-direction: column; }
+.lecture-picker-filter { width: 100%; min-height: 40px; flex: none; margin-top: 12px; padding: 0 10px; font-size: 16px; }
+.lecture-picker-list { min-height: 0; flex: 1; overflow-y: auto; margin-top: 10px; padding-right: 4px; }
+.lecture-picker-list h3 { margin: 14px 0 6px; color: var(--muted); font-size: 10px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; }
+.lecture-picker-list section:first-child h3 { margin-top: 2px; }
+.lecture-picker-topics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; }
+.lecture-picker-topics button { min-width: 0; min-height: 38px; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 4px 9px; border: 1px solid var(--line); background: transparent; color: var(--ink); font-size: 11px; line-height: 1.3; text-align: left; cursor: pointer; }
+.lecture-picker-topics button:hover { border-color: var(--accent); color: var(--accent); }
+.lecture-picker-topics button[aria-current='true'] { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+.lecture-picker-topics small { flex: none; font-size: 9px; }
+.lecture-picker-topics .has-notes { color: var(--success); }
+.lecture-picker-empty { margin: 14px 0; color: var(--muted); font-size: 11px; }
 @media (max-width: 680px) {
   .lecture-toolbar { gap: 6px; }
+  .lecture-picker-dialog { width: calc(100% - 18px); height: 86vh; }
+  .lecture-picker-topics { grid-template-columns: minmax(0, 1fr); }
   .lecture-back-button { flex: 0 0 auto; }
   .lecture-topic-nav { gap: 2px; }
   .lecture-topic-nav button { max-width: 120px; padding-inline: 5px; gap: 4px; font-size: 9px; }
