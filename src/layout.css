@@ -1,9 +1,14 @@
-.app-shell { width: min(1260px, calc(100% - 48px)); min-height: 100vh; display: flex; flex-direction: column; margin: 0 auto; }
-.app-header { min-height: 72px; display: flex; align-items: center; justify-content: space-between; gap: 20px; border-bottom: 1px solid var(--line); }
+.app-shell { --shell-width: min(1260px, calc(100% - 48px)); --header-inset: 28px; min-height: 100vh; display: flex; flex-direction: column; }
+.app-main, .app-footer { width: var(--shell-width); margin-inline: auto; }
+.app-header { min-height: 72px; display: flex; align-items: center; justify-content: space-between; gap: 20px; padding-inline: calc((100% - var(--shell-width)) / 2 + var(--header-inset)); border-bottom: 1px solid var(--line); }
 .app-header { position: sticky; top: 0; z-index: 30; background: var(--paper); transition: transform 260ms cubic-bezier(.2, .8, .2, 1), box-shadow 200ms ease; }
 .app-header.is-hidden { transform: translateY(-100%); }
 .app-header.is-hidden:focus-within { transform: none; }
 .app-header.is-floating { box-shadow: 0 10px 18px -16px rgb(0 0 0 / 45%); }
+@media (max-width: 1100px) {
+  .app-shell { --header-inset: 0px; }
+  .app-header { flex-wrap: wrap; row-gap: 4px; padding-block: 8px; }
+}
 @media (prefers-reduced-motion: reduce) {
   .app-header, .study-daily-focus, .competition-daily-focus { transition: none !important; }
 }
@@ -277,7 +282,7 @@ select, input[type='text'], textarea { min-height: 44px; padding: 8px 10px; bord
 .app-backup-actions .secondary-action, .app-backup-actions .file-import { min-height: 38px; display: inline-flex; align-items: center; justify-content: center; padding: 0 12px; font-size: 10px; }
 .app-backup-warning { margin: 9px 0 0; color: var(--muted); font-size: 9px; line-height: 1.5; }
 @media (max-width: 850px) {
-  .app-shell { width: min(100% - 32px, 680px); }
+  .app-shell { --shell-width: min(100% - 32px, 680px); --header-inset: 0px; }
   .study-layout { grid-template-columns: 1fr; gap: 18px; }
   .study-layout > .topic-panel .topic-list { max-height: min(58vh, 560px); }
   .study-layout.is-written-test { gap: 20px; }
@@ -293,8 +298,8 @@ select, input[type='text'], textarea { min-height: 44px; padding: 8px 10px; bord
 }
 
 @media (max-width: 520px) {
-  .app-shell { width: calc(100% - 28px); }
-  .app-header { min-height: 74px; align-items: stretch; flex-direction: column; justify-content: center; gap: 3px; padding: 6px 0; }
+  .app-shell { --shell-width: calc(100% - 28px); }
+  .app-header { min-height: 74px; align-items: stretch; flex-direction: column; justify-content: center; gap: 3px; padding-block: 6px; }
   .header-brand-row { width: 100%; min-height: 36px; justify-content: space-between; gap: 6px; }
   .wordmark { gap: 6px; font-size: 16px; }
   .wordmark-icon { width: 27px; height: 27px; }

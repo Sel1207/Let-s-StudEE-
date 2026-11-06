@@ -836,6 +836,15 @@ function StudyApp() {
     setView(nextView)
   }
 
+  function openSection(nextView: View) {
+    if (nextView !== view) {
+      navigate(nextView)
+      return
+    }
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    window.scrollTo({ top: 0, behavior: reducedMotion ? 'auto' : 'smooth' })
+  }
+
   useEffect(() => {
     function handleSearchShortcut(event: KeyboardEvent) {
       if ((event.metaKey || event.ctrlKey) && !event.altKey && !event.shiftKey && event.key.toLowerCase() === 'k') {
@@ -915,7 +924,7 @@ function StudyApp() {
     <div className="app-shell">
       <header ref={headerRef} className="app-header">
         <div className="header-brand-row">
-          <a className="wordmark" href="/" onClick={(event) => { event.preventDefault(); navigate('study') }}>
+          <a className="wordmark" href="/" onClick={(event) => { event.preventDefault(); openSection('study') }}>
             <img className="wordmark-icon" src="/studee-icon.svg" alt="" />
             <span>Let's Stud<strong>EE</strong>!</span>
           </a>
@@ -943,7 +952,7 @@ function StudyApp() {
               type="button"
               aria-label={item === 'competitions' ? 'Mock Competition' : item === 'manage' ? 'Manage questions' : item === 'favorites' ? 'My Questions' : item === 'study' ? 'Study' : 'Settings'}
               aria-current={view === item ? 'page' : undefined}
-              onClick={() => navigate(item)}
+              onClick={() => openSection(item)}
             >
               <span className="nav-label-desktop">{item === 'competitions' ? 'Mock Competition' : item === 'study' ? 'Study' : item === 'favorites' ? 'My Questions' : item === 'manage' ? 'Manage questions' : 'Settings'}</span>
               <span className="nav-label-mobile">{item === 'competitions' ? 'Compete' : item === 'manage' ? 'Manage' : item === 'favorites' ? 'Saved' : item === 'study' ? 'Study' : 'Settings'}</span>
