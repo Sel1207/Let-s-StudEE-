@@ -914,15 +914,12 @@ export default function StudyScreen({
                       title="I got it right"
                       aria-pressed={writtenOutcomes[`${localDateKey()}:${key}`] === 'gotIt'}
                       disabled={writtenOutcomes[`${localDateKey()}:${key}`] === 'gotIt'}
-                      onClick={(event) => {
-                        // This button appears under the pointer, so a double-click on Show answer must not mark it.
-                        if (event.detail <= 1) markWrittenCorrect(key)
-                      }}
+                      onClick={() => markWrittenCorrect(key)}
                     >
                       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5" /></svg>
                     </button>}
                     <button
-                      className="secondary-action"
+                      className="secondary-action written-answer-toggle"
                       type="button"
                       aria-expanded={visibleAnswers.has(key)}
                       onClick={() => toggleWrittenVisibility(key, 'answer')}
