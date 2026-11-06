@@ -5,7 +5,7 @@ describe('question note prompt', () => {
   const prompt = noteDetailsPrompt({ Topic: 'Linear Algebra', Question: 'Find $k$.', Answer: '$k=2$', Solution: 'Dot product.' })
 
   it('asks for an English note in one copyable text block that keeps raw LaTeX', () => {
-    expect(prompt).toContain('Write the note in English.')
+    expect(prompt).toContain('Write a note in English')
     expect(prompt).toContain('exactly one ```text code block')
     expect(prompt).toContain('raw source')
   })
