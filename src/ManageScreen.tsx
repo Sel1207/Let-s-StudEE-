@@ -122,6 +122,7 @@ export default function ManageScreen({ data, onChangeData, onPreview, onRestore 
   ))
   const [draft, setDraft] = useState('')
   const [editing, setEditing] = useState<EditingQuestion | null>(null)
+  const [revealedIds, setRevealedIds] = useState<ReadonlySet<string>>(new Set())
   const [clearQuestionsOpen, setClearQuestionsOpen] = useState(false)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
@@ -159,6 +160,14 @@ export default function ManageScreen({ data, onChangeData, onPreview, onRestore 
       setError(problem instanceof Error ? problem.message : 'Could not add these questions.')
       setMessage('')
     }
+  }
+
+  function toggleRevealed(questionId: string) {
+    setRevealedIds((current) => {
+      const next = new Set(current)
+      if (!next.delete(questionId)) next.add(questionId)
+      return next
+    })
   }
 
   function saveEdit() {
@@ -414,11 +423,15 @@ export default function ManageScreen({ data, onChangeData, onPreview, onRestore 
                 <>
                   <span className="question-time">{formatDuration(question.seconds)}</span>
                   <MathText text={question.text} className="manage-question-text" />
-                  <div className="manage-question-answer">
-                    <strong>Answer:</strong>{' '}
-                    <MathText text={question.answer ?? 'No answer added yet.'} />
-                  </div>
                   <div className="question-actions">
+                    <button
+                      className="text-action"
+                      type="button"
+                      aria-expanded={revealedIds.has(question.id)}
+                      onClick={() => toggleRevealed(question.id)}
+                    >
+                      {revealedIds.has(question.id) ? 'Hide' : 'Show'} solution & answer
+                    </button>
                     <button className="text-action" type="button" onClick={() => {
                       if (!onPreview(question.spokenText ?? question.text, activeTopic)) setError('Speech synthesis is not available in this browser.')
                       else setMessage('Previewing question.')
@@ -434,6 +447,18 @@ export default function ManageScreen({ data, onChangeData, onPreview, onRestore 
                     })}>Edit</button>
                     <button className="text-action" type="button" onClick={() => deleteQuestion(question.id)}>Delete</button>
                   </div>
+                  {revealedIds.has(question.id) && (
+                    <div className="manage-question-answer">
+                      <div>
+                        <strong>Answer:</strong>{' '}
+                        <MathText text={question.answer ?? 'No answer added yet.'} />
+                      </div>
+                      <div>
+                        <strong>Solution:</strong>{' '}
+                        <MathText text={question.solution ?? 'No solution added yet.'} />
+                      </div>
+                    </div>
+                  )}
                 </>
               )}
             </li>
