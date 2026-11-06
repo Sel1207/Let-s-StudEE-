@@ -82,6 +82,7 @@
 .lecture-sticky-delete { margin-right: auto; }
 .lecture-picker-dialog { width: min(640px, calc(100% - 28px)); height: min(80vh, 720px); overflow: hidden; }
 .lecture-picker-dialog[open] { display: flex; flex-direction: column; }
+.lecture-picker-dialog .lecture-picker-groups { flex: none; margin-top: 12px; }
 .lecture-picker-filter { width: 100%; min-height: 40px; flex: none; margin-top: 12px; padding: 0 10px; font-size: 16px; }
 .lecture-picker-list { min-height: 0; flex: 1; overflow-y: auto; margin-top: 10px; padding-right: 4px; }
 .lecture-picker-list h3 { margin: 14px 0 6px; color: var(--muted); font-size: 10px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; }
