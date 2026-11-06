@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useEffectEvent, useMemo, useRef, useState, type CSSProperties } from 'react'
 import './competition.css'
 import MathText from './MathText'
-import { contestPreparationContext, shortcutGuidanceInstruction } from './aiPromptContext'
+import { contestPreparationContext, noteDetailsPrompt, stripOuterCodeFence } from './aiPromptContext'
 import { speechRate } from './speechRate'
 import { mathToSpeech } from './mathSpeech'
 import FireworksCelebration from './FireworksCelebration'
@@ -388,17 +388,13 @@ function choiceSpeechParts(question: CompetitionQuestion): SpeechPart[] {
   ])
 }
 
-function competitionNotePrompt(competitionName: string, question: CompetitionQuestion): string {
-  return `${contestPreparationContext(question.category || competitionName)}
-
-Create a concise study note with a useful formula shortcut or solving tip for this question when one genuinely applies. State which givens or conditions indicate that shortcut, its formula or steps, and any important limits; do not invent or force one. Focus on the concept this question represents. Use valid LaTeX for every mathematical expression, wrapped in $...$ for inline math or $$...$$ for display math. Keep the note accurate and easy to scan; do not repeat the full solution. Return only the note text, with no heading or code fences.
-${shortcutGuidanceInstruction(question.category)}
-
-Competition: ${competitionName}
-Category: ${question.category}
-Question: ${question.question}
-Answer: ${question.answer}
-Solution: ${question.solution}`
+function competitionNotePrompt(question: CompetitionQuestion): string {
+  return noteDetailsPrompt({
+    Topic: question.category,
+    Question: question.question,
+    Answer: question.answer,
+    Solution: question.solution,
+  })
 }
 
 function initialStorage(): CompetitionStorage {
@@ -1797,7 +1793,7 @@ export default function MockCompetitionScreen({ voices, studyData, onDeleteStudy
       setNoteNotice('This saved competition is no longer available. Select it again and retry.')
       return
     }
-    const note = noteDraft.trim()
+    const note = stripOuterCodeFence(noteDraft)
     const updateQuestion = (question: CompetitionQuestion): CompetitionQuestion => {
       if (question.id !== noteTarget.id) return question
       const updated = { ...question }
@@ -1834,7 +1830,7 @@ export default function MockCompetitionScreen({ voices, studyData, onDeleteStudy
   async function copyQuestionNotePrompt() {
     if (!noteTarget || !competition) return
     try {
-      await navigator.clipboard.writeText(competitionNotePrompt(competition.competitionName, noteTarget))
+      await navigator.clipboard.writeText(competitionNotePrompt(noteTarget))
       setNoteNotice('AI note prompt copied.')
     } catch {
       setNoteNotice('Could not copy the prompt. Select and copy the prompt text below.')
@@ -2440,14 +2436,14 @@ export default function MockCompetitionScreen({ voices, studyData, onDeleteStudy
               rows={4}
             />
             <details className="question-note-ai-prompt">
-              <summary>AI prompt for a formula shortcut</summary>
+              <summary>AI prompt for this note</summary>
               {noteTarget && competition && (
                 <>
                   <textarea
-                    aria-label="AI prompt for a formula shortcut"
+                    aria-label="AI prompt for this note"
                     readOnly
                     rows={8}
-                    value={competitionNotePrompt(competition.competitionName, noteTarget)}
+                    value={competitionNotePrompt(noteTarget)}
                   />
                   <button className="secondary-action" type="button" onClick={() => { void copyQuestionNotePrompt() }}>Copy AI prompt</button>
                 </>

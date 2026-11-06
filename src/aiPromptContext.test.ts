@@ -1,5 +1,38 @@
 import { describe, expect, it } from 'vitest'
-import { contestPreparationContext, shortcutGuidanceInstruction, STUDY_BANK_CHOICE_POLICY, topicScopeInstruction } from './aiPromptContext'
+import { contestPreparationContext, noteDetailsPrompt, shortcutGuidanceInstruction, STUDY_BANK_CHOICE_POLICY, stripOuterCodeFence, topicScopeInstruction } from './aiPromptContext'
+
+describe('question note prompt', () => {
+  const prompt = noteDetailsPrompt({ Topic: 'Linear Algebra', Question: 'Find $k$.', Answer: '$k=2$', Solution: 'Dot product.' })
+
+  it('asks for an English note in one copyable text block that keeps raw LaTeX', () => {
+    expect(prompt).toContain('Write the note in English.')
+    expect(prompt).toContain('exactly one ```text code block')
+    expect(prompt).toContain('raw source')
+  })
+
+  it('passes along the question details and no study instructions', () => {
+    expect(prompt.endsWith('Topic: Linear Algebra\nQuestion: Find $k$.\nAnswer: $k=2$\nSolution: Dot product.')).toBe(true)
+    expect(prompt).not.toContain('CONTEST PREPARATION')
+    expect(prompt).not.toContain('STRICT TOPIC SCOPE')
+    expect(prompt).not.toContain('USEFUL SHORTCUTS')
+  })
+})
+
+describe('stripOuterCodeFence', () => {
+  it.each([
+    ['```text\nUse $V=IR$.\n```', 'Use $V=IR$.'],
+    ['```\nUse $V=IR$.\n```\n', 'Use $V=IR$.'],
+    ['\r\n```markdown\r\nLine one\r\n\r\nLine two\r\n```\r\n', 'Line one\r\n\r\nLine two'],
+    ['  Use $V=IR$.  ', 'Use $V=IR$.'],
+  ])('removes only the outer fence from %j', (pasted, saved) => {
+    expect(stripOuterCodeFence(pasted)).toBe(saved)
+  })
+
+  it('leaves a code block inside a longer note alone', () => {
+    const note = 'Before\n```text\ncode\n```\nAfter'
+    expect(stripOuterCodeFence(note)).toBe(note)
+  })
+})
 
 describe('contest preparation context', () => {
   it.each([

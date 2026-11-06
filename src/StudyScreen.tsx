@@ -7,7 +7,7 @@ import { mathToSpeech } from './mathSpeech'
 import MathText from './MathText'
 import LectureScreen from './LectureScreen'
 import { loadLectureNotes } from './lectureNotesStorage'
-import { contestPreparationContext, shortcutGuidanceInstruction, topicScopeInstruction } from './aiPromptContext'
+import { noteDetailsPrompt, stripOuterCodeFence } from './aiPromptContext'
 
 type SessionPhase = 'ready' | 'speaking' | 'countdown' | 'paused' | 'time-up' | 'revealed' | 'rated'
 type Rating = 'gotIt' | 'missedIt'
@@ -133,16 +133,12 @@ function createShuffleSeed(previousSeed?: number): number {
 }
 
 function questionNotePrompt(target: QuestionNoteTarget): string {
-  return `${contestPreparationContext(target.topic)}
-
-Create a concise note explaining only the concept in this question that belongs to "${target.topic}". Include a useful shortcut when the question's givens or conditions make one applicable: identify the case, state the shortcut and any limits. Do not invent or force a shortcut. Do not add forecasts, neighboring-topic material, or a broad lesson. Use valid LaTeX for mathematical expressions. Keep the note accurate and easy to scan; do not repeat the full solution. Return only the note text, with no heading or code fences.
-${topicScopeInstruction(target.topic)}
-${shortcutGuidanceInstruction(target.topic)}
-
-Topic: ${target.topic}
-Question: ${target.question.text}
-Answer: ${target.question.answer ?? 'Not provided'}
-Solution: ${target.question.solution ?? 'Not provided'}`
+  return noteDetailsPrompt({
+    Topic: target.topic,
+    Question: target.question.text,
+    Answer: target.question.answer ?? 'Not provided',
+    Solution: target.question.solution ?? 'Not provided',
+  })
 }
 
 interface StudyScreenProps {
@@ -478,7 +474,7 @@ export default function StudyScreen({
 
   function saveQuestionNote() {
     if (!noteTarget) return
-    const note = noteDraft.trim()
+    const note = stripOuterCodeFence(noteDraft)
     onChangeData({
       ...data,
       questionBanks: {
@@ -1197,11 +1193,11 @@ export default function StudyScreen({
               rows={4}
             />
             <details className="question-note-ai-prompt">
-              <summary>AI prompt for a formula shortcut</summary>
+              <summary>AI prompt for this note</summary>
               {noteTarget && (
                 <>
                   <textarea
-                    aria-label="AI prompt for a formula shortcut"
+                    aria-label="AI prompt for this note"
                     readOnly
                     rows={8}
                     value={questionNotePrompt(noteTarget)}

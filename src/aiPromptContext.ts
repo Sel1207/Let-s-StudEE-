@@ -50,6 +50,19 @@ export function shortcutGuidanceInstruction(topic: string): string {
 - Keep every shortcut within the requested topic and relevant to the supplied question or notes.`
 }
 
+export function noteDetailsPrompt(details: Record<string, string>): string {
+  const lines = Object.entries(details).map(([label, value]) => `${label}: ${value}`).join('\n')
+  return `COPYABLE OUTPUT
+Write the note in English. Return it as plain text inside exactly one \`\`\`text code block, with no introduction or text outside it. Do not use nested code fences. Keep all LaTeX as raw source with its $...$ or $$...$$ delimiters.
+
+${lines}`
+}
+
+export function stripOuterCodeFence(value: string): string {
+  const fenced = /^\s*```[^\r\n]*\r?\n([\s\S]*?)\r?\n?```\s*$/.exec(value)
+  return (fenced ? fenced[1] : value).trim()
+}
+
 export const STUDY_BANK_CHOICE_POLICY = `QUESTION FORMAT
 - For problem-solving questions that require calculations, derivations, or applying a method, always make them open-ended. If the source provides answer choices, remove every choice from "question" and "questionReadAloud", and phrase the question so the student must solve it without seeing options. Keep all necessary givens; provide the correct result and full solution in the answer fields.
 - For conceptual, definition, or identification questions, decide whether answer choices genuinely help assess the concept. You may retain useful choices in the question when appropriate, or make it open-ended. Do not include choices just because the source has them.

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import MathText from './MathText'
-import { contestPreparationContext, shortcutGuidanceInstruction, topicScopeInstruction } from './aiPromptContext'
+import { noteDetailsPrompt, stripOuterCodeFence } from './aiPromptContext'
 import { defaultCompetitionSettings, defaultCompetitionSubjects, loadCompetitionStorage, saveCompetitionStorage, type CompetitionQuestion, type CompetitionStorage } from './competitionData'
 import { LEGACY_TOPIC_ALIASES, TOPICS, TOPIC_GROUPS, type StudyData, type Topic } from './studyTypes'
 import './favorites.css'
@@ -30,16 +30,20 @@ function formatClock(seconds: number): string {
 }
 
 function noteEditingPrompt(target: NoteTarget): string {
-  const topic = target.source === 'study' ? target.topic : target.question.category
-  const prompt = `${contestPreparationContext(topic)}
-
-Create a concise note about this question's "${topic}" concept only. If its givens or conditions match a useful shortcut, state the case and shortcut clearly, including important limits; do not invent or force one. Do not add forecasts, neighboring-topic material, or a broad lesson. Use valid LaTeX for mathematical expressions. Keep the note accurate and easy to scan; do not repeat the full solution. Return only the note text, with no heading or code fences.
-${topicScopeInstruction(topic)}
-${shortcutGuidanceInstruction(topic)}`
   if (target.source === 'study') {
-    return `${prompt}\n\nTopic: ${target.topic}\nQuestion: ${target.question}\nAnswer: ${target.answer ?? 'Not provided'}\nSolution: ${target.solution ?? 'Not provided'}`
+    return noteDetailsPrompt({
+      Topic: target.topic,
+      Question: target.question,
+      Answer: target.answer ?? 'Not provided',
+      Solution: target.solution ?? 'Not provided',
+    })
   }
-  return `${prompt}\n\nCompetition: ${target.competitionName}\nCategory: ${target.question.category}\nQuestion: ${target.question.question}\nAnswer: ${target.question.answer}\nSolution: ${target.question.solution}`
+  return noteDetailsPrompt({
+    Topic: target.question.category,
+    Question: target.question.question,
+    Answer: target.question.answer,
+    Solution: target.question.solution,
+  })
 }
 
 export default function FavoriteQuestionsScreen({ data, onChangeData }: { data: StudyData; onChangeData: (data: StudyData) => void }) {
@@ -188,7 +192,7 @@ export default function FavoriteQuestionsScreen({ data, onChangeData }: { data: 
 
   function saveNote(remove = false) {
     if (!noteTarget) return
-    const note = remove ? '' : noteDraft.trim()
+    const note = remove ? '' : stripOuterCodeFence(noteDraft)
     if (noteTarget.source === 'study') {
       onChangeData({
         ...data,
@@ -444,8 +448,8 @@ export default function FavoriteQuestionsScreen({ data, onChangeData }: { data: 
             rows={4}
           />
           <details className="question-note-ai-prompt">
-            <summary>AI prompt for a formula shortcut</summary>
-            <textarea aria-label="AI prompt for a formula shortcut" readOnly rows={8} value={activeNotePrompt} />
+            <summary>AI prompt for this note</summary>
+            <textarea aria-label="AI prompt for this note" readOnly rows={8} value={activeNotePrompt} />
             <button className="secondary-action" type="button" onClick={() => { void copyNotePrompt() }}>Copy AI prompt</button>
           </details>
         </>
