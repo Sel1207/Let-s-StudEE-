@@ -1,7 +1,7 @@
 import { ALLOWED_DURATIONS, TOPIC_GROUPS, TOPICS, type AllowedDuration, type Preset, type Question, type StudyData, type Topic, type TopicGroupName, type TimeFilter } from './studyTypes'
 
 const SECOND_ONLY_DURATIONS = [15, 20, 30, 45, 60, 90, 150]
-function createQuestionId(): string {
+export function createQuestionId(): string {
   return globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`
 }
 

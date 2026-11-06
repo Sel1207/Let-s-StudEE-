@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import LectureNotesPicker from './LectureNotesPicker'
+import LectureStickyNotes from './LectureStickyNotes'
 import MathText from './MathText'
 import { contestPreparationContext, shortcutGuidanceInstruction, topicScopeInstruction } from './aiPromptContext'
 import { EE_TOPIC_GUIDANCE, TOPIC_GROUPS, type Topic } from './studyTypes'
 import { LECTURE_NOTES_STORAGE_KEY, loadLectureNotes } from './lectureNotesStorage'
+import { loadStickyNotes, STICKY_NOTES_STORAGE_KEY, writeStickyNote } from './stickyNotesStorage'
 import './lecture.css'
 
 const mathShortcuts = [
@@ -187,7 +189,9 @@ export default function LectureScreen({
 }) {
   const [savedState] = useState(loadLectureNotes)
   const [notes, setNotes] = useState(savedState.notes)
-  const [saveNotice, setSaveNotice] = useState(savedState.error || 'Saved on this device')
+  const [savedStickyState] = useState(loadStickyNotes)
+  const [stickyNotes, setStickyNotes] = useState(savedStickyState.notes)
+  const [saveNotice, setSaveNotice] = useState(savedState.error || savedStickyState.error || 'Saved on this device')
   const [promptNotice, setPromptNotice] = useState('')
   const editorRef = useRef<HTMLTextAreaElement>(null)
   const noteDialogRef = useRef<HTMLDialogElement>(null)
@@ -248,10 +252,23 @@ export default function LectureScreen({
     setNotes(nextNotes)
     try {
       window.localStorage.setItem(LECTURE_NOTES_STORAGE_KEY, JSON.stringify(nextNotes))
-      onNotesChange(topic, cleanedValue.trim().length > 0)
+      onNotesChange(topic, cleanedValue.trim().length > 0 || (stickyNotes[topic]?.length ?? 0) > 0)
       setSaveNotice('Saved on this device')
     } catch (error) {
       console.error('Could not save lecture notes.', error)
+      setSaveNotice('Could not save your notes. Check browser storage and try again.')
+    }
+  }
+
+  function saveStickyNote(id: string | null, text: string) {
+    const nextNotes = writeStickyNote(stickyNotes, topic, id, text)
+    setStickyNotes(nextNotes)
+    try {
+      window.localStorage.setItem(STICKY_NOTES_STORAGE_KEY, JSON.stringify(nextNotes))
+      onNotesChange(topic, note.trim().length > 0 || (nextNotes[topic]?.length ?? 0) > 0)
+      setSaveNotice('Saved on this device')
+    } catch (error) {
+      console.error('Could not save sticky notes.', error)
       setSaveNotice('Could not save your notes. Check browser storage and try again.')
     }
   }
@@ -301,7 +318,11 @@ export default function LectureScreen({
         <button className="lecture-back-button" type="button" onClick={onBack}>
           <span aria-hidden="true">←</span> Back to topics
         </button>
-        <LectureNotesPicker topic={topic} notes={notes} onOpen={changeTopic} />
+        <LectureNotesPicker
+          topic={topic}
+          hasNotes={(item) => (notes[item] ?? '').trim().length > 0 || (stickyNotes[item]?.length ?? 0) > 0}
+          onOpen={changeTopic}
+        />
         {openedBefore && (
           <button className="lecture-back-button lecture-backtrack" type="button" title={`Back to ${openedBefore}`} onClick={() => leaveTopic(onBacktrack)}>
             <span aria-hidden="true">↩</span> <span className="lecture-backtrack-label">{openedBefore}</span>
@@ -347,6 +368,8 @@ export default function LectureScreen({
           {promptNotice && <span role="status">{promptNotice}</span>}
         </div>
       </details>
+
+      <LectureStickyNotes topic={topic} group={topicGroup} notes={stickyNotes[topic] ?? []} onSave={saveStickyNote} />
 
       <article className="lecture-notebook" aria-label={`${topic} lecture notebook`}>
         <div className="lecture-notebook-paper">

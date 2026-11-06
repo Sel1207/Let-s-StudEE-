@@ -11,6 +11,7 @@ import { useCollapseOnOutsidePress } from './useCollapseOnOutsidePress'
 import { isStuckToTop } from './useAutoHideHeader'
 import LectureScreen from './LectureScreen'
 import { loadLectureNotes } from './lectureNotesStorage'
+import { loadStickyNotes } from './stickyNotesStorage'
 import { noteDetailsPrompt, stripOuterCodeFence } from './aiPromptContext'
 
 type SessionPhase = 'ready' | 'speaking' | 'countdown' | 'paused' | 'time-up' | 'revealed' | 'rated'
@@ -247,7 +248,8 @@ export default function StudyScreen({
   }
   const [topicsWithLectureNotes, setTopicsWithLectureNotes] = useState(() => {
     const { notes } = loadLectureNotes()
-    return new Set(TOPICS.filter((topic) => (notes[topic] ?? '').trim().length > 0))
+    const { notes: stickyNotes } = loadStickyNotes()
+    return new Set(TOPICS.filter((topic) => (notes[topic] ?? '').trim().length > 0 || (stickyNotes[topic]?.length ?? 0) > 0))
   })
   const [writtenTopic, setWrittenTopic] = useState<WrittenTopicSelection>(savedWrittenTest.topic)
   const [writtenQuestionLimit, setWrittenQuestionLimit] = useState<number | 'all'>(savedWrittenTest.questionLimit)

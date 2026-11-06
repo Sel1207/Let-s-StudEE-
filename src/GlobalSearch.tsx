@@ -1,6 +1,7 @@
 import { useDeferredValue, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from 'react'
 import { loadCompetitionStorage } from './competitionData'
 import { loadLectureNotes } from './lectureNotesStorage'
+import { loadStickyNotes, withStickyNoteText } from './stickyNotesStorage'
 import { normalize, prepareSearchIndex, runSearch, searchTokens, buildSearchIndex, type SearchKind, type SearchTarget } from './searchIndex'
 import type { StudyData } from './studyTypes'
 import './search.css'
@@ -109,7 +110,7 @@ export default function GlobalSearch({
     if (!open) return []
     const competitions = loadCompetitionStorage()
     const { notes } = loadLectureNotes()
-    return prepareSearchIndex(buildSearchIndex(data, competitions, notes))
+    return prepareSearchIndex(buildSearchIndex(data, competitions, withStickyNoteText(notes, loadStickyNotes().notes)))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, data, snapshot])
 

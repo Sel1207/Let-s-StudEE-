@@ -50,13 +50,14 @@ export function shortcutGuidanceInstruction(topic: string): string {
 - Keep every shortcut within the requested topic and relevant to the supplied question or notes.`
 }
 
-export function noteDetailsPrompt(details: Record<string, string>): string {
+export function noteDetailsPrompt(details: Record<string, string>, subject = 'this question'): string {
   const lines = Object.entries(details).map(([label, value]) => `${label}: ${value}`).join('\n')
   return `CHECK MY IDEA
-At the end of this message, I state the shortcut, idea, or reminder I noticed for this question. Check whether it is correct and when it applies. Before the code block, say in one line that it is correct, or briefly explain what I got wrong and why. If I stated nothing, ask me what I noticed and do not write a note yet.
+At the end of this message, I state the shortcut, idea, or reminder I noticed for ${subject}. Check whether it is correct and when it applies. Before the code block, say in one line that it is correct, or briefly explain what I got wrong and why. If I stated nothing, ask me what I noticed and do not write a note yet.
 
 COPYABLE OUTPUT
 Write a note in English that captures what I noticed, using the corrected version if I made a mistake. Return it as plain text inside exactly one \`\`\`text code block, and put only the note inside the block. Do not use nested code fences. Keep all LaTeX as raw source with its $...$ or $$...$$ delimiters.
+Format the note so it is easy to scan: short lines, a blank line between ideas, "- " for bullets, and "1. " for steps. Do not use headings, bold, or tables.
 
 ${lines}
 

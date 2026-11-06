@@ -10,11 +10,11 @@ const SECTIONS: readonly { name: string; topics: readonly Topic[] }[] = [
 
 export default function LectureNotesPicker({
   topic,
-  notes,
+  hasNotes,
   onOpen,
 }: {
   topic: Topic
-  notes: Partial<Record<Topic, string>>
+  hasNotes: (topic: Topic) => boolean
   onOpen: (topic: Topic) => void
 }) {
   const [filter, setFilter] = useState('')
@@ -79,7 +79,7 @@ export default function LectureNotesPicker({
                     <span>{item}</span>
                     {item === topic
                       ? <small>Open now</small>
-                      : (notes[item] ?? '').trim() && <small className="has-notes">Notes</small>}
+                      : hasNotes(item) && <small className="has-notes">Notes</small>}
                   </button>
                 ))}
               </div>
