@@ -52,10 +52,15 @@ export function shortcutGuidanceInstruction(topic: string): string {
 
 export function noteDetailsPrompt(details: Record<string, string>): string {
   const lines = Object.entries(details).map(([label, value]) => `${label}: ${value}`).join('\n')
-  return `COPYABLE OUTPUT
-Write the note in English. Return it as plain text inside exactly one \`\`\`text code block, with no introduction or text outside it. Do not use nested code fences. Keep all LaTeX as raw source with its $...$ or $$...$$ delimiters.
+  return `CHECK MY IDEA
+At the end of this message, I state the shortcut, idea, or reminder I noticed for this question. Check whether it is correct and when it applies. Before the code block, say in one line that it is correct, or briefly explain what I got wrong and why. If I stated nothing, ask me what I noticed and do not write a note yet.
 
-${lines}`
+COPYABLE OUTPUT
+Write a note in English that captures what I noticed, using the corrected version if I made a mistake. Return it as plain text inside exactly one \`\`\`text code block, and put only the note inside the block. Do not use nested code fences. Keep all LaTeX as raw source with its $...$ or $$...$$ delimiters.
+
+${lines}
+
+What I noticed: `
 }
 
 export function stripOuterCodeFence(value: string): string {

@@ -10,8 +10,15 @@ describe('question note prompt', () => {
     expect(prompt).toContain('raw source')
   })
 
+  it('has the AI check my idea and leaves room to state it at the end', () => {
+    expect(prompt).toContain('Check whether it is correct')
+    expect(prompt).toContain('explain what I got wrong')
+    expect(prompt).toContain('using the corrected version')
+    expect(prompt.endsWith('What I noticed: ')).toBe(true)
+  })
+
   it('passes along the question details and no study instructions', () => {
-    expect(prompt.endsWith('Topic: Linear Algebra\nQuestion: Find $k$.\nAnswer: $k=2$\nSolution: Dot product.')).toBe(true)
+    expect(prompt).toContain('Topic: Linear Algebra\nQuestion: Find $k$.\nAnswer: $k=2$\nSolution: Dot product.')
     expect(prompt).not.toContain('CONTEST PREPARATION')
     expect(prompt).not.toContain('STRICT TOPIC SCOPE')
     expect(prompt).not.toContain('USEFUL SHORTCUTS')
