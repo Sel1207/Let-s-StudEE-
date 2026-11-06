@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, useEffectEvent, useRef, useState } from 'react'
 import './layout.css'
+import { playTimerTick, shouldTick } from './timerTicks'
 import ManageScreen from './ManageScreen'
 import { saveManageTopic } from './studyStorage'
 import SettingsScreen from './SettingsScreen'
@@ -496,25 +497,6 @@ function StudyApp() {
     }).catch(() => {})
   }
 
-  function playFiveSecondCue() {
-    const context = audioContext.current
-    if (!context) return
-    void context.resume().then(() => {
-      const oscillator = context.createOscillator()
-      const volume = context.createGain()
-      const startAt = context.currentTime
-      volume.gain.setValueAtTime(0.001, startAt)
-      volume.gain.exponentialRampToValueAtTime(0.09, startAt + 0.01)
-      volume.gain.exponentialRampToValueAtTime(0.001, startAt + 0.13)
-      oscillator.type = 'triangle'
-      oscillator.frequency.value = 560
-      oscillator.connect(volume)
-      volume.connect(context.destination)
-      oscillator.start(startAt)
-      oscillator.stop(startAt + 0.14)
-    }).catch(() => {})
-  }
-
   function stopSpeech() {
     sessionToken.current += 1
     speechRun += 1
@@ -551,7 +533,7 @@ function StudyApp() {
     if (next === remainingRef.current) return
     remainingRef.current = next
     setRemainingSeconds(next)
-    if (next <= 5 && next > 0) playFiveSecondCue()
+    if (audioContext.current && shouldTick(next, question?.seconds ?? next)) playTimerTick(audioContext.current, next, 0.16)
     if (next === 0) announceTimeUp()
   })
 

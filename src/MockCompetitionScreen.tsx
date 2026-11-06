@@ -5,6 +5,8 @@ import { contestPreparationContext, shortcutGuidanceInstruction } from './aiProm
 import { speechRate } from './speechRate'
 import { mathToSpeech } from './mathSpeech'
 import FireworksCelebration from './FireworksCelebration'
+import { preloadCelebrationAudio } from './celebrationAudio'
+import { playTimerTick, shouldTick } from './timerTicks'
 import { buildRandomizedCompetition, randomizedCompetitionFormat, restoreRandomizedQuestionIds } from './randomizedCompetition'
 import type { StudyData, Topic } from './studyTypes'
 import {
@@ -882,6 +884,7 @@ export default function MockCompetitionScreen({ voices, studyData, onDeleteStudy
       audioContext.current = context
       setCelebrationAudioContext(context)
       void context.resume().catch(() => {})
+      void preloadCelebrationAudio(context)
     } catch {
       audioContext.current = null
       setCelebrationAudioContext(null)
@@ -913,8 +916,11 @@ export default function MockCompetitionScreen({ voices, studyData, onDeleteStudy
     playTone(880, 'sine', 0.13, 0.19)
   }
 
-  function fiveSecondCue() {
-    playTone(560, 'triangle', 0.13)
+  function timerTick(remaining: number) {
+    const context = audioContext.current
+    const { muted, volume } = storageRef.current.settings
+    if (!context || muted || volume <= 0) return
+    playTimerTick(context, remaining, 0.28 * volume)
   }
 
   function endBuzzer() {
@@ -1135,6 +1141,7 @@ export default function MockCompetitionScreen({ voices, studyData, onDeleteStudy
     if (mode !== 'competition' || !competition) return
     if (competition.rounds.at(-1)?.questions.at(-1)?.id !== question.id || celebratedQuestions.current.has(question.id)) return
     celebratedQuestions.current.add(question.id)
+    createAudio()
     setShowRoundCelebration(true)
   }
 
@@ -1172,7 +1179,7 @@ export default function MockCompetitionScreen({ voices, studyData, onDeleteStudy
     if (next === remainingRef.current) return
     remainingRef.current = next
     setRemainingSeconds(next)
-    if (next <= 5 && next > 0) fiveSecondCue()
+    if (shouldTick(next, activeTimeLimit)) timerTick(next)
     if (next === 0) {
       countdownDeadline.current = null
       announceTimeUp()

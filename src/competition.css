@@ -214,21 +214,17 @@
 .competition-celebration::before { position: absolute; z-index: 0; top: 14%; right: 12%; width: clamp(50px, 8vw, 82px); aspect-ratio: 1; border-radius: 50%; background: radial-gradient(circle at 31% 27%, rgb(119 116 139 / 28%) 0 5%, transparent 6%), radial-gradient(circle at 70% 63%, rgb(119 116 139 / 19%) 0 8%, transparent 9%), radial-gradient(circle at 43% 76%, rgb(119 116 139 / 14%) 0 4%, transparent 5%), radial-gradient(circle at 36% 32%, #fff9e5, #e9dfc5 67%, #c4baa7); box-shadow: 0 0 20px 5px rgb(255 235 183 / 30%), 0 0 90px 26px rgb(207 199 255 / 9%); content: ''; pointer-events: none; }
 .competition-celebration::after { position: absolute; z-index: 2; right: 0; bottom: 0; left: 0; height: 19%; background: linear-gradient(0deg, #050817 0 23%, transparent 24%), linear-gradient(90deg, transparent 0 3%, #080d20 3% 6%, transparent 6% 9%, #080d20 9% 10%, transparent 10% 14%, #080d20 14% 19%, transparent 19% 22%, #080d20 22% 25%, transparent 25% 29%, #080d20 29% 30%, transparent 30% 35%, #080d20 35% 40%, transparent 40% 43%, #080d20 43% 46%, transparent 46% 51%, #080d20 51% 58%, transparent 58% 62%, #080d20 62% 65%, transparent 65% 71%, #080d20 71% 76%, transparent 76% 81%, #080d20 81% 84%, transparent 84% 89%, #080d20 89% 95%, transparent 95%), radial-gradient(ellipse at 50% 100%, #10152b 0 38%, transparent 39%); content: ''; opacity: .55; pointer-events: none; }
 .competition-fireworks-canvas { position: absolute; z-index: 1; inset: 0; display: block; pointer-events: none; }
-.competition-celebration-message { position: absolute; z-index: 3; top: 22px; left: 50%; width: min(410px, calc(100% - 32px)); display: grid; justify-items: center; gap: 7px; margin: 0; padding: 16px 22px; transform: translateX(-50%); border: 1px solid rgb(255 211 103 / 48%); border-radius: 18px; background: rgb(10 13 35 / 78%); box-shadow: 0 0 30px rgb(255 184 56 / 14%), 0 12px 36px rgb(0 0 0 / 30%); color: #fff; text-align: center; animation: competition-celebration-enter 580ms cubic-bezier(.2, .9, .25, 1.2) both; pointer-events: auto; }
-.competition-fireworks-sound { position: absolute; z-index: 4; top: 18px; right: 18px; min-height: 40px; padding: 0 14px; border: 1px solid rgb(255 255 255 / 30%); border-radius: 999px; background: rgb(12 15 42 / 92%); color: #fff; font-size: 12px; pointer-events: auto; }
-.competition-fireworks-sound:hover { background: rgb(35 39 72 / 92%); }
-.competition-celebration-eyebrow { color: #ffd367; font-size: 9px; font-weight: 700; letter-spacing: .28em; }
-.competition-celebration-message h2 { margin: 0; color: #fff7e8; font-family: var(--display); font-size: clamp(27px, 4vw, 36px); font-style: italic; font-weight: 400; letter-spacing: -.035em; line-height: 1.08; text-shadow: 0 0 24px rgb(255 213 110 / 28%); }
-.competition-celebration-message p { margin: 0; color: rgb(255 255 255 / 82%); font-size: clamp(11px, 1.5vw, 13px); }
-.competition-celebration-score { color: #ffdca0 !important; font-size: 11px !important; letter-spacing: .04em; }
-.competition-celebration-prompt { margin-top: 2px !important; }
-.competition-celebration-actions { width: 100%; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 5px; pointer-events: auto; }
-.competition-celebration-actions button { min-height: 40px; padding: 8px 12px; border: 1px solid rgb(255 211 103 / 68%); border-radius: 999px; background: linear-gradient(135deg, #f5d58f, #d9a94d); color: #211a14; font-size: 11px; font-weight: 700; transition: transform 160ms ease, box-shadow 160ms ease; }
-.competition-celebration-actions button:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 5px 22px rgb(255 205 106 / 28%); }
-.competition-celebration-actions .competition-celebration-sudden { border-color: rgb(255 255 255 / 42%); background: rgb(255 255 255 / 8%); color: #fff5dd; }
-.competition-celebration-actions button:disabled { cursor: not-allowed; opacity: .5; }
-.competition-celebration-note { color: rgb(255 255 255 / 62%); font-size: 9px; }
-.competition-celebration-dismiss { margin-top: 2px; color: rgb(255 255 255 / 56%); font-size: 9px; letter-spacing: .04em; }
+.competition-celebration-message { position: absolute; z-index: 3; top: 22px; left: 50%; width: min(420px, calc(100% - 32px)); display: grid; justify-items: center; gap: 6px; margin: 0; padding: 20px 24px; transform: translateX(-50%); border: 1px solid var(--line); background: var(--surface); box-shadow: 0 18px 44px rgb(0 0 0 / 38%); color: var(--ink); text-align: center; animation: competition-celebration-enter 580ms cubic-bezier(.2, .9, .25, 1.2) both; pointer-events: auto; }
+.competition-fireworks-sound { position: absolute; z-index: 4; top: 18px; right: 18px; min-height: 40px; padding: 0 14px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); font-size: 12px; pointer-events: auto; }
+.competition-fireworks-sound:hover { border-color: var(--accent); color: var(--accent); }
+.competition-celebration-message .eyebrow { margin: 0; }
+.competition-celebration-message h2 { margin: 0; font-size: 19px; font-weight: 600; line-height: 1.25; overflow-wrap: anywhere; }
+.competition-celebration-message .competition-score-large { margin: 4px 0 2px; font-size: 52px; }
+.competition-celebration-prompt { margin: 0; color: var(--muted); font-size: 12px; }
+.competition-celebration-actions { width: 100%; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; pointer-events: auto; }
+.competition-celebration-actions button { min-width: 0; }
+.competition-celebration-note { color: var(--muted); font-size: 10px; }
+.competition-celebration-dismiss { margin-top: 4px; color: var(--muted); font-size: 10px; }
 @keyframes competition-sky-fade { from { opacity: 0; } to { opacity: 1; } }
 @keyframes competition-celebration-enter { from { opacity: 0; transform: translate(-50%, -18px) scale(.88); } to { opacity: 1; transform: translate(-50%, 0) scale(1); } }
 @media (prefers-reduced-motion: reduce) {

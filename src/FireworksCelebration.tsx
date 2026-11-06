@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { startCelebrationAudio, type CelebrationAudio, type ExplosionStyle } from './celebrationAudio'
 
-type FireworkStyle = 'sphere' | 'ring' | 'heart' | 'willow' | 'double' | 'crackle'
+type FireworkStyle = ExplosionStyle
 type Color = { hue: number; saturation: number; lightness: number }
 type Point = { x: number; y: number }
 
@@ -69,73 +70,12 @@ function burstColor(hue: number): Color {
   }
 }
 
+function stereoPosition(x: number, width: number): number {
+  return Math.max(-0.8, Math.min(0.8, (x / width) * 2 - 1))
+}
+
 function colorValue(color: Color): string {
   return `hsl(${color.hue} ${color.saturation}% ${color.lightness}%)`
-}
-
-function playLaunchSound(context: AudioContext, volume: number) {
-  const start = context.currentTime
-  const whistle = context.createOscillator()
-  const gain = context.createGain()
-  whistle.type = 'sine'
-  whistle.frequency.setValueAtTime(260, start)
-  whistle.frequency.exponentialRampToValueAtTime(980, start + 0.34)
-  gain.gain.setValueAtTime(0.001, start)
-  gain.gain.exponentialRampToValueAtTime(0.035 * volume, start + 0.07)
-  gain.gain.exponentialRampToValueAtTime(0.001, start + 0.37)
-  whistle.connect(gain)
-  gain.connect(context.destination)
-  whistle.start(start)
-  whistle.stop(start + 0.39)
-}
-
-function playExplosionSound(context: AudioContext, volume: number, style: FireworkStyle) {
-  const start = context.currentTime
-  const boom = context.createOscillator()
-  const boomGain = context.createGain()
-  boom.type = 'sine'
-  boom.frequency.setValueAtTime(style === 'willow' ? 170 : 210, start)
-  boom.frequency.exponentialRampToValueAtTime(48, start + 0.48)
-  boomGain.gain.setValueAtTime(0.001, start)
-  boomGain.gain.exponentialRampToValueAtTime(0.13 * volume, start + 0.018)
-  boomGain.gain.exponentialRampToValueAtTime(0.001, start + 0.5)
-  boom.connect(boomGain)
-  boomGain.connect(context.destination)
-  boom.start(start)
-  boom.stop(start + 0.52)
-
-  const length = Math.floor(context.sampleRate * 0.32)
-  const buffer = context.createBuffer(1, length, context.sampleRate)
-  const samples = buffer.getChannelData(0)
-  for (let index = 0; index < length; index += 1) samples[index] = Math.random() * 2 - 1
-  const noise = context.createBufferSource()
-  const filter = context.createBiquadFilter()
-  const noiseGain = context.createGain()
-  noise.buffer = buffer
-  filter.type = 'bandpass'
-  filter.frequency.setValueAtTime(style === 'willow' ? 1250 : 1900, start)
-  filter.Q.value = 0.75
-  noiseGain.gain.setValueAtTime(0.001, start)
-  noiseGain.gain.exponentialRampToValueAtTime(0.12 * volume, start + 0.008)
-  noiseGain.gain.exponentialRampToValueAtTime(0.001, start + 0.3)
-  noise.connect(filter)
-  filter.connect(noiseGain)
-  noiseGain.connect(context.destination)
-  noise.start(start)
-  noise.stop(start + 0.32)
-
-  const chime = context.createOscillator()
-  const chimeGain = context.createGain()
-  chime.type = 'triangle'
-  chime.frequency.setValueAtTime(1080 + Math.random() * 480, start + 0.035)
-  chime.frequency.exponentialRampToValueAtTime(420, start + 0.56)
-  chimeGain.gain.setValueAtTime(0.001, start + 0.025)
-  chimeGain.gain.exponentialRampToValueAtTime(0.045 * volume, start + 0.05)
-  chimeGain.gain.exponentialRampToValueAtTime(0.001, start + 0.58)
-  chime.connect(chimeGain)
-  chimeGain.connect(context.destination)
-  chime.start(start + 0.025)
-  chime.stop(start + 0.6)
 }
 
 export default function FireworksCelebration({
@@ -152,7 +92,7 @@ export default function FireworksCelebration({
   hasSuddenDeath,
 }: FireworksCelebrationProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const musicGainRef = useRef<GainNode | null>(null)
+  const soundRef = useRef<CelebrationAudio | null>(null)
   const dismissTimerRef = useRef<number | null>(null)
   const isDismissingRef = useRef(false)
   const [isDismissing, setIsDismissing] = useState(false)
@@ -161,16 +101,9 @@ export default function FireworksCelebration({
     if (isDismissingRef.current) return
     isDismissingRef.current = true
     setIsDismissing(true)
-    if ('speechSynthesis' in window) window.speechSynthesis.cancel()
-    const gain = musicGainRef.current
-    if (gain && audioContext && audioContext.state !== 'closed') {
-      const now = audioContext.currentTime
-      gain.gain.cancelScheduledValues(now)
-      gain.gain.setValueAtTime(Math.max(0.0001, gain.gain.value), now)
-      gain.gain.linearRampToValueAtTime(0.0001, now + 0.45)
-    }
+    soundRef.current?.fadeOut(0.45)
     dismissTimerRef.current = window.setTimeout(action, 480)
-  }, [audioContext, onDismiss])
+  }, [onDismiss])
 
   useEffect(() => {
     const dismissOnKey = (event: KeyboardEvent) => {
@@ -188,75 +121,12 @@ export default function FireworksCelebration({
   useEffect(() => {
     if (muted || volume <= 0 || !audioContext || audioContext.state === 'closed') return
 
-    const master = audioContext.createGain()
-    const start = audioContext.currentTime
-    master.gain.setValueAtTime(0.0001, start)
-    master.gain.linearRampToValueAtTime(0.14 * volume, start + 1.1)
-    master.connect(audioContext.destination)
-    musicGainRef.current = master
-
-    const chords = [
-      [261.63, 329.63, 392, 523.25],
-      [220, 261.63, 329.63, 440],
-      [174.61, 220, 261.63, 349.23],
-      [196, 246.94, 293.66, 392],
-    ]
-    let noteIndex = 0
-    const playNote = () => {
-      if (audioContext.state === 'closed') return
-      const chordIndex = Math.floor(noteIndex / 4) % chords.length
-      const frequency = chords[chordIndex][noteIndex % 4]
-      const noteStart = audioContext.currentTime
-      const oscillator = audioContext.createOscillator()
-      const envelope = audioContext.createGain()
-      oscillator.type = 'triangle'
-      oscillator.frequency.setValueAtTime(frequency, noteStart)
-      envelope.gain.setValueAtTime(0.0001, noteStart)
-      envelope.gain.exponentialRampToValueAtTime(0.16, noteStart + 0.035)
-      envelope.gain.exponentialRampToValueAtTime(0.0001, noteStart + 0.72)
-      oscillator.connect(envelope)
-      envelope.connect(master)
-      oscillator.start(noteStart)
-      oscillator.stop(noteStart + 0.74)
-      if (noteIndex % 4 === 0) {
-        const bass = audioContext.createOscillator()
-        const bassEnvelope = audioContext.createGain()
-        bass.type = 'sine'
-        bass.frequency.setValueAtTime(chords[chordIndex][0] / 2, noteStart)
-        bassEnvelope.gain.setValueAtTime(0.0001, noteStart)
-        bassEnvelope.gain.exponentialRampToValueAtTime(0.12, noteStart + 0.12)
-        bassEnvelope.gain.exponentialRampToValueAtTime(0.0001, noteStart + 1.5)
-        bass.connect(bassEnvelope)
-        bassEnvelope.connect(master)
-        bass.start(noteStart)
-        bass.stop(noteStart + 1.52)
-      }
-      noteIndex += 1
-    }
-    const interval = window.setInterval(playNote, 380)
-    playNote()
-
-    try {
-      const voices = window.speechSynthesis?.getVoices() ?? []
-      const hype = new SpeechSynthesisUtterance("Let's go!")
-      hype.rate = 1.05
-      hype.volume = Math.min(0.8, volume)
-      const englishVoice = voices.find((voice) => /^en([_-]|$)/i.test(voice.lang))
-      if (englishVoice) hype.voice = englishVoice
-      window.speechSynthesis?.speak(hype)
-    } catch {
-      // The synthesized music remains available without speech synthesis.
-    }
-
+    if (audioContext.state === 'suspended') void audioContext.resume().catch(() => {})
+    const sound = startCelebrationAudio(audioContext, volume)
+    soundRef.current = sound
     return () => {
-      window.clearInterval(interval)
-      if ('speechSynthesis' in window) window.speechSynthesis.cancel()
-      const fadeAt = audioContext.currentTime
-      master.gain.cancelScheduledValues(fadeAt)
-      master.gain.setValueAtTime(Math.max(0.0001, master.gain.value), fadeAt)
-      master.gain.linearRampToValueAtTime(0.0001, fadeAt + 0.35)
-      window.setTimeout(() => master.disconnect(), 400)
-      if (musicGainRef.current === master) musicGainRef.current = null
+      sound.dispose()
+      if (soundRef.current === sound) soundRef.current = null
     }
   }, [audioContext, muted, volume])
 
@@ -276,8 +146,6 @@ export default function FireworksCelebration({
     const rockets: Rocket[] = []
     const sparks: Spark[] = []
     const flashes: Flash[] = []
-    const soundEnabled = !muted && volume > 0 && audioContext !== null
-    if (soundEnabled && audioContext.state === 'suspended') void audioContext.resume().catch(() => {})
 
     const resize = () => {
       width = window.innerWidth
@@ -319,12 +187,12 @@ export default function FireworksCelebration({
         style,
         age: 0,
       })
-      if (soundEnabled && audioContext) playLaunchSound(audioContext, volume)
+      soundRef.current?.launch(stereoPosition(targetX, width))
     }
 
     const explode = (rocket: Rocket) => {
       flashes.push({ x: rocket.x, y: rocket.y, life: 1, color: rocket.color })
-      if (soundEnabled && audioContext) playExplosionSound(audioContext, volume, rocket.style)
+      soundRef.current?.explode(rocket.style, stereoPosition(rocket.x, width))
       const particleCount = width < 520 ? 38 : 54
       const offset = Math.random() * Math.PI * 2
       for (let index = 0; index < particleCount; index += 1) {
@@ -529,13 +397,13 @@ export default function FireworksCelebration({
   >
     <canvas className="competition-fireworks-canvas" ref={canvasRef} aria-hidden="true" />
     <div className="competition-celebration-message">
-      <span className="competition-celebration-eyebrow">THE FINAL SPARK</span>
-      <h2 id="competition-celebration-title">A brilliant finish</h2>
-      <p className="competition-celebration-score">{competitionName} · {score} of {maxScore} points</p>
+      <p className="eyebrow">Competition complete</p>
+      <h2 id="competition-celebration-title">{competitionName}</h2>
+      <p className="competition-score-large">{score} <span>/ {maxScore}</span></p>
       <p className="competition-celebration-prompt">Save your score, or keep the challenge going.</p>
       <div className="competition-celebration-actions">
-        <button className="competition-celebration-save" type="button" onClick={(event) => { event.stopPropagation(); dismiss(onSaveScore) }}>Save my score</button>
-        <button className="competition-celebration-sudden" type="button" disabled={!hasSuddenDeath} onClick={(event) => { event.stopPropagation(); dismiss(onSuddenDeath) }}>Go to Sudden Death</button>
+        <button className="primary-action" type="button" onClick={(event) => { event.stopPropagation(); dismiss(onSaveScore) }}>Save my score</button>
+        <button className="secondary-action" type="button" disabled={!hasSuddenDeath} onClick={(event) => { event.stopPropagation(); dismiss(onSuddenDeath) }}>Go to Sudden Death</button>
       </div>
       {!hasSuddenDeath && <span className="competition-celebration-note">No Sudden Death questions in this competition</span>}
       <span className="competition-celebration-dismiss">Click anywhere or press any key to continue</span>
