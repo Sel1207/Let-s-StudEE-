@@ -449,13 +449,13 @@ export default function StudyScreen({
     window.scrollTo({ top: 0 })
   }
 
-  function markWrittenOutcome(key: string, rating: Rating) {
+  function markWrittenCorrect(key: string) {
     const outcomeKey = `${localDateKey()}:${key}`
-    if (writtenOutcomesRef.current[outcomeKey]) return
-    const outcomes = { ...writtenOutcomesRef.current, [outcomeKey]: rating }
+    if (writtenOutcomesRef.current[outcomeKey] === 'gotIt') return
+    const outcomes: Record<string, Rating> = { ...writtenOutcomesRef.current, [outcomeKey]: 'gotIt' }
     writtenOutcomesRef.current = outcomes
     setWrittenOutcomes(outcomes)
-    if (rating === 'gotIt') onDailyCorrectAnswer()
+    onDailyCorrectAnswer()
   }
 
   function closeWeightsDialog() {
@@ -825,7 +825,7 @@ export default function StudyScreen({
               </select>
             </label>
             <p>{writtenQuestions.length} of {allWrittenQuestions.length} question{allWrittenQuestions.length === 1 ? '' : 's'}</p>
-            <p className="written-goal-hint">Mark answers; correct ones count toward your daily Mock Competition goal.</p>
+            <p className="written-goal-hint">Show an answer, then check it if you got it right. Checked answers count toward your daily Mock Competition goal.</p>
             <div className="action-row">
               <button className="secondary-action" type="button" onClick={() => setWeightsDialogOpen(true)}>Topic weights</button>
               <button className="secondary-action" type="button" disabled={!allWrittenQuestions.length} onClick={reloadWrittenQuestions}>Reload questions</button>
@@ -907,6 +907,20 @@ export default function StudyScreen({
                   </div>
                   <div className="written-question-text"><MathText text={item.text} /></div>
                   <div className="written-question-actions" role="group" aria-label={`Question ${index + 1} actions`}>
+                    {(visibleAnswers.has(key) || writtenOutcomes[`${localDateKey()}:${key}`] === 'gotIt') && <button
+                      className={`secondary-action written-rating-button${writtenOutcomes[`${localDateKey()}:${key}`] === 'gotIt' ? ' is-correct' : ''}`}
+                      type="button"
+                      aria-label={`Mark question ${index + 1} correct`}
+                      title="I got it right"
+                      aria-pressed={writtenOutcomes[`${localDateKey()}:${key}`] === 'gotIt'}
+                      disabled={writtenOutcomes[`${localDateKey()}:${key}`] === 'gotIt'}
+                      onClick={(event) => {
+                        // This button appears under the pointer, so a double-click on Show answer must not mark it.
+                        if (event.detail <= 1) markWrittenCorrect(key)
+                      }}
+                    >
+                      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5" /></svg>
+                    </button>}
                     <button
                       className="secondary-action"
                       type="button"
@@ -922,28 +936,6 @@ export default function StudyScreen({
                       onClick={() => toggleWrittenVisibility(key, 'solution')}
                     >
                       {visibleSolutions.has(key) ? 'Hide solution' : 'Show solution'}
-                    </button>
-                    <button
-                      className={`secondary-action written-rating-button${writtenOutcomes[`${localDateKey()}:${key}`] === 'gotIt' ? ' is-correct' : ''}`}
-                      type="button"
-                      aria-label={`Mark question ${index + 1} correct`}
-                      title="Mark correct"
-                      aria-pressed={writtenOutcomes[`${localDateKey()}:${key}`] === 'gotIt'}
-                      disabled={writtenOutcomes[`${localDateKey()}:${key}`] !== undefined}
-                      onClick={() => markWrittenOutcome(key, 'gotIt')}
-                    >
-                      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5" /></svg>
-                    </button>
-                    <button
-                      className={`secondary-action written-rating-button${writtenOutcomes[`${localDateKey()}:${key}`] === 'missedIt' ? ' is-wrong' : ''}`}
-                      type="button"
-                      aria-label={`Mark question ${index + 1} incorrect`}
-                      title="Mark incorrect"
-                      aria-pressed={writtenOutcomes[`${localDateKey()}:${key}`] === 'missedIt'}
-                      disabled={writtenOutcomes[`${localDateKey()}:${key}`] !== undefined}
-                      onClick={() => markWrittenOutcome(key, 'missedIt')}
-                    >
-                      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg>
                     </button>
                   </div>
                   {(visibleAnswers.has(key) || visibleSolutions.has(key)) && (
