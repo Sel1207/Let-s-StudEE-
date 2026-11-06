@@ -1,6 +1,9 @@
 import { Fragment, useEffect, useEffectEvent, useMemo, useRef, useState, type CSSProperties } from 'react'
 import './competition.css'
 import MathText from './MathText'
+import NoteText from './NoteText'
+import { useCollapseOnOutsidePress } from './useCollapseOnOutsidePress'
+import { isStuckToTop } from './useAutoHideHeader'
 import { contestPreparationContext, noteDetailsPrompt, stripOuterCodeFence } from './aiPromptContext'
 import { speechRate } from './speechRate'
 import { mathToSpeech } from './mathSpeech'
@@ -736,6 +739,7 @@ export default function MockCompetitionScreen({ voices, studyData, onDeleteStudy
   const [noteTarget, setNoteTarget] = useState<CompetitionQuestion | null>(null)
   const [noteMode, setNoteMode] = useState<'preview' | 'edit'>('edit')
   const [noteDraft, setNoteDraft] = useState('')
+  const notePromptRef = useCollapseOnOutsidePress()
   const [noteNotice, setNoteNotice] = useState('')
   const noteDialogRef = useRef<HTMLDialogElement>(null)
   const [deleteStudyQuestionTarget, setDeleteStudyQuestionTarget] = useState<CompetitionQuestion | null>(null)
@@ -774,7 +778,7 @@ export default function MockCompetitionScreen({ voices, studyData, onDeleteStudy
 
   useEffect(() => {
     const updateStickyState = () => {
-      setDailyFocusIsStuck((dailyFocusRef.current?.getBoundingClientRect().top ?? 1) <= 0)
+      setDailyFocusIsStuck(isStuckToTop(dailyFocusRef.current))
     }
     window.addEventListener('scroll', updateStickyState, { passive: true })
     updateStickyState()
@@ -2423,7 +2427,7 @@ export default function MockCompetitionScreen({ voices, studyData, onDeleteStudy
             }}
           >
             <strong>Click note to edit</strong>
-            <MathText text={noteTarget.note} />
+            <NoteText text={noteTarget.note} />
           </button>
         ) : (
           <>
@@ -2435,7 +2439,7 @@ export default function MockCompetitionScreen({ voices, studyData, onDeleteStudy
               placeholder="Add a shortcut, formula, or reminder. LaTeX such as $E=mc^2$ is supported."
               rows={4}
             />
-            <details className="question-note-ai-prompt">
+            <details ref={notePromptRef} className="question-note-ai-prompt">
               <summary>AI prompt for this note</summary>
               {noteTarget && competition && (
                 <>

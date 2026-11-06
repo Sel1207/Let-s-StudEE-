@@ -1,6 +1,6 @@
 .competition-view { max-width: 1260px; }
 .competition-view > .view-heading { margin-bottom: 24px; }
-.competition-daily-focus { position: sticky; top: 0; z-index: 20; margin: 0 0 18px; padding: 10px 13px; border: 1px solid var(--line); background: var(--surface); }
+.competition-daily-focus { position: sticky; top: var(--sticky-top, 0px); transition: top 260ms cubic-bezier(.2, .8, .2, 1); z-index: 20; margin: 0 0 18px; padding: 10px 13px; border: 1px solid var(--line); background: var(--surface); }
 .competition-daily-focus.is-stuck { outline: 1px solid rgb(105 113 108 / 24%); outline-offset: 0; box-shadow: 0 4px 12px rgb(0 0 0 / 6%); }
 .competition-daily-focus-top { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 16px; }
 .competition-streak, .competition-daily-goal { margin: 0; font-size: 11px; }

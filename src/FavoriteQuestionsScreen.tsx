@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import MathText from './MathText'
+import NoteText from './NoteText'
+import { useCollapseOnOutsidePress } from './useCollapseOnOutsidePress'
 import { noteDetailsPrompt, stripOuterCodeFence } from './aiPromptContext'
 import { defaultCompetitionSettings, defaultCompetitionSubjects, loadCompetitionStorage, saveCompetitionStorage, type CompetitionQuestion, type CompetitionStorage } from './competitionData'
 import { LEGACY_TOPIC_ALIASES, TOPICS, TOPIC_GROUPS, type StudyData, type Topic } from './studyTypes'
@@ -59,6 +61,7 @@ export default function FavoriteQuestionsScreen({ data, onChangeData }: { data: 
   const [favoriteSubtopicFilter, setFavoriteSubtopicFilter] = useState('all')
   const [activeSection, setActiveSection] = useState<'favorites' | 'notes'>(loadActiveSection)
   const noteDialogRef = useRef<HTMLDialogElement>(null)
+  const notePromptRef = useCollapseOnOutsidePress()
   const notedQuestions = TOPICS.flatMap((topic) => data.questionBanks[topic]
     .filter((question) => question.note)
     .map((question) => ({ topic, question })))
@@ -366,7 +369,7 @@ export default function FavoriteQuestionsScreen({ data, onChangeData }: { data: 
             <MathText text={question.text} className="competition-favorite-question" />
             <button className="noted-question-note" type="button" onClick={() => openStudyNote(topic, question)} aria-label={`Edit note for ${topic} question`}>
               <strong>Note</strong>
-              <MathText text={question.note ?? ''} />
+              <NoteText text={question.note ?? ''} />
               <span className="noted-question-edit-hint">Tap note to edit</span>
             </button>
             <details className="competition-favorite-answer">
@@ -396,7 +399,7 @@ export default function FavoriteQuestionsScreen({ data, onChangeData }: { data: 
             <MathText text={question.question} className="competition-favorite-question" />
             <button className="noted-question-note" type="button" onClick={() => openCompetitionNote(version.id, version.name, question)} aria-label={`Edit note for ${question.category} question ${question.number}`}>
               <strong>Note</strong>
-              <MathText text={question.note ?? ''} />
+              <NoteText text={question.note ?? ''} />
               <span className="noted-question-edit-hint">Tap note to edit</span>
             </button>
             <details className="competition-favorite-answer">
@@ -435,7 +438,7 @@ export default function FavoriteQuestionsScreen({ data, onChangeData }: { data: 
           onClick={() => setNoteMode('edit')}
         >
           <strong>Click note to edit</strong>
-          <MathText text={savedNoteText} />
+          <NoteText text={savedNoteText} />
         </button>
       ) : (
         <>
@@ -447,7 +450,7 @@ export default function FavoriteQuestionsScreen({ data, onChangeData }: { data: 
             placeholder="Add a shortcut, formula, or reminder. LaTeX such as $E=mc^2$ is supported."
             rows={4}
           />
-          <details className="question-note-ai-prompt">
+          <details ref={notePromptRef} className="question-note-ai-prompt">
             <summary>AI prompt for this note</summary>
             <textarea aria-label="AI prompt for this note" readOnly rows={8} value={activeNotePrompt} />
             <button className="secondary-action" type="button" onClick={() => { void copyNotePrompt() }}>Copy AI prompt</button>
@@ -519,7 +522,7 @@ export default function FavoriteQuestionsScreen({ data, onChangeData }: { data: 
             else if (competitionNote) openCompetitionNote(competitionNote.version.id, competitionNote.version.name, competitionNote.question)
           }}>
             <strong>Note</strong>
-            <MathText text={note} />
+            <NoteText text={note} />
             <span className="noted-question-edit-hint">Tap note to edit</span>
           </button>}
           <details className="competition-favorite-answer">

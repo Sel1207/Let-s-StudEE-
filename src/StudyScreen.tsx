@@ -5,6 +5,9 @@ import { loadCompetitionStorage, saveCompetitionStorage, type CompetitionFavorit
 import { currentDailyStreak, DAILY_CORRECT_GOAL, localDateKey, type CompetitionDailyProgress } from './competitionProgress'
 import { mathToSpeech } from './mathSpeech'
 import MathText from './MathText'
+import NoteText from './NoteText'
+import { useCollapseOnOutsidePress } from './useCollapseOnOutsidePress'
+import { isStuckToTop } from './useAutoHideHeader'
 import LectureScreen from './LectureScreen'
 import { loadLectureNotes } from './lectureNotesStorage'
 import { noteDetailsPrompt, stripOuterCodeFence } from './aiPromptContext'
@@ -259,6 +262,7 @@ export default function StudyScreen({
   const [noteDraft, setNoteDraft] = useState('')
   const [noteNotice, setNoteNotice] = useState('')
   const noteDialogRef = useRef<HTMLDialogElement>(null)
+  const notePromptRef = useCollapseOnOutsidePress()
   const [visibleAnswers, setVisibleAnswers] = useState<Set<string>>(() => new Set(savedWrittenTest.visibleAnswers))
   const [visibleSolutions, setVisibleSolutions] = useState<Set<string>>(() => new Set(savedWrittenTest.visibleSolutions))
   const [writtenOutcomes, setWrittenOutcomes] = useState<Record<string, Rating>>(savedWrittenTest.outcomes)
@@ -305,7 +309,7 @@ export default function StudyScreen({
 
   useEffect(() => {
     const updateStickyState = () => {
-      setDailyFocusIsStuck((dailyFocusRef.current?.getBoundingClientRect().top ?? 1) <= 0)
+      setDailyFocusIsStuck(isStuckToTop(dailyFocusRef.current))
     }
     window.addEventListener('scroll', updateStickyState, { passive: true })
     updateStickyState()
@@ -1180,7 +1184,7 @@ export default function StudyScreen({
             }}
           >
             <strong>Click note to edit</strong>
-            <MathText text={noteTarget.question.note} />
+            <NoteText text={noteTarget.question.note} />
           </button>
         ) : (
           <>
@@ -1192,7 +1196,7 @@ export default function StudyScreen({
               placeholder="Add a shortcut, formula, or reminder. LaTeX such as $E=mc^2$ is supported."
               rows={4}
             />
-            <details className="question-note-ai-prompt">
+            <details ref={notePromptRef} className="question-note-ai-prompt">
               <summary>AI prompt for this note</summary>
               {noteTarget && (
                 <>

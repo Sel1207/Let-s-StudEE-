@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useEffectEvent, useRef, useState } from 'react'
 import './layout.css'
 import { playTimerTick, shouldTick } from './timerTicks'
+import { useAutoHideHeader } from './useAutoHideHeader'
 import ManageScreen from './ManageScreen'
 import { saveManageTopic } from './studyStorage'
 import SettingsScreen from './SettingsScreen'
@@ -331,6 +332,7 @@ function StudyApp() {
   const [today, setToday] = useState(localDateKey)
   const [dailyProgress, setDailyProgress] = useState<CompetitionDailyProgress>(loadCompetitionDailyProgress)
   const [showBackToTop, setShowBackToTop] = useState(false)
+  const headerRef = useAutoHideHeader()
   const [targetCompetition, setTargetCompetition] = useState<TargetCompetition>(loadTargetCompetition)
   const [restoredSession] = useState(() => loadStudySession(data))
   const [view, setView] = useState<View>(loadActiveView)
@@ -911,7 +913,7 @@ function StudyApp() {
 
   return (
     <div className="app-shell">
-      <header className="app-header">
+      <header ref={headerRef} className="app-header">
         <div className="header-brand-row">
           <a className="wordmark" href="/" onClick={(event) => { event.preventDefault(); navigate('study') }}>
             <img className="wordmark-icon" src="/studee-icon.svg" alt="" />

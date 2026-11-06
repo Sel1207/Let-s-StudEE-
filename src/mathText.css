@@ -1,1 +1,7 @@
 .math-display { display: block; overflow-x: auto; padding: 4px 0; }
+
+.note-text, .note-line { display: block; min-width: 0; }
+.note-line-item { position: relative; padding-left: 20px; }
+.note-line-marker { position: absolute; left: 4px; color: var(--accent); font-weight: 600; }
+.note-line + .note-line { margin-top: 4px; }
+.note-line.note-line-after-gap { margin-top: 14px; }
