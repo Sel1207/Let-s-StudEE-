@@ -6,7 +6,7 @@ import { currentDailyStreak, DAILY_CORRECT_GOAL, localDateKey, type CompetitionD
 import { mathToSpeech } from './mathSpeech'
 import MathText from './MathText'
 import NoteText from './NoteText'
-import { playCorrectChime } from './correctChime'
+import { playCorrectChime, preloadCorrectChime } from './correctChime'
 import { useCollapseOnOutsidePress } from './useCollapseOnOutsidePress'
 import { isStuckToTop } from './useAutoHideHeader'
 import LectureScreen from './LectureScreen'
@@ -266,6 +266,8 @@ export default function StudyScreen({
   const [noteNotice, setNoteNotice] = useState('')
   const noteDialogRef = useRef<HTMLDialogElement>(null)
   const notePromptRef = useCollapseOnOutsidePress()
+
+  useEffect(preloadCorrectChime, [])
   const [visibleAnswers, setVisibleAnswers] = useState<Set<string>>(() => new Set(savedWrittenTest.visibleAnswers))
   const [visibleSolutions, setVisibleSolutions] = useState<Set<string>>(() => new Set(savedWrittenTest.visibleSolutions))
   const [writtenOutcomes, setWrittenOutcomes] = useState<Record<string, Rating>>(savedWrittenTest.outcomes)
@@ -452,7 +454,7 @@ export default function StudyScreen({
     window.scrollTo({ top: 0 })
   }
 
-  function toggleWrittenCorrect(key: string) {
+  function toggleWrittenCorrect(key: string, withChime: boolean) {
     const outcomeKey = `${localDateKey()}:${key}`
     const outcomes: Record<string, Rating> = { ...writtenOutcomesRef.current }
     const wasCorrect = outcomes[outcomeKey] === 'gotIt'
@@ -464,7 +466,7 @@ export default function StudyScreen({
       onDailyCorrectAnswerUndone()
       return
     }
-    playCorrectChime()
+    if (withChime) playCorrectChime()
     onDailyCorrectAnswer()
   }
 
@@ -923,7 +925,10 @@ export default function StudyScreen({
                       aria-label={`Mark question ${index + 1} correct`}
                       title={writtenOutcomes[`${localDateKey()}:${key}`] === 'gotIt' ? 'Click to uncheck' : 'I got it right'}
                       aria-pressed={writtenOutcomes[`${localDateKey()}:${key}`] === 'gotIt'}
-                      onClick={() => toggleWrittenCorrect(key)}
+                      onPointerDown={() => {
+                        if (writtenOutcomes[`${localDateKey()}:${key}`] !== 'gotIt') playCorrectChime()
+                      }}
+                      onClick={(event) => toggleWrittenCorrect(key, event.detail === 0)}
                     >
                       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5" /></svg>
                     </button>}
