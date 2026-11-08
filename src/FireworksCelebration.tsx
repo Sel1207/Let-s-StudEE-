@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { startCelebrationAudio, type CelebrationAudio, type ExplosionStyle } from './celebrationAudio'
+import { screenScale, toPagePx } from './appScale'
 
 type FireworkStyle = ExplosionStyle
 type Color = { hue: number; saturation: number; lightness: number }
@@ -135,8 +136,8 @@ export default function FireworksCelebration({
     const context = canvas?.getContext('2d')
     if (!canvas || !context) return
 
-    let width = window.innerWidth
-    let height = window.innerHeight
+    let width = toPagePx(window.innerWidth)
+    let height = toPagePx(window.innerHeight)
     let pixelRatio = 1
     let frame = 0
     let startedAt = 0
@@ -148,9 +149,9 @@ export default function FireworksCelebration({
     const flashes: Flash[] = []
 
     const resize = () => {
-      width = window.innerWidth
-      height = window.innerHeight
-      pixelRatio = Math.min(window.devicePixelRatio || 1, 1.5)
+      width = toPagePx(window.innerWidth)
+      height = toPagePx(window.innerHeight)
+      pixelRatio = Math.min((window.devicePixelRatio || 1) * screenScale(), 1.5 * screenScale())
       canvas.width = Math.round(width * pixelRatio)
       canvas.height = Math.round(height * pixelRatio)
       canvas.style.width = `${width}px`

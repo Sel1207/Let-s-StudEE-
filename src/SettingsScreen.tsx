@@ -4,6 +4,7 @@ import { createFullAppBackup, parseFullAppBackup, restoreFullAppBackup } from '.
 import { ALLOWED_DURATIONS, PREFERRED_VOICE_NAME, type StudyData, type StudySettings } from './studyTypes'
 import type { ThemePreference } from './themePreference'
 import { buildLabel, CURRENT_BUILD, fetchLatestBuild, installLatestVersion } from './appUpdate'
+import { applyDisplayScale, DISPLAY_SCALES, loadDisplayScale, saveDisplayScale, type DisplayScale } from './appScale'
 
 interface SettingsScreenProps {
   data: StudyData
@@ -20,6 +21,7 @@ export default function SettingsScreen({ data, voices, theme, onChangeTheme, onC
   const voiceOptions = englishVoices.length ? englishVoices : voices
   const defaultVoice = voiceOptions.find((voice) => voice.name.includes(PREFERRED_VOICE_NAME)) ?? voiceOptions[0]
 
+  const [displayScale, setDisplayScale] = useState<DisplayScale>(loadDisplayScale)
   const [updateStatus, setUpdateStatus] = useState('')
   const [updating, setUpdating] = useState(false)
 
@@ -149,6 +151,25 @@ export default function SettingsScreen({ data, voices, theme, onChangeTheme, onC
             <span className="theme-switch-thumb" aria-hidden="true" />
           </button>
         </div>
+        <fieldset className="setting-row speed-setting display-scale-setting" data-search-id="setting-display-size">
+          <legend><strong>Display size</strong><small>How big everything looks on a computer or tablet. Phones always use their normal size.</small></legend>
+          <div className="segmented-control">
+            {(Object.keys(DISPLAY_SCALES) as DisplayScale[]).map((scale) => (
+              <button
+                key={scale}
+                type="button"
+                aria-pressed={displayScale === scale}
+                onClick={() => {
+                  setDisplayScale(scale)
+                  saveDisplayScale(scale)
+                  applyDisplayScale(scale)
+                }}
+              >
+                {DISPLAY_SCALES[scale].label} · {Math.round(DISPLAY_SCALES[scale].zoom * 100)}%
+              </button>
+            ))}
+          </div>
+        </fieldset>
       </div>
 
       <section className="app-backup-section" aria-labelledby="full-backup-heading" data-search-id="setting-backup">

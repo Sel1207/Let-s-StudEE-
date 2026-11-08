@@ -100,6 +100,7 @@ const PAGE_ENTRIES: SearchEntry[] = [
   { id: 'setting:announce', kind: 'setting', group: 'Go to', title: 'Announce time limit', subtitle: 'Settings', body: '', keywords: 'duration speak seconds', target: { view: 'settings', focusId: 'setting-announce' } },
   { id: 'setting:theme', kind: 'setting', group: 'Go to', title: 'Dark mode', subtitle: 'Settings', body: '', keywords: 'theme appearance light night', target: { view: 'settings', focusId: 'setting-theme' } },
   { id: 'setting:backup', kind: 'setting', group: 'Go to', title: 'Full app backup', subtitle: 'Settings', body: '', keywords: 'export import restore save progress download', target: { view: 'settings', focusId: 'setting-backup' } },
+  { id: 'setting:display-size', kind: 'setting', group: 'Go to', title: 'Display size', subtitle: 'Settings', body: '', keywords: 'zoom scale bigger smaller text size font', target: { view: 'settings', focusId: 'setting-display-size' } },
   { id: 'setting:update', kind: 'setting', group: 'Go to', title: 'Website update', subtitle: 'Settings', body: '', keywords: 'refresh new version reload app', target: { view: 'settings', focusId: 'setting-update' } },
 ]
 

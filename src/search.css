@@ -34,7 +34,7 @@
   width: min(660px, calc(100% - 24px));
   max-width: none;
   max-height: none;
-  margin: min(12vh, 120px) auto auto;
+  margin: min(calc(12vh / var(--view-scale, 1)), 120px) auto auto;
   padding: 0;
   border: 0;
   background: transparent;
@@ -50,7 +50,7 @@
 .search-panel {
   display: flex;
   flex-direction: column;
-  max-height: min(72vh, 620px);
+  max-height: min(calc(72vh / var(--view-scale, 1)), 620px);
   overflow: hidden;
   border: 1px solid color-mix(in srgb, var(--line) 85%, transparent);
   border-radius: 16px;
@@ -174,7 +174,7 @@
   .main-nav .theme-toggle { margin-left: 0; justify-self: center; }
   .search-trigger-label, .search-trigger-kbd { display: none; }
   .search-dialog { width: calc(100% - 16px); margin-top: 10px; }
-  .search-panel { max-height: calc(100svh - 24px); border-radius: 14px; }
+  .search-panel { max-height: calc(calc(100svh / var(--view-scale, 1)) - 24px); border-radius: 14px; }
   .search-field input { height: 54px; font-size: 16px; }
   .search-esc, .search-footer { display: none; }
   .search-option { min-height: 56px; }

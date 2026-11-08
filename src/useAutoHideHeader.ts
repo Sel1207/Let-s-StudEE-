@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { screenScale } from './appScale'
 
 const SCROLL_INTENT_PIXELS = 6
 const HIDE_AFTER_MS = 2500
@@ -76,5 +77,5 @@ export function useAutoHideHeader() {
 
 export function isStuckToTop(element: HTMLElement | null): boolean {
   if (!element) return false
-  return element.getBoundingClientRect().top <= parseFloat(getComputedStyle(element).top) + 1
+  return element.getBoundingClientRect().top <= (parseFloat(getComputedStyle(element).top) + 1) * screenScale()
 }

@@ -22,6 +22,7 @@ import {
   type ToolPreferences,
 } from './lectureInk'
 import type { Topic } from './studyTypes'
+import { screenScale, toPagePx } from './appScale'
 
 interface Layout {
   left: number
@@ -167,9 +168,10 @@ export default function LectureAnnotations({
     if (!paper || !layer) return
     const origin = layer.getBoundingClientRect()
     const box = paper.getBoundingClientRect()
-    const blockTops = Array.from(paper.children).map((child) => child.getBoundingClientRect().top - origin.top)
+    // Measurements are in screen pixels; the layer draws in page pixels (they differ when the site is zoomed).
+    const blockTops = Array.from(paper.children).map((child) => toPagePx(child.getBoundingClientRect().top - origin.top))
     setLayout((current) => {
-      const next = { left: box.left - origin.left, width: Math.max(1, box.width), paperTop: box.top - origin.top, blockTops }
+      const next = { left: toPagePx(box.left - origin.left), width: Math.max(1, toPagePx(box.width)), paperTop: toPagePx(box.top - origin.top), blockTops }
       const same = current.left === next.left && current.width === next.width && current.paperTop === next.paperTop
         && current.blockTops.length === next.blockTops.length && current.blockTops.every((top, index) => top === next.blockTops[index])
       return same ? current : next
@@ -320,7 +322,7 @@ export default function LectureAnnotations({
 
   function layerPoint(event: { clientX: number; clientY: number }): [number, number] {
     const origin = layerRef.current?.getBoundingClientRect()
-    return origin ? [event.clientX - origin.left, event.clientY - origin.top] : [event.clientX, event.clientY]
+    return origin ? [toPagePx(event.clientX - origin.left), toPagePx(event.clientY - origin.top)] : [event.clientX, event.clientY]
   }
 
   function eraseAt(x: number, y: number, clientX: number, clientY: number, hits: Set<string>) {
@@ -340,7 +342,7 @@ export default function LectureAnnotations({
     for (let step = 1; step <= steps; step += 1) {
       const x = from[0] + ((to[0] - from[0]) * step) / steps
       const y = from[1] + ((to[1] - from[1]) * step) / steps
-      eraseAt(x, y, x + (origin?.left ?? 0), y + (origin?.top ?? 0), hits)
+      eraseAt(x, y, x * screenScale() + (origin?.left ?? 0), y * screenScale() + (origin?.top ?? 0), hits)
     }
     if (steps === 1) eraseAt(to[0], to[1], event.clientX, event.clientY, hits)
     if (hits.size !== erasing.size) setErasing(hits)
@@ -484,8 +486,8 @@ export default function LectureAnnotations({
   function moveMove(event: ReactPointerEvent<HTMLButtonElement>) {
     const gesture = gestureRef.current
     if (gesture?.mode !== 'move' || gesture.pointerId !== event.pointerId || !editing) return
-    const x = gesture.from[0] + event.clientX - gesture.startX
-    const y = gesture.from[1] + event.clientY - gesture.startY
+    const x = gesture.from[0] + toPagePx(event.clientX - gesture.startX)
+    const y = gesture.from[1] + toPagePx(event.clientY - gesture.startY)
     const block = anchorBlock(layout.blockTops, y)
     const [noteX, noteY] = fromScreen(layout, block, x, y)
     setEditing({ ...editing, note: { ...editing.note, block, x: noteX, y: noteY } })

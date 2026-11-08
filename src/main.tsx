@@ -2,8 +2,10 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './theme.css'
 import { loadThemePreference } from './themePreference'
+import { applyDisplayScale, loadDisplayScale } from './appScale'
 import LetsStudeeApp from './LetsStudeeApp.tsx'
 
+applyDisplayScale(loadDisplayScale())
 const initialTheme = loadThemePreference()
 document.documentElement.dataset.theme = initialTheme
 document.querySelector('meta[name="theme-color"]')?.setAttribute('content', initialTheme === 'dark' ? '#111214' : '#f7f8f5')

@@ -1,5 +1,6 @@
 import { flushSync } from 'react-dom'
 import type { ThemePreference } from './themePreference'
+import { toPagePx } from './appScale'
 
 type ViewTransitionDocument = Document & { startViewTransition?: (update: () => void) => unknown }
 
@@ -16,8 +17,8 @@ export default function ThemeToggle({ theme, onChange }: { theme: ThemePreferenc
     }
     const rect = event.currentTarget.getBoundingClientRect()
     const root = document.documentElement
-    root.style.setProperty('--theme-x', `${rect.left + rect.width / 2}px`)
-    root.style.setProperty('--theme-y', `${rect.top + rect.height / 2}px`)
+    root.style.setProperty('--theme-x', `${toPagePx(rect.left + rect.width / 2)}px`)
+    root.style.setProperty('--theme-y', `${toPagePx(rect.top + rect.height / 2)}px`)
     doc.startViewTransition(() => {
       root.dataset.theme = next
       flushSync(() => onChange(next))

@@ -24,7 +24,7 @@
 
 body {
   min-width: 320px;
-  min-height: 100vh;
+  min-height: calc(100vh / var(--view-scale, 1));
   margin: 0;
   background-color: var(--paper);
   background-image: repeating-linear-gradient(0deg, transparent, transparent 39px, rgb(23 59 53 / 3%) 40px), repeating-linear-gradient(90deg, transparent, transparent 39px, rgb(23 59 53 / 3%) 40px);

@@ -1,6 +1,6 @@
 .competition-viewer {
   width: min(760px, calc(100% - 28px));
-  max-height: min(86vh, 860px);
+  max-height: min(calc(86vh / var(--view-scale, 1)), 860px);
   display: flex;
   flex-direction: column;
   padding: 0;
@@ -36,7 +36,7 @@
 .viewer-answer .competition-history-question-answer { margin-top: 8px; }
 
 @media (max-width: 520px) {
-  .competition-viewer { width: calc(100% - 16px); max-height: 90svh; }
+  .competition-viewer { width: calc(100% - 16px); max-height: calc(90svh / var(--view-scale, 1)); }
   .competition-viewer-header { padding: 16px 15px 10px; }
   .competition-viewer-tabs { padding: 0 9px; }
   .competition-viewer-list { padding: 2px 15px 14px; }

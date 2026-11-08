@@ -15,6 +15,7 @@ import LectureScreen from './LectureScreen'
 import { loadLectureNotes } from './lectureNotesStorage'
 import { loadStickyNotes } from './stickyNotesStorage'
 import { noteDetailsPrompt, stripOuterCodeFence } from './aiPromptContext'
+import { toPagePx } from './appScale'
 
 type SessionPhase = 'ready' | 'speaking' | 'countdown' | 'paused' | 'time-up' | 'revealed' | 'rated'
 type Rating = 'gotIt' | 'missedIt'
@@ -613,7 +614,7 @@ export default function StudyScreen({
     if (layout && topicPanel) layout.style.setProperty('--topic-panel-width', `${topicPanel.offsetWidth}px`)
     if (layout && !focusMode) {
       // Size the focused panel to exactly fill the screen below the header and daily bar.
-      const top = layout.getBoundingClientRect().top + window.scrollY
+      const top = toPagePx(layout.getBoundingClientRect().top + window.scrollY)
       layout.style.setProperty('--focus-top', `${Math.round(top)}px`)
       if (window.scrollY > 0) window.scrollTo({ top: 0, behavior: 'smooth' })
     }

@@ -57,7 +57,7 @@
 
 body {
   min-width: 320px;
-  min-height: 100vh;
+  min-height: calc(100vh / var(--view-scale, 1));
   margin: 0;
   background: var(--paper);
   color: var(--ink);

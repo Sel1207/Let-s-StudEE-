@@ -16,6 +16,7 @@ import {
   type TextSpan,
 } from './lectureHighlights'
 import type { Topic } from './studyTypes'
+import { toPagePx } from './appScale'
 
 type Pen = HighlightColor | 'erase'
 
@@ -142,10 +143,10 @@ export default function LectureHighlighter({
     return spanRects(mapRef.current, span).map((rect) => ({
       id,
       color,
-      x: rect.left - origin.left - 1,
-      y: rect.top - origin.top - 1,
-      width: rect.right - rect.left + 2,
-      height: rect.bottom - rect.top + 2,
+      x: toPagePx(rect.left - origin.left) - 1,
+      y: toPagePx(rect.top - origin.top) - 1,
+      width: toPagePx(rect.right - rect.left) + 2,
+      height: toPagePx(rect.bottom - rect.top) + 2,
     }))
   }, [])
 
@@ -216,13 +217,14 @@ export default function LectureHighlighter({
     const below = window.matchMedia('(pointer: coarse)').matches || first.top < POPUP_ROOM + 40
     const wanted = below ? last.bottom + 8 : first.top - 8
     const onScreen = Math.min(Math.max(wanted, POPUP_ROOM), window.innerHeight - POPUP_ROOM)
-    const middle = (first.left + first.right) / 2 - origin.left
+    const middle = toPagePx((first.left + first.right) / 2 - origin.left)
+    const layerWidth = toPagePx(origin.width)
     setPopup({
       span,
       highlight,
       range,
-      x: Math.min(Math.max(middle, POPUP_HALF_WIDTH), Math.max(POPUP_HALF_WIDTH, origin.width - POPUP_HALF_WIDTH)),
-      y: onScreen - origin.top,
+      x: Math.min(Math.max(middle, POPUP_HALF_WIDTH), Math.max(POPUP_HALF_WIDTH, layerWidth - POPUP_HALF_WIDTH)),
+      y: toPagePx(onScreen - origin.top),
       below,
     })
   }, [])
@@ -231,8 +233,8 @@ export default function LectureHighlighter({
     const origin = layerRef.current?.getBoundingClientRect()
     if (!origin) return undefined
     const band = bandsRef.current.find((item) => {
-      const left = x - origin.left - item.x
-      const top = y - origin.top - item.y
+      const left = toPagePx(x - origin.left) - item.x
+      const top = toPagePx(y - origin.top) - item.y
       return left >= 0 && left <= item.width && top >= 0 && top <= item.height
     })
     return band && placeHighlights(list, mapRef.current.text).placed.find((highlight) => highlight.id === band.id)
