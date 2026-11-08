@@ -931,8 +931,11 @@ function StudyApp() {
       <header ref={headerRef} className="app-header">
         <div className="header-brand-row">
           <a className="wordmark" href="/" onClick={(event) => { event.preventDefault(); openSection('study') }}>
-            <img className="wordmark-icon" src="/studee-icon.svg" alt="" />
-            <span>Let's Stud<strong>EE</strong>!</span>
+            <img className="wordmark-icon" src="/studee-icon.svg?v=2" alt="" />
+            <span className="wordmark-text">
+              Let’s Stud<strong>EE</strong>!
+              <svg className="wordmark-swash" viewBox="0 0 120 12" preserveAspectRatio="none" aria-hidden="true"><path d="M2 9C30 3 70 1 118 5" /></svg>
+            </span>
           </a>
           <label className="math-target-countdown">
             <strong>{targetDaysLeft}</strong>

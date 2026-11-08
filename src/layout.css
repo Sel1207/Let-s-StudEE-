@@ -13,9 +13,16 @@
   .app-header, .study-daily-focus, .competition-daily-focus { transition: none !important; }
 }
 .header-brand-row { display: flex; align-items: center; gap: 14px; }
-.wordmark { display: inline-flex; align-items: center; gap: 9px; color: var(--ink); font-family: Georgia, 'Times New Roman', serif; font-size: 17px; font-style: italic; font-weight: 500; letter-spacing: -.045em; text-decoration: none; white-space: nowrap; }
-.wordmark strong { color: var(--accent); font-weight: 700; }
-.wordmark-icon { width: 30px; height: 30px; }
+.wordmark { display: inline-flex; align-items: center; gap: 10px; color: var(--ink); text-decoration: none; white-space: nowrap; }
+.wordmark-icon { width: 34px; height: 34px; border-radius: 9px; box-shadow: 0 2px 6px rgb(15 46 35 / 22%); transition: transform .25s cubic-bezier(.3, 1.4, .5, 1); }
+.wordmark:hover .wordmark-icon { transform: rotate(-6deg) scale(1.06); }
+.wordmark-text { position: relative; padding: 0 2px 4px; font-family: 'Dancing Script', 'Brush Script MT', cursive; font-size: 27px; font-weight: 700; letter-spacing: 0; line-height: 1; }
+.wordmark-text strong { color: #2a7550; font-size: 1.08em; font-weight: 700; text-shadow: 0 1px 0 rgb(255 255 255 / 60%); }
+:root[data-theme='dark'] .wordmark-text strong { color: #8fd0a4; text-shadow: none; }
+.wordmark-swash { position: absolute; left: 30%; right: 4%; bottom: -1px; width: 66%; height: 7px; overflow: visible; }
+.wordmark-swash path { fill: none; stroke: #f0a63a; stroke-linecap: round; stroke-width: 2.4; vector-effect: non-scaling-stroke; stroke-dasharray: 140; stroke-dashoffset: 0; animation: wordmark-swash .9s .2s cubic-bezier(.4, 0, .2, 1) backwards; }
+@keyframes wordmark-swash { from { stroke-dashoffset: 140; } }
+@media (prefers-reduced-motion: reduce) { .wordmark-swash path { animation: none; } }
 .main-nav { display: flex; align-items: center; gap: 6px; }
 .main-nav button { min-height: 44px; display: inline-flex; align-items: center; gap: 5px; padding: 0 12px; border: 0; background: transparent; color: var(--muted); font-size: 12px; cursor: pointer; white-space: nowrap; }
 .main-nav button[aria-current='page'] { color: var(--accent); font-weight: 700; }
@@ -368,8 +375,9 @@ select, input[type='text'], textarea { min-height: 44px; padding: 8px 10px; bord
   .app-shell { --shell-width: calc(100% - 28px); }
   .app-header { min-height: 74px; align-items: stretch; flex-direction: column; justify-content: center; gap: 3px; padding-block: 6px; }
   .header-brand-row { width: 100%; min-height: 36px; justify-content: space-between; gap: 6px; }
-  .wordmark { gap: 6px; font-size: 16px; }
-  .wordmark-icon { width: 27px; height: 27px; }
+  .wordmark { gap: 7px; }
+  .wordmark-text { font-size: 23px; }
+  .wordmark-icon { width: 29px; height: 29px; border-radius: 8px; }
   .main-nav { width: 100%; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 2px; overflow: visible; }
   .main-nav button { min-width: 0; min-height: 34px; justify-content: center; padding: 0 2px; font-size: 9px; white-space: nowrap; }
   .nav-label-desktop { display: none; }
