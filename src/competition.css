@@ -129,6 +129,8 @@
 .competition-scoreboard-question-button { min-height: 32px; padding: 3px 5px; border: 0; background: transparent; color: var(--accent); font-size: inherit; font-weight: 700; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
 .competition-scoreboard-question-button:hover { background: var(--accent-soft); }
 .competition-scoreboard-points { font-size: 12px; font-weight: 700; }
+.competition-scoreboard-points-button { min-width: 32px; min-height: 32px; padding: 3px 6px; border: 0; background: transparent; color: inherit; font: inherit; font-weight: 700; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.competition-scoreboard-points-button:hover { background: var(--accent-soft); }
 .competition-scoreboard-points.is-correct { color: var(--success); }
 .competition-scoreboard-points.is-wrong { color: var(--danger); }
 .competition-history-question-dialog { width: min(680px, calc(100% - 28px)); max-height: min(82vh, 760px); overflow: auto; padding: 22px 24px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); }
@@ -278,6 +280,7 @@
   .competition-scoreboard-mobile-question.is-correct { color: var(--success); }
   .competition-scoreboard-mobile-question.is-wrong { color: var(--danger); }
   .competition-scoreboard-mobile .competition-scoreboard-question-button { min-height: 20px; padding: 0 1px; font-size: 8px; }
+  .competition-scoreboard-mobile .competition-scoreboard-points-button { min-width: 0; min-height: 20px; padding: 0 1px; font-size: 8px; }
   .competition-scoreboard-mobile-total { padding-left: 4px; color: var(--accent); font-size: 8px; white-space: nowrap; }
   .competition-scoreboard-mobile-row.is-total { border-top: 1px solid var(--accent); background: var(--accent-soft); }
   .competition-question-actions { gap: 3px; }

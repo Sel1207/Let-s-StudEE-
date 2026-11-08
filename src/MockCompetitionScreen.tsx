@@ -604,7 +604,7 @@ function HistoryScoreboard({ entry, versions }: { entry: CompetitionScoreHistory
           <tr>
             <th className="competition-scoreboard-row-label" scope="row">Points earned</th>
             {entry.rounds.map((round) => <Fragment key={round.round}>
-              {round.questions.map((question, index) => <td key={`${round.round}-${question.number}-${index}`} className={`competition-scoreboard-points${question.earnedPoints ? ' is-correct' : ' is-wrong'}`}>{question.earnedPoints}</td>)}
+              {round.questions.map((question, index) => <td key={`${round.round}-${question.number}-${index}`} className={`competition-scoreboard-points${question.earnedPoints ? ' is-correct' : ' is-wrong'}`}><button className="competition-scoreboard-points-button" type="button" onClick={() => showQuestion(question, round.round)}>{question.earnedPoints}</button></td>)}
               <td className="competition-scoreboard-round-total">{round.score} / {round.maxScore}</td>
             </Fragment>)}
             <td className="competition-scoreboard-round-total">{entry.score} / {entry.maxScore}</td>
@@ -617,7 +617,7 @@ function HistoryScoreboard({ entry, versions }: { entry: CompetitionScoreHistory
           <div className="competition-scoreboard-mobile-questions">
             {round.questions.map((question, index) => <span className={`competition-scoreboard-mobile-question${question.earnedPoints ? ' is-correct' : ' is-wrong'}`} key={`${round.round}-${question.number}-${index}`}>
               <button className="competition-scoreboard-question-button" type="button" onClick={() => showQuestion(question, round.round)}>{questionLabel(question)}</button>
-              <span>{question.earnedPoints}</span>
+              <button className="competition-scoreboard-points-button" type="button" onClick={() => showQuestion(question, round.round)}>{question.earnedPoints}</button>
             </span>)}
           </div>
           <strong className="competition-scoreboard-mobile-total">{round.score} / {round.maxScore}</strong>
@@ -635,7 +635,7 @@ function HistoryScoreboard({ entry, versions }: { entry: CompetitionScoreHistory
         <thead><tr><th className="competition-scoreboard-row-label" scope="col">Tracker</th><th scope="colgroup" colSpan={entry.suddenDeath.questions.length + 1}>Sudden Death</th></tr></thead>
         <tbody>
           <tr><th className="competition-scoreboard-row-label" scope="row">Question / difficulty</th>{entry.suddenDeath.questions.map((question, index) => <td key={`${question.number}-${index}`}><button className="competition-scoreboard-question-button" type="button" onClick={() => showQuestion(question, 'Sudden Death')}>{questionLabel(question)}</button></td>)}<td className="competition-scoreboard-round-total">Total</td></tr>
-          <tr><th className="competition-scoreboard-row-label" scope="row">Points earned</th>{entry.suddenDeath.questions.map((question, index) => <td key={`${question.number}-${index}`} className={`competition-scoreboard-points${question.earnedPoints ? ' is-correct' : ' is-wrong'}`}>{question.earnedPoints}</td>)}<td className="competition-scoreboard-round-total">{entry.suddenDeath.score} / {entry.suddenDeath.maxScore}</td></tr>
+          <tr><th className="competition-scoreboard-row-label" scope="row">Points earned</th>{entry.suddenDeath.questions.map((question, index) => <td key={`${question.number}-${index}`} className={`competition-scoreboard-points${question.earnedPoints ? ' is-correct' : ' is-wrong'}`}><button className="competition-scoreboard-points-button" type="button" onClick={() => showQuestion(question, 'Sudden Death')}>{question.earnedPoints}</button></td>)}<td className="competition-scoreboard-round-total">{entry.suddenDeath.score} / {entry.suddenDeath.maxScore}</td></tr>
         </tbody>
       </table>
       <div className="competition-scoreboard-mobile">
@@ -644,7 +644,7 @@ function HistoryScoreboard({ entry, versions }: { entry: CompetitionScoreHistory
           <div className="competition-scoreboard-mobile-questions">
             {entry.suddenDeath.questions.map((question, index) => <span className={`competition-scoreboard-mobile-question${question.earnedPoints ? ' is-correct' : ' is-wrong'}`} key={`${question.number}-${index}`}>
               <button className="competition-scoreboard-question-button" type="button" onClick={() => showQuestion(question, 'Sudden Death')}>{questionLabel(question)}</button>
-              <span>{question.earnedPoints}</span>
+              <button className="competition-scoreboard-points-button" type="button" onClick={() => showQuestion(question, 'Sudden Death')}>{question.earnedPoints}</button>
             </span>)}
           </div>
           <strong className="competition-scoreboard-mobile-total">{entry.suddenDeath.score} / {entry.suddenDeath.maxScore}</strong>
@@ -1956,6 +1956,11 @@ export default function MockCompetitionScreen({ voices, studyData, onDeleteStudy
     if (!outcome) return <span>{label}</span>
     return <button className="competition-scoreboard-question-button" type="button" onClick={() => setTrackerQuestion({ question, round, earnedPoints: outcome === 'correct' ? question.points : 0 })}>{label}</button>
   }
+  const trackerPoints = (question: CompetitionQuestion, round: number | 'Sudden Death', outcome: Outcome | undefined) => {
+    if (!outcome) return <span>—</span>
+    const earnedPoints = outcome === 'correct' ? question.points : 0
+    return <button className="competition-scoreboard-points-button" type="button" aria-label={`${earnedPoints} points for question ${question.number}. View answer and solution`} onClick={() => setTrackerQuestion({ question, round, earnedPoints })}>{earnedPoints}</button>
+  }
   const trackerQuestionDialog = <dialog ref={trackerDialogRef} className="competition-history-question-dialog" aria-labelledby="tracker-question-title" onClose={() => setTrackerQuestion(null)} onClick={(event) => {
     if (event.target === event.currentTarget) trackerDialogRef.current?.close()
   }}>
@@ -1995,8 +2000,7 @@ export default function MockCompetitionScreen({ voices, studyData, onDeleteStudy
             {competition.rounds.map((round) => <Fragment key={round.round}>
               {round.questions.map((question) => {
                 const outcome = outcomes[question.id]
-                const points = outcome === 'correct' ? question.points : outcome === 'wrong' ? 0 : null
-                return <td key={question.id} className={`competition-scoreboard-points${outcome ? ` is-${outcome}` : ''}`} aria-label={outcome ? `${points} points` : 'Not scored yet'}>{points ?? '—'}</td>
+                return <td key={question.id} className={`competition-scoreboard-points${outcome ? ` is-${outcome}` : ''}`} aria-label={outcome ? undefined : 'Not scored yet'}>{trackerPoints(question, round.round, outcome)}</td>
               })}
               <td className="competition-scoreboard-round-total">{totalScore(round.questions, outcomes)} / {round.questions.reduce((sum, question) => sum + question.points, 0)}</td>
             </Fragment>)}
@@ -2011,10 +2015,9 @@ export default function MockCompetitionScreen({ voices, studyData, onDeleteStudy
         <div className="competition-scoreboard-mobile-questions">
           {round.questions.map((question) => {
             const outcome = outcomes[question.id]
-            const points = outcome === 'correct' ? question.points : outcome === 'wrong' ? 0 : null
             return <span className={`competition-scoreboard-mobile-question${outcome ? ` is-${outcome}` : ''}`} key={question.id}>
               {trackerQuestionLabel(question, round.round, outcome, true)}
-              <span>{points ?? '—'}</span>
+              {trackerPoints(question, round.round, outcome)}
             </span>
           })}
         </div>
@@ -2036,8 +2039,7 @@ export default function MockCompetitionScreen({ voices, studyData, onDeleteStudy
           <tr><th className="competition-scoreboard-row-label" scope="row">Question / difficulty</th>{competition.suddenDeath.map((question) => <td key={question.id}>{trackerQuestionLabel(question, 'Sudden Death', suddenOutcomes[question.id])}</td>)}<td className="competition-scoreboard-round-total">Total</td></tr>
           <tr><th className="competition-scoreboard-row-label" scope="row">Points earned</th>{competition.suddenDeath.map((question) => {
             const outcome = suddenOutcomes[question.id]
-            const points = outcome === 'correct' ? question.points : outcome === 'wrong' ? 0 : null
-            return <td key={question.id} className={`competition-scoreboard-points${outcome ? ` is-${outcome}` : ''}`}>{points ?? '—'}</td>
+            return <td key={question.id} className={`competition-scoreboard-points${outcome ? ` is-${outcome}` : ''}`}>{trackerPoints(question, 'Sudden Death', outcome)}</td>
           })}<td className="competition-scoreboard-round-total">{totalScore(competition.suddenDeath, suddenOutcomes)} / {competition.suddenDeath.reduce((sum, question) => sum + question.points, 0)}</td></tr>
         </tbody>
       </table>
@@ -2048,10 +2050,9 @@ export default function MockCompetitionScreen({ voices, studyData, onDeleteStudy
         <div className="competition-scoreboard-mobile-questions">
           {competition.suddenDeath.map((question) => {
             const outcome = suddenOutcomes[question.id]
-            const points = outcome === 'correct' ? question.points : outcome === 'wrong' ? 0 : null
             return <span className={`competition-scoreboard-mobile-question${outcome ? ` is-${outcome}` : ''}`} key={question.id}>
               {trackerQuestionLabel(question, 'Sudden Death', outcome, true)}
-              <span>{points ?? '—'}</span>
+              {trackerPoints(question, 'Sudden Death', outcome)}
             </span>
           })}
         </div>
