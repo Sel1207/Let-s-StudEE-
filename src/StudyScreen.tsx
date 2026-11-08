@@ -277,7 +277,10 @@ export default function StudyScreen({
   const enteredFullscreen = useRef(false)
   useEffect(preloadCorrectChime, [])
 
-  const focusShown = focusMode && visible && !writtenTest && !lectureTopic
+  const canFocus = visible && !writtenTest && !lectureTopic
+  // Leaving the timer view (another tab, a lecture, Written test) ends Focus mode instead of hiding it.
+  if (focusMode && !canFocus) setFocusMode(false)
+  const focusShown = focusMode && canFocus
   useEffect(() => {
     if (!focusShown) return undefined
     document.body.classList.add('is-study-focus')
@@ -298,6 +301,8 @@ export default function StudyScreen({
     document.addEventListener('fullscreenchange', onFullscreen)
     return () => {
       document.body.classList.remove('is-study-focus')
+      if (enteredFullscreen.current && document.fullscreenElement) void document.exitFullscreen().catch(() => {})
+      enteredFullscreen.current = false
       document.removeEventListener('keydown', onKey)
       document.removeEventListener('fullscreenchange', onFullscreen)
     }
@@ -578,7 +583,7 @@ export default function StudyScreen({
     setVisibleAnswers((current) => new Set([...current].filter((key) => key !== `${topic}:${questionToDelete.id}`)))
     setVisibleSolutions((current) => new Set([...current].filter((key) => key !== `${topic}:${questionToDelete.id}`)))
     setFavoriteNotice('Question deleted from the topic bank and Favorites.')
-    if (questionToDelete.source === 'oral') onStop()
+    if (questionToDelete.source === 'oral') stopSession()
     setQuestionToDelete(null)
   }
 
@@ -621,6 +626,12 @@ export default function StudyScreen({
     if (root.requestFullscreen && !document.fullscreenElement) {
       root.requestFullscreen({ navigationUI: 'hide' }).then(() => { enteredFullscreen.current = true }).catch(() => {})
     }
+  }
+
+  /** Clearing or ending the session always leaves Focus mode too. */
+  function stopSession() {
+    onStop()
+    exitFocus()
   }
 
   function exitFocus() {
@@ -1053,7 +1064,7 @@ export default function StudyScreen({
               <button className="secondary-action" type="button" onClick={onToggleQuestion}>{questionVisible ? 'Hide question' : 'Show question'}</button>
               <button className="secondary-action" type="button" onClick={onToggleAnswer}>{answerVisible ? 'Hide answer' : 'Show answer'}</button>
               <button className="secondary-action" type="button" onClick={onPause}>Pause</button>
-              <button className="secondary-action" type="button" onClick={onStop}>Clear session</button>
+              <button className="secondary-action" type="button" onClick={stopSession}>Clear session</button>
               <button className="secondary-action" type="button" onClick={onSkip}>Skip</button>
               {answerVisible && <button className="primary-action" type="button" onClick={onNext}>Next question</button>}
             </div>
@@ -1065,7 +1076,7 @@ export default function StudyScreen({
               <button className="secondary-action" type="button" onClick={onToggleQuestion}>{questionVisible ? 'Hide question' : 'Show question'}</button>
               <button className="secondary-action" type="button" onClick={onToggleAnswer}>{answerVisible ? 'Hide answer' : 'Show answer'}</button>
               <button className="secondary-action" type="button" onClick={onPause}>Pause</button>
-              <button className="secondary-action" type="button" onClick={onStop}>Clear session</button>
+              <button className="secondary-action" type="button" onClick={stopSession}>Clear session</button>
               <button className="secondary-action" type="button" onClick={onSkip}>Skip</button>
               {answerVisible && <button className="primary-action" type="button" onClick={onNext}>Next question</button>}
             </div>
@@ -1076,7 +1087,7 @@ export default function StudyScreen({
               <button className="primary-action" type="button" onClick={onResume}>Resume</button>
               <button className="secondary-action" type="button" onClick={onToggleQuestion}>{questionVisible ? 'Hide question' : 'Show question'}</button>
               <button className="secondary-action" type="button" onClick={onToggleAnswer}>{answerVisible ? 'Hide answer' : 'Show answer'}</button>
-              <button className="secondary-action" type="button" onClick={onStop}>Clear session</button>
+              <button className="secondary-action" type="button" onClick={stopSession}>Clear session</button>
               <button className="secondary-action" type="button" onClick={onSkip}>Skip</button>
               {answerVisible && <button className="primary-action" type="button" onClick={onNext}>Next question</button>}
             </div>
@@ -1085,14 +1096,14 @@ export default function StudyScreen({
           {phase === 'time-up' && (
             <div className="action-grid">
               <button className="secondary-action" type="button" onClick={onToggleQuestion}>{questionVisible ? 'Hide question' : 'Show question'}</button>
-              <button className="secondary-action" type="button" onClick={onStop}>Clear session</button>
+              <button className="secondary-action" type="button" onClick={stopSession}>Clear session</button>
               <button className="primary-action" type="button" onClick={onNext}>Next question</button>
             </div>
           )}
 
           {(phase === 'revealed' || phase === 'rated') && (
             <div className="action-grid">
-              <button className="secondary-action" type="button" onClick={onStop}>Clear session</button>
+              <button className="secondary-action" type="button" onClick={stopSession}>Clear session</button>
               <button className="primary-action" type="button" onClick={onNext}>Next question</button>
             </div>
           )}

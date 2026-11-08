@@ -95,7 +95,7 @@ export function mathToSpeech(text: string): string {
     .replace(/\\div|Ã·/g, ' divided by ')
     .replace(/\\leq|â‰¤/g, ' less than or equal to ')
     .replace(/\\geq|â‰¥/g, ' greater than or equal to ')
-    .replace(/\\neq|â‰ /g, ' not equal to ')
+    .replace(/\\neq|â‰\u00a0/g, ' not equal to ')
     .replace(/\\approx|â‰ˆ/g, ' approximately equal to ')
     .replace(/\\in\b|âˆˆ/g, ' is an element of ')
     .replace(/\\cup|âˆª/g, ' union ')
