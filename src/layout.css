@@ -74,7 +74,6 @@
 .written-weights-heading > div { min-width: 0; }
 .written-weights-heading h2 { margin: 0; font-size: 19px; font-weight: 600; }
 .written-weights-heading p:not(.eyebrow) { max-width: 54ch; margin: 8px 0 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
-.written-weights-dialog .study-options { margin-bottom: 8px; }
 .topic-panel { min-width: 0; }
 .topic-group-toggle { margin-top: 16px; }
 .manage-view .topic-group-toggle { margin-top: 22px; }
@@ -157,13 +156,9 @@
 .topic-open-lecture { min-height: 32px; align-self: center; padding: 0 9px; border: 1px solid var(--line); background: transparent; color: var(--accent); font-size: 9px; font-weight: 600; white-space: nowrap; cursor: pointer; }
 .topic-open-lecture.has-lecture-notes { border-color: color-mix(in srgb, var(--success) 58%, var(--line)); }
 .topic-open-lecture:hover { border-color: var(--accent); background: var(--accent-soft); }
-.study-options { margin-top: 16px; color: var(--muted); font-size: 11px; }
-.study-options summary { width: fit-content; min-height: 44px; display: flex; align-items: center; cursor: pointer; }
 .preset-list { display: flex; flex-wrap: wrap; gap: 5px; margin: 5px 0 12px; }
 .preset-list button, .text-action { min-height: 44px; padding: 0 10px; border: 1px solid var(--line); background: transparent; color: var(--ink); font-size: 10px; cursor: pointer; }
-.filter-label { display: inline-block; margin-right: 10px; }
 select, input[type='text'], textarea { min-height: 44px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 0; background: var(--surface); color: var(--ink); }
-.study-options select { min-width: 110px; }
 
 .session-panel { min-width: 0; min-height: 560px; display: grid; place-items: center; border-left: 1px solid var(--line); }
 .timer-wrap { width: min(100%, 600px); display: flex; flex-direction: column; align-items: center; padding: 30px 28px; text-align: center; }

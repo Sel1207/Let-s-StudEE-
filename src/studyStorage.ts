@@ -117,7 +117,8 @@ function parseSettings(value: unknown): StudySettings {
     speechSpeed: value.speechSpeed as StudySettings['speechSpeed'],
     voiceURI: value.voiceURI,
     announceDuration: value.announceDuration,
-    timeFilter: value.timeFilter as StudySettings['timeFilter'],
+    // The question time filter was removed from the app, so an old saved filter must not keep hiding questions.
+    timeFilter: 'any',
   }
 }
 

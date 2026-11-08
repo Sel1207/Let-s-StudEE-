@@ -617,22 +617,6 @@ export default function StudyScreen({
           setLectureTopic(topic)
         }}
       />
-      <details className="study-options">
-        <summary>Question time filter</summary>
-        <label className="filter-label" htmlFor="time-filter">Question time</label>
-        <select
-          id="time-filter"
-          value={data.settings.timeFilter}
-          onChange={(event) => onChangeData({ ...data, settings: { ...data.settings, timeFilter: event.currentTarget.value === 'any' ? 'any' : Number(event.currentTarget.value) as 15 | 20 | 30 | 60 | 120 } })}
-        >
-          <option value="any">Any</option>
-          <option value="15">Only 15s</option>
-          <option value="20">Only 20s</option>
-          <option value="30">Only 30s</option>
-          <option value="60">Only 60s</option>
-          <option value="120">Only 2m</option>
-        </select>
-      </details>
     </>
   )
 
