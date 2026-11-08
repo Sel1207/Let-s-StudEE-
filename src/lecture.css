@@ -80,6 +80,57 @@
 .lecture-sticky-live strong { color: var(--accent); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; }
 .lecture-sticky-label { margin-top: 14px; }
 .lecture-sticky-delete { margin-right: auto; }
+:root { --ink-red: #d62828; --ink-blue: #1d4ed8; --ink-green: #15803d; --ink-purple: #7e22ce; }
+:root[data-theme='dark'] { --ink-red: #ff7a7a; --ink-blue: #82aaff; --ink-green: #5fd38d; --ink-purple: #c9a0ff; }
+[data-ink='ink'] { --ink-color: var(--ink); }
+[data-ink='red'] { --ink-color: var(--ink-red); }
+[data-ink='blue'] { --ink-color: var(--ink-blue); }
+[data-ink='green'] { --ink-color: var(--ink-green); }
+[data-ink='purple'] { --ink-color: var(--ink-purple); }
+[data-marker='yellow'] { --marker-color: var(--highlight-yellow); }
+[data-marker='green'] { --marker-color: var(--highlight-green); }
+[data-marker='blue'] { --marker-color: var(--highlight-blue); }
+[data-marker='pink'] { --marker-color: var(--highlight-pink); }
+[data-marker='orange'] { --marker-color: var(--highlight-orange); }
+.lecture-ink-toolbar { position: sticky; top: calc(var(--sticky-top, 0px) + 8px); z-index: 6; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: -14px 0 18px; padding: 6px; border: 1px solid var(--line); background: color-mix(in srgb, var(--surface) 94%, transparent); box-shadow: 0 2px 12px rgb(0 0 0 / 8%); backdrop-filter: blur(8px); transition: top 260ms cubic-bezier(.2, .8, .2, 1); }
+.lecture-ink-tools, .lecture-ink-options, .lecture-ink-history { display: flex; align-items: center; gap: 4px; }
+.lecture-ink-history { margin-left: auto; }
+.lecture-ink-tool, .lecture-ink-size, .lecture-ink-swatch { width: 34px; height: 34px; min-height: 34px; flex: none; display: grid; place-items: center; padding: 0; border: 1px solid transparent; background: transparent; color: var(--muted); cursor: pointer; }
+.lecture-ink-tool:hover:not(:disabled), .lecture-ink-size:hover { border-color: var(--line); color: var(--accent); }
+.lecture-ink-tool[aria-pressed='true'], .lecture-ink-size[aria-pressed='true'] { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+.lecture-ink-tool:disabled { opacity: .35; cursor: default; }
+.lecture-ink-swatch { width: 26px; height: 26px; min-height: 26px; border: 1px solid color-mix(in srgb, var(--ink) 18%, transparent); border-radius: 50%; background: var(--ink-color, var(--marker-color)); }
+.lecture-ink-swatch[aria-pressed='true'] { outline: 2px solid var(--accent); outline-offset: 2px; }
+.lecture-ink-divider { width: 1px; height: 22px; margin: 0 3px; background: var(--line); }
+.lecture-ink-dot { display: block; border-radius: 50%; background: currentColor; }
+.lecture-ink-size > span:not(.lecture-ink-dot, .lecture-ink-bar) { color: var(--ink); font-weight: 600; line-height: 1; }
+.lecture-ink-bar { width: 20px; display: block; border-radius: 2px; background: var(--marker-color); outline: 1px solid color-mix(in srgb, var(--ink) 12%, transparent); }
+.lecture-ink-clear { min-height: 34px; padding: 0 6px; color: var(--muted); font-size: 10px; }
+.lecture-ink-clear.is-armed { color: var(--danger); }
+.lecture-ink-hint { position: absolute; top: calc(100% + 4px); left: 6px; margin: 0; padding: 3px 7px; border: 1px solid var(--line); background: var(--surface); color: var(--muted); font-size: 10px; pointer-events: none; }
+/* No z-index on the layer: the marker has to blend with the notes underneath, so it can't be isolated.
+   Its other parts get their own z-index to sit above formulas, whose pieces are positioned. */
+.lecture-ink-layer { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+.lecture-ink-layer > svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.lecture-ink-layer path { fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.lecture-ink-layer > .lecture-ink-pens { z-index: 1; }
+.lecture-ink-pens path { stroke: var(--ink-color); }
+.lecture-ink-markers { mix-blend-mode: multiply; }
+:root[data-theme='dark'] .lecture-ink-markers { mix-blend-mode: screen; }
+.lecture-ink-markers path { stroke: var(--marker-color); stroke-linecap: square; }
+.lecture-ink-capture { position: absolute; inset: 0; z-index: 2; pointer-events: auto; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+.lecture-ink-layer[data-tool='pen'] .lecture-ink-capture, .lecture-ink-layer[data-tool='marker'] .lecture-ink-capture { cursor: crosshair; }
+.lecture-ink-layer[data-tool='text'] .lecture-ink-capture { cursor: text; touch-action: pan-y pinch-zoom; }
+.lecture-ink-layer[data-tool='eraser'] .lecture-ink-capture { cursor: cell; }
+.lecture-ink-text { position: absolute; z-index: 3; padding: 1px 3px; border: 1px dashed transparent; background: transparent; color: var(--ink-color); font-family: 'DM Sans', sans-serif; line-height: 1.4; text-align: left; white-space: pre-wrap; overflow-wrap: anywhere; pointer-events: auto; cursor: text; }
+.lecture-ink-text:hover, .lecture-ink-text:focus-visible { border-color: var(--line); }
+.lecture-ink-layer[data-tool='pen'] .lecture-ink-text, .lecture-ink-layer[data-tool='marker'] .lecture-ink-text, .lecture-ink-layer[data-tool='eraser'] .lecture-ink-text { pointer-events: none; }
+.lecture-ink-editor { position: absolute; z-index: 4; display: grid; gap: 4px; pointer-events: auto; }
+.lecture-ink-editor textarea { width: 100%; min-height: 0; padding: 1px 3px; overflow: hidden; resize: none; border: 1px dashed var(--accent); background: color-mix(in srgb, var(--surface) 88%, transparent); color: var(--ink-color); font-family: 'DM Sans', sans-serif; line-height: 1.4; }
+.lecture-ink-editor textarea:focus { outline: none; }
+.lecture-ink-editor-actions { display: flex; align-items: center; gap: 4px; justify-self: start; padding: 3px; border: 1px solid var(--line); background: var(--surface); box-shadow: 0 4px 14px rgb(0 0 0 / 12%); }
+.lecture-ink-editor-actions .lecture-ink-tool { width: 30px; height: 30px; min-height: 30px; }
+.lecture-ink-done { min-height: 30px; padding: 0 10px; border: 1px solid var(--accent); background: var(--accent); color: var(--surface); font-size: 10px; font-weight: 600; cursor: pointer; }
 .lecture-highlight-layer { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
 .lecture-highlight { position: absolute; border-radius: 2px; mix-blend-mode: multiply; }
 :root[data-theme='dark'] .lecture-highlight { mix-blend-mode: screen; }
@@ -142,6 +193,12 @@
   .lecture-heading-actions .primary-action { flex: 1 1 auto; }
   .lecture-view { padding-bottom: 64px; }
   .lecture-notebook { min-height: 70vh; padding: 16px 17px; }
+  .lecture-ink-toolbar { gap: 4px 6px; margin: -6px -8px 14px; padding: 4px; }
+  .lecture-ink-tool, .lecture-ink-size { width: 36px; height: 36px; min-height: 36px; }
+  .lecture-ink-history { order: 1; margin-left: auto; gap: 0; }
+  .lecture-ink-options { order: 2; flex: 1 0 100%; }
+  .lecture-ink-tools { gap: 0; }
+  .lecture-ink-clear { padding: 0 4px; }
   .lecture-highlighter { bottom: 70px; margin-right: -3px; }
   .lecture-highlight-swatch, .lecture-highlight-tool { width: 36px; height: 36px; min-height: 36px; }
   .lecture-notebook-paper { min-height: max(100%, 60vh); font-size: 13px; }

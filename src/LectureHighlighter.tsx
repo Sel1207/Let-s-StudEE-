@@ -84,17 +84,27 @@ export default function LectureHighlighter({
   topic,
   note,
   paperRef,
+  annotating,
+  onPenOn,
   onSaveProblem,
 }: {
   topic: Topic
   note: string
   paperRef: RefObject<HTMLDivElement | null>
+  /** True while a pen, marker, text or eraser tool is in use; the highlighter steps aside. */
+  annotating: boolean
+  onPenOn: () => void
   onSaveProblem: (message: string) => void
 }) {
   const [saved] = useState(loadHighlights)
   const [highlights, setHighlights] = useState(saved.highlights)
   const [lastColor, setLastColor] = useState(loadHighlighterColor)
   const [pen, setPen] = useState<Pen | null>(null)
+  const [wasAnnotating, setWasAnnotating] = useState(annotating)
+  if (annotating !== wasAnnotating) {
+    setWasAnnotating(annotating)
+    if (annotating) setPen(null)
+  }
   const [menuOpen, setMenuOpen] = useState(false)
   const [clearArmed, setClearArmed] = useState(false)
   const [popup, setPopup] = useState<Popup | null>(null)
@@ -378,6 +388,7 @@ export default function LectureHighlighter({
   function choosePen(next: Pen) {
     if (next !== 'erase') rememberColor(next)
     setPen(next)
+    onPenOn()
     setMenuOpen(false)
     setPopup(null)
   }

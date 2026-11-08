@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
+import LectureAnnotations from './LectureAnnotations'
 import LectureHighlighter from './LectureHighlighter'
 import LectureNotesPicker from './LectureNotesPicker'
 import LectureStickyNotes from './LectureStickyNotes'
@@ -7,6 +8,7 @@ import MathText from './MathText'
 import { contestPreparationContext, shortcutGuidanceInstruction, topicScopeInstruction } from './aiPromptContext'
 import { EE_TOPIC_GUIDANCE, TOPIC_GROUPS, type Topic } from './studyTypes'
 import { LECTURE_NOTES_STORAGE_KEY, loadLectureNotes } from './lectureNotesStorage'
+import type { AnnotationTool } from './lectureInk'
 import { loadStickyNotes, STICKY_NOTES_STORAGE_KEY, writeStickyNote, type StickyNotes } from './stickyNotesStorage'
 import './lecture.css'
 
@@ -194,6 +196,7 @@ export default function LectureScreen({
   const [stickyNotes, setStickyNotes] = useState(savedStickyState.notes)
   const [saveNotice, setSaveNotice] = useState(savedState.error || savedStickyState.error || 'Saved on this device')
   const [promptNotice, setPromptNotice] = useState('')
+  const [annotationTool, setAnnotationTool] = useState<AnnotationTool | null>(null)
   const editorRef = useRef<HTMLTextAreaElement>(null)
   const noteDialogRef = useRef<HTMLDialogElement>(null)
   const promptRef = useRef<HTMLDetailsElement>(null)
@@ -381,12 +384,13 @@ export default function LectureScreen({
       <LectureStickyNotes key={topic} topic={topic} group={topicGroup} notes={stickyNotes[topic] ?? []} onSave={saveStickyNote} onDelete={deleteStickyNotes} />
 
       <article className="lecture-notebook" aria-label={`${topic} lecture notebook`}>
+        <LectureAnnotations key={topic} topic={topic} note={note} paperRef={paperRef} tool={annotationTool} onToolChange={setAnnotationTool} onSaveProblem={setSaveNotice} />
         <div ref={paperRef} className="lecture-notebook-paper">
           {note.trim()
             ? <LectureNoteContent note={note} />
             : <p className="lecture-notebook-empty">Your lecture notes will appear here. Use the AI prompt above to create a first draft, then paste it using “Edit notes / LaTeX”.</p>}
         </div>
-        {note.trim() && <LectureHighlighter key={topic} topic={topic} note={note} paperRef={paperRef} onSaveProblem={setSaveNotice} />}
+        {note.trim() && <LectureHighlighter key={topic} topic={topic} note={note} paperRef={paperRef} annotating={annotationTool !== null} onPenOn={() => setAnnotationTool(null)} onSaveProblem={setSaveNotice} />}
       </article>
       <button
         className="secondary-action lecture-back-to-top"
