@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useEffectEvent, useMemo, useRef, useState, type CSSProperties } from 'react'
+import { playCorrectChime, preloadCorrectChime } from './correctChime'
 import './competition.css'
 import MathText from './MathText'
 import NoteText from './NoteText'
@@ -784,6 +785,8 @@ export default function MockCompetitionScreen({ voices, studyData, onDeleteStudy
   const questionAttempt = useRef(0)
   const countedCorrectAttempt = useRef(-1)
 
+  useEffect(preloadCorrectChime, [])
+
   useEffect(() => {
     const dialog = trackerDialogRef.current
     if (!dialog) return
@@ -1409,6 +1412,7 @@ export default function MockCompetitionScreen({ voices, studyData, onDeleteStudy
 
   function markQuestionOutcome(outcome: Outcome) {
     if (!currentQuestion) return
+    if (outcome === 'correct' && selectedOutcomeMap()[currentQuestion.id] !== 'correct' && !storage.settings.muted) playCorrectChime()
     if (phase === 'answering') {
       stopSpeech()
       setPhase('revealed')

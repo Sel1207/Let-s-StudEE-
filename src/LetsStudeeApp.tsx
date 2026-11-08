@@ -12,6 +12,7 @@ import { loadStudyData, saveStudyData } from './studyStorage'
 import { competitionNameKey, loadCompetitionStorage, saveCompetitionStorage } from './competitionData'
 import GlobalSearch, { SearchButton } from './GlobalSearch'
 import ThemeToggle from './ThemeToggle'
+import { playCorrectChime, preloadCorrectChime } from './correctChime'
 import CompetitionRoundViewer, { type CompetitionViewerRequest } from './CompetitionRoundViewer'
 import type { SearchTarget } from './searchIndex'
 import {
@@ -424,6 +425,8 @@ function StudyApp() {
     document.title = 'Lets StudEE!'
   }, [])
 
+  useEffect(preloadCorrectChime, [])
+
   useEffect(() => {
     const updateToday = () => setToday(localDateKey())
     const interval = window.setInterval(updateToday, 60_000)
@@ -730,7 +733,10 @@ function StudyApp() {
     if (!topic || !question || rated) return
     stopSpeech()
     countdownDeadline.current = null
-    if (rating === 'gotIt') recordStudyCorrect()
+    if (rating === 'gotIt') {
+      playCorrectChime()
+      recordStudyCorrect()
+    }
     setData((current) => {
       const result = current.results[topic]
       return {
