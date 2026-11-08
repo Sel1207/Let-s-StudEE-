@@ -15,9 +15,6 @@
 .competition-daily-focus progress::-moz-progress-bar { border-radius: 999px; background: var(--accent); }
 .competition-daily-hint { margin: 6px 0 0; font-size: 9px; }
 .competition-subject-picker { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 0 0 24px; }
-.competition-subject-options { display: flex; flex-wrap: wrap; gap: 5px; }
-.competition-subject-options button { min-height: 38px; padding: 0 12px; border: 1px solid var(--line); background: transparent; color: var(--muted); font-size: 10px; cursor: pointer; }
-.competition-subject-options button[aria-pressed='true'] { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); font-weight: 700; }
 .competition-subject-help { flex-basis: 100%; margin: -5px 0 0; color: var(--muted); font-size: 9px; }
 .competition-current-subject { margin: -12px 0 18px; color: var(--accent); font-size: 10px; font-weight: 700; }
 .competition-history-toggle { min-height: 40px; margin-top: 12px; padding-inline: 12px; font-size: 10px; }

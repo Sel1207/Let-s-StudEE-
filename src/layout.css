@@ -55,9 +55,11 @@
 .study-layout.is-written-test { display: flex; flex-direction: column; gap: 20px; }
 .study-topic-toolbar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
 .study-topic-toolbar .topic-group-toggle, .study-topic-toolbar .study-mode-toggle { margin-top: 0; }
-/* Subject buttons match the compact Open notes / Oral Practice buttons beside them. */
-.study-topic-toolbar .topic-group-toggle { display: grid; grid-auto-columns: minmax(58px, 1fr); grid-auto-flow: column; gap: 6px; align-self: stretch; }
-.study-topic-toolbar .topic-group-toggle button { min-width: 0; min-height: 32px; padding: 0 14px; color: var(--ink); font-size: 10px; white-space: nowrap; }
+/* Subject pickers (Math / EE / ESAS) look the same everywhere: compact, equal-width buttons. */
+.topic-group-toggle, .competition-subject-options { display: flex; flex-wrap: wrap; gap: 6px; }
+.study-topic-toolbar .topic-group-toggle { align-self: stretch; }
+.segmented-control.topic-group-toggle button, .competition-subject-options button { min-width: 58px; min-height: 32px; padding: 0 14px; border: 1px solid var(--line); background: transparent; color: var(--ink); font-size: 10px; font-weight: 400; white-space: nowrap; cursor: pointer; flex: 0 0 auto; }
+.segmented-control.topic-group-toggle button[aria-pressed='true'], .competition-subject-options button[aria-pressed='true'] { border-color: var(--accent); background: var(--accent-soft); color: var(--ink); font-weight: 400; }
 .study-mode-tools { display: flex; align-items: stretch; gap: 6px; }
 .study-mode-tools > button, .study-mode-toggle button { white-space: nowrap; }
 .study-mode-tools .lecture-back-button { min-height: 32px; align-self: stretch; font-size: 10px; }
