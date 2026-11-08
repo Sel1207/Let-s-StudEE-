@@ -274,7 +274,7 @@ export default function StudyScreen({
   const notePromptRef = useCollapseOnOutsidePress()
 
   const [focusMode, setFocusMode] = useState(false)
-  const enteredFullscreen = useRef(false)
+  const studyLayoutRef = useRef<HTMLDivElement>(null)
   useEffect(preloadCorrectChime, [])
 
   const canFocus = visible && !writtenTest && !lectureTopic
@@ -283,29 +283,13 @@ export default function StudyScreen({
   const focusShown = focusMode && canFocus
   useEffect(() => {
     if (!focusShown) return undefined
-    document.body.classList.add('is-study-focus')
     const onKey = (event: KeyboardEvent) => {
       if (event.key !== 'Escape' || document.querySelector('dialog[open]')) return
       event.preventDefault()
       setFocusMode(false)
-      enteredFullscreen.current = false
-    }
-    // Leaving browser fullscreen (Esc, swipe) also leaves Focus mode.
-    const onFullscreen = () => {
-      if (!document.fullscreenElement && enteredFullscreen.current) {
-        enteredFullscreen.current = false
-        setFocusMode(false)
-      }
     }
     document.addEventListener('keydown', onKey)
-    document.addEventListener('fullscreenchange', onFullscreen)
-    return () => {
-      document.body.classList.remove('is-study-focus')
-      if (enteredFullscreen.current && document.fullscreenElement) void document.exitFullscreen().catch(() => {})
-      enteredFullscreen.current = false
-      document.removeEventListener('keydown', onKey)
-      document.removeEventListener('fullscreenchange', onFullscreen)
-    }
+    return () => document.removeEventListener('keydown', onKey)
   }, [focusShown])
   const [visibleAnswers, setVisibleAnswers] = useState<Set<string>>(() => new Set(savedWrittenTest.visibleAnswers))
   const [visibleSolutions, setVisibleSolutions] = useState<Set<string>>(() => new Set(savedWrittenTest.visibleSolutions))
@@ -619,13 +603,15 @@ export default function StudyScreen({
     })
   }
 
-  /** Focus mode: the question timer fills the screen and everything else steps away. */
-  function enterFocus() {
-    setFocusMode(true)
-    const root = document.documentElement
-    if (root.requestFullscreen && !document.fullscreenElement) {
-      root.requestFullscreen({ navigationUI: 'hide' }).then(() => { enteredFullscreen.current = true }).catch(() => {})
-    }
+  /**
+   * Focus mode: the topic controls slide away to the left and the timer side takes the full width.
+   * The panel's current width is pinned first so its contents slide out intact instead of squashing.
+   */
+  function toggleFocus() {
+    const layout = studyLayoutRef.current
+    const topicPanel = layout?.querySelector<HTMLElement>(':scope > .topic-panel')
+    if (layout && topicPanel) layout.style.setProperty('--topic-panel-width', `${topicPanel.offsetWidth}px`)
+    setFocusMode((current) => !current)
   }
 
   /** Clearing or ending the session always leaves Focus mode too. */
@@ -636,8 +622,6 @@ export default function StudyScreen({
 
   function exitFocus() {
     setFocusMode(false)
-    if (enteredFullscreen.current && document.fullscreenElement) void document.exitFullscreen().catch(() => {})
-    enteredFullscreen.current = false
   }
 
   function toggleStudyFavorite(topic: Topic, item: Question, number: number) {
@@ -717,8 +701,8 @@ export default function StudyScreen({
             })
           }}
         />
-      ) : <div className={`study-layout${writtenTest ? ' is-written-test' : ''}`}>
-      <section className="topic-panel" aria-labelledby="topics-heading">
+      ) : <div ref={studyLayoutRef} className={`study-layout${writtenTest ? ' is-written-test' : ''}${focusShown ? ' is-focus' : ''}`}>
+      <section className="topic-panel" aria-labelledby="topics-heading" inert={focusShown}>
         <div className="view-heading">
           <p className="eyebrow">{writtenTest ? 'Self-paced review' : 'Build your round'}</p>
           <h1 id="topics-heading">{writtenTest ? 'Written test' : 'Choose topics'}</h1>
@@ -970,22 +954,17 @@ export default function StudyScreen({
           )}
           {favoriteNotice && <p className="session-notice" role="status">{favoriteNotice}</p>}
         </section>
-      ) : <section className={`session-panel${focusShown ? ' is-focus' : ''}`} aria-label="Question session">
-        {focusShown ? (
-          <div className="session-focus-bar">
-            <p className="session-focus-progress"><span aria-hidden="true">✦</span> <strong>{todayCorrect}</strong> / {DAILY_CORRECT_GOAL} today</p>
-            <p className="session-focus-topic">{currentTopic ?? visibleGroup.name}</p>
-            <button className="session-focus-toggle" type="button" onClick={exitFocus} title="Exit focus (Esc)">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5" /></svg>
-              <span>Exit focus</span>
-            </button>
-          </div>
-        ) : (
-          <button className="session-focus-toggle session-focus-enter" type="button" onClick={enterFocus} title="Focus: fill the screen with the question">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" /></svg>
-            <span>Focus</span>
-          </button>
-        )}
+      ) : <section className="session-panel" aria-label="Question session">
+        <button
+          className={`session-focus-toggle${focusShown ? ' is-active' : ''}`}
+          type="button"
+          aria-pressed={focusShown}
+          onClick={toggleFocus}
+          title={focusShown ? 'Bring the topic controls back (Esc)' : 'Hide the topic controls and give the question the full width'}
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="4.5" width="17" height="15" rx="2" /><path d="M9.5 4.5v15" /><path className="session-focus-chevron" d="m15.5 9.5-2.5 2.5 2.5 2.5" /></svg>
+          <span>{focusShown ? 'Show topics' : 'Focus'}</span>
+        </button>
         <div className="timer-wrap">
           {currentTopic && currentQuestion && currentStudyFavoriteId && (
             <div className="practice-question-tools">
