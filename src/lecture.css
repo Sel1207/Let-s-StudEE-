@@ -132,6 +132,10 @@
 .lecture-ink-editor-actions { display: flex; align-items: center; gap: 4px; justify-self: start; padding: 3px; border: 1px solid var(--line); background: var(--surface); box-shadow: 0 4px 14px rgb(0 0 0 / 12%); }
 .lecture-ink-editor-actions .lecture-ink-tool { width: 30px; height: 30px; min-height: 30px; }
 .lecture-ink-done { min-height: 30px; padding: 0 10px; border: 1px solid var(--accent); background: var(--accent); color: var(--surface); font-size: 10px; font-weight: 600; cursor: pointer; }
+.lecture-highlight-delete { color: var(--danger); }
+.lecture-highlight-delete:hover { border-color: var(--danger); color: var(--danger); }
+.lecture-undo-toast { position: fixed; bottom: max(18px, env(safe-area-inset-bottom)); left: 50%; z-index: 40; display: flex; align-items: center; gap: 12px; padding: 8px 10px 8px 14px; transform: translateX(-50%); border: 1px solid var(--line); background: var(--surface); box-shadow: 0 6px 22px rgb(0 0 0 / 16%); color: var(--ink); font-size: 11px; white-space: nowrap; }
+.lecture-undo-toast .text-action { min-height: 30px; color: var(--accent); font-weight: 600; }
 .lecture-highlight-layer { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
 .lecture-highlight { position: absolute; border-radius: 2px; mix-blend-mode: multiply; }
 :root[data-theme='dark'] .lecture-highlight { mix-blend-mode: screen; }

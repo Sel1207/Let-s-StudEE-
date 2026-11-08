@@ -31,6 +31,8 @@ interface Band {
 interface Popup {
   span: TextSpan
   highlight?: Highlight
+  /** The text selection that opened this popup, for "Delete text". */
+  range?: Range
   x: number
   y: number
   below: boolean
@@ -54,6 +56,12 @@ const EDGE_SCROLL_ZONE = 48
 const EDGE_SCROLL_STEP = 14
 const SELECTION_SETTLE_MS = 160
 
+const TRASH_PATHS = <>
+  <path d="M3 6h18" />
+  <path d="M8 6V4h8v2" />
+  <path d="M19 6l-1 14H6L5 6" />
+  <path d="M10 11v6M14 11v6" />
+</>
 const ERASER_PATHS = <>
   <path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21" />
   <path d="M22 21H7" />
@@ -84,6 +92,7 @@ export default function LectureHighlighter({
   active,
   optionsSlot,
   onExit,
+  onDeleteSelection,
   onSaveProblem,
 }: {
   topic: Topic
@@ -94,6 +103,8 @@ export default function LectureHighlighter({
   /** Where the toolbar wants this tool's colors drawn. */
   optionsSlot: HTMLElement | null
   onExit: () => void
+  /** Deletes the selected text from the note's source. */
+  onDeleteSelection: (range: Range) => void
   onSaveProblem: (message: string) => void
 }) {
   const [saved] = useState(loadHighlights)
@@ -188,7 +199,7 @@ export default function LectureHighlighter({
     save(color === 'erase' ? eraseSpan(list, text, span) : paintSpan(list, text, span, color))
   }, [list, save])
 
-  const openPopup = useCallback((span: TextSpan, highlight?: Highlight) => {
+  const openPopup = useCallback((span: TextSpan, highlight?: Highlight, range?: Range) => {
     const origin = layerRef.current?.getBoundingClientRect()
     const rects = spanRects(mapRef.current, span)
     if (!origin || rects.length === 0) return
@@ -202,6 +213,7 @@ export default function LectureHighlighter({
     setPopup({
       span,
       highlight,
+      range,
       x: Math.min(Math.max(middle, POPUP_HALF_WIDTH), Math.max(POPUP_HALF_WIDTH, origin.width - POPUP_HALF_WIDTH)),
       y: onScreen - origin.top,
       below,
@@ -321,7 +333,7 @@ export default function LectureHighlighter({
       const start = spanAtPoint(map, range.startContainer, range.startOffset).start
       const end = spanAtPoint(map, range.endContainer, range.endOffset).end
       const span = snapSpan(map, { start, end })
-      if (span) openPopup(span)
+      if (span) openPopup(span, undefined, range.cloneRange())
     }
     const settle = () => {
       window.clearTimeout(timer)
@@ -438,6 +450,21 @@ export default function LectureHighlighter({
               onClick={() => choosePopupColor(color.id)}
             />
           ))}
+          {popup.range && !popup.highlight && (
+            <button
+              className="lecture-highlight-tool lecture-highlight-delete"
+              type="button"
+              aria-label="Delete the selected text from the notes"
+              title="Delete text"
+              onClick={() => {
+                if (popup.range) onDeleteSelection(popup.range)
+                setPopup(null)
+                window.getSelection()?.removeAllRanges()
+              }}
+            >
+              <Icon paths={TRASH_PATHS} />
+            </button>
+          )}
           {popup.highlight && (
             <button className="lecture-highlight-tool" type="button" aria-label="Remove highlight" title="Remove highlight" onClick={removePopupHighlight}>
               <Icon paths={ERASER_PATHS} />

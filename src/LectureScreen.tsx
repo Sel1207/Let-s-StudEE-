@@ -5,9 +5,11 @@ import LectureHighlighter from './LectureHighlighter'
 import LectureNotesPicker from './LectureNotesPicker'
 import LectureStickyNotes from './LectureStickyNotes'
 import MathText from './MathText'
-import { contestPreparationContext, shortcutGuidanceInstruction, topicScopeInstruction } from './aiPromptContext'
+import { raiseScripts, splitBareSubscripts, wrapBareSubscripts } from './noteSubscripts'
+import { contestPreparationContext, selfCheckInstruction, shortcutGuidanceInstruction, SVG_SUBSCRIPT_EXAMPLE, topicScopeInstruction } from './aiPromptContext'
 import { EE_TOPIC_GUIDANCE, TOPIC_GROUPS, type Topic } from './studyTypes'
 import { LECTURE_NOTES_STORAGE_KEY, loadLectureNotes } from './lectureNotesStorage'
+import { deleteNoteRange, selectionSourceRange } from './noteSource'
 import type { AnnotationTool } from './lectureInk'
 import { loadStickyNotes, STICKY_NOTES_STORAGE_KEY, writeStickyNote, type StickyNotes } from './stickyNotesStorage'
 import './lecture.css'
@@ -41,10 +43,15 @@ Write mathematical expressions in valid LaTeX using $...$ inline and $$...$$ for
 DIAGRAMS
 Include a diagram wherever the topic depends on a visual: circuit schematics (sources, resistors, inductors, capacitors, switches, meters, labeled nodes, current directions, polarities), phasor diagrams, waveforms, magnetic circuits, machine connections, single-line diagrams, vector or geometry figures, and graphs. Omit diagrams when text alone is clear. Place each diagram directly after the explanation it supports, and refer to its labels in the text.
 Draw each diagram as compact inline SVG on its own lines, starting with <svg and ending with </svg>, with xmlns="http://www.w3.org/2000/svg" and a valid viewBox (about 400 to 640 wide). Use only these elements: svg, g, path, rect, circle, ellipse, line, polyline, polygon, text, tspan, defs, marker, title, desc. Do not use scripts, styles, style attributes, class, CSS, external images, gradients, filters, or foreignObject.
-The diagram must stay readable in both light and dark mode: do not draw a background rectangle; draw all lines, symbols, and text in black (#000000) with fill="none" on outlines; use stroke-width from 1 to 2; use at most one accent color (#d62828 or #1d4ed8) only to highlight a key current, voltage, or phasor. Draw resistors as zigzag paths, inductors as arcs, capacitors as two parallel plates, and sources as circles with + and - or a ~ symbol. Label every component and quantity with <text> using plain text (for example R1, 10 Ω, V_s, I1), with font-size from 12 to 16 and font-family="sans-serif". Never put LaTeX or $ inside SVG text.
+The diagram must stay readable in both light and dark mode: do not draw a background rectangle; draw all lines, symbols, and text in black (#000000) with fill="none" on outlines; use stroke-width from 1 to 2; use at most one accent color (#d62828 or #1d4ed8) only to highlight a key current, voltage, or phasor. Draw resistors as zigzag paths, inductors as arcs, capacitors as two parallel plates, and sources as circles with + and - or a ~ symbol. Label every component and quantity with <text> using plain text (for example R1, 10 Ω, I1), with font-size from 12 to 16 and font-family="sans-serif". Never put LaTeX, $, _, ^, or backslashes inside SVG text: an underscore shows up literally, so "I_L" would display as I_L. Write every subscript with a tspan instead, for example ${SVG_SUBSCRIPT_EXAMPLE} draws I with subscript L; do the same for N<tspan baseline-shift="sub" font-size="10">L</tspan>, V<tspan baseline-shift="sub" font-size="10">s</tspan>, and similar labels.
+
+NOTATION
+Outside diagrams, wrap every variable that has a subscript or superscript in $...$, even inside a sentence or table: write $I_L$, $N_L$, $V_{s}$, never bare I_L, N_L, or V_s.
 
 COPYABLE OUTPUT
-Return the notes inside exactly one \`\`\`markdown code block, with no introduction or text outside it. Do not use nested code fences. The block must be ready to paste into the lecture notes editor.`
+Return the notes inside exactly one \`\`\`markdown code block, with no introduction or text outside it. Do not use nested code fences. The block must be ready to paste into the lecture notes editor.
+
+${selfCheckInstruction({ diagrams: true })}`
 }
 
 const SVG_ELEMENTS = new Set(['svg', 'g', 'path', 'rect', 'circle', 'ellipse', 'line', 'polyline', 'polygon', 'text', 'tspan', 'defs', 'marker', 'title', 'desc'])
@@ -53,7 +60,7 @@ const SVG_ATTRIBUTES = new Set([
   'd', 'points', 'fill', 'stroke', 'stroke-width', 'stroke-linecap', 'stroke-linejoin', 'fill-rule', 'clip-rule',
   'opacity', 'fill-opacity', 'stroke-opacity', 'transform', 'text-anchor', 'dominant-baseline', 'font-size',
   'font-family', 'font-weight', 'id', 'marker-start', 'marker-mid', 'marker-end', 'markerWidth', 'markerHeight',
-  'refX', 'refY', 'orient', 'preserveAspectRatio',
+  'refX', 'refY', 'orient', 'preserveAspectRatio', 'baseline-shift', 'dx', 'dy',
 ])
 
 function safeSvgSource(source: string): string | null {
@@ -101,6 +108,7 @@ function safeSvgSource(source: string): string | null {
     for (const child of Array.from(element.children)) {
       if (!sanitizeElement(child)) child.remove()
     }
+    if (['text', 'tspan'].includes(element.localName.toLowerCase())) raiseScripts(element)
     return true
   }
 
@@ -108,35 +116,50 @@ function safeSvgSource(source: string): string | null {
   return new XMLSerializer().serializeToString(root)
 }
 
-function LectureSvgDiagram({ source }: { source: string }) {
+function LectureSvgDiagram({ source, offset }: { source: string; offset: number }) {
   const safeSource = safeSvgSource(source)
   if (!safeSource) return null
-  return <img className="lecture-diagram" src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(safeSource)}`} alt="Diagram for these lecture notes" />
+  return <img className="lecture-diagram" data-s={offset} data-e={offset + source.length} data-atom="" src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(safeSource)}`} alt="Diagram for these lecture notes" />
 }
 
-function renderNoteInlineContent(text: string, keyPrefix: string): ReactNode[] {
+/** Pairs each consecutive piece of a string with where it starts. */
+function withOffsets(pieces: string[], start: number, separator = 0): Array<[string, number]> {
+  const starts = pieces.reduce<number[]>((list, _piece, index) => [...list, index === 0 ? start : list[index - 1] + pieces[index - 1].length + separator], [])
+  return pieces.map((piece, index) => [piece, starts[index]])
+}
+
+// Every rendered piece carries its place in the note's source (see noteSource.ts), so a
+// selection in the notes can be traced back to the exact markdown or LaTeX it came from.
+function renderNoteInlineContent(text: string, keyPrefix: string, offset: number): ReactNode[] {
   const parts = text.split(/(<span style="color:\s*#[\da-f]{6}">[\s\S]+?<\/span>|\$\$[\s\S]+?\$\$|\$[^$\n]+\$|\\\[[\s\S]+?\\\]|\\\([\s\S]+?\\\]|<u>[\s\S]+?<\/u>|\*\*[^*\n]+\*\*|\*[^*\n]+\*)/gi)
-  return parts.map((part, index) => {
+  return withOffsets(parts, offset).map(([part, at], index) => {
     const key = `${keyPrefix}-${index}`
+    if (!part) return null
     const colorMatch = /^<span style="color:\s*(#[\da-f]{6})">([\s\S]*)<\/span>$/i.exec(part)
-    if (colorMatch) return <span key={key} style={{ color: colorMatch[1] }}>{renderNoteInlineContent(colorMatch[2], key)}</span>
-    if (part.startsWith('$') || part.startsWith('\\[') || part.startsWith('\\(')) return <MathText key={key} text={part} />
-    if (part.startsWith('<u>') && part.endsWith('</u>')) return <u key={key}>{renderNoteInlineContent(part.slice(3, -4), key)}</u>
-    if (part.startsWith('**') && part.endsWith('**')) return <strong key={key}>{renderNoteInlineContent(part.slice(2, -2), key)}</strong>
-    if (part.startsWith('*') && part.endsWith('*')) return <em key={key}>{renderNoteInlineContent(part.slice(1, -1), key)}</em>
-    return <MathText key={key} text={part} />
+    if (colorMatch) return <span key={key} style={{ color: colorMatch[1] }}>{renderNoteInlineContent(colorMatch[2], key, at + part.indexOf('>') + 1)}</span>
+    if (part.startsWith('$') || part.startsWith('\\[') || part.startsWith('\\(')) {
+      return <span key={key} data-s={at} data-e={at + part.length} data-atom=""><MathText text={part} /></span>
+    }
+    if (part.startsWith('<u>') && part.endsWith('</u>')) return <u key={key}>{renderNoteInlineContent(part.slice(3, -4), key, at + 3)}</u>
+    if (part.startsWith('**') && part.endsWith('**')) return <strong key={key}>{renderNoteInlineContent(part.slice(2, -2), key, at + 2)}</strong>
+    if (part.startsWith('*') && part.endsWith('*')) return <em key={key}>{renderNoteInlineContent(part.slice(1, -1), key, at + 1)}</em>
+    const pieces = splitBareSubscripts(part)
+    return withOffsets(pieces.map((piece) => piece.text), at).map(([pieceText, pieceStart], pieceIndex) => (
+      pieces[pieceIndex].math
+        ? <span key={`${key}-${pieceIndex}`} data-s={pieceStart} data-e={pieceStart + pieceText.length} data-atom=""><MathText text={wrapBareSubscripts(pieceText)} /></span>
+        : <span key={`${key}-${pieceIndex}`} data-s={pieceStart} data-e={pieceStart + pieceText.length}>{pieceText}</span>
+    ))
   })
 }
 
-function LectureNoteParagraph({ text }: { text: string }) {
-  return <p>{renderNoteInlineContent(text, 'note')}</p>
-}
-
-function LectureNoteTextBlock({ text }: { text: string }) {
+function LectureNoteTextBlock({ text, offset }: { text: string; offset: number }) {
   const lines = text.split('\n')
-  const heading = /^(#{1,3})\s+(.+)$/.exec(lines[0].trim())
+  const lineStarts = withOffsets(lines, offset, 1).map(([, start]) => start)
+  const firstTrimmed = lines[0].trim()
+  const heading = /^(#{1,3})\s+(.+)$/.exec(firstTrimmed)
   if (heading && lines.length === 1) {
-    const content = renderNoteInlineContent(heading[2], 'heading')
+    const lead = lines[0].length - lines[0].trimStart().length
+    const content = renderNoteInlineContent(heading[2], 'heading', offset + lead + heading[0].length - heading[2].length)
     if (heading[1].length === 1) return <h2>{content}</h2>
     if (heading[1].length === 2) return <h3>{content}</h3>
     return <h4>{content}</h4>
@@ -146,28 +169,36 @@ function LectureNoteTextBlock({ text }: { text: string }) {
   if (listItems.every(Boolean)) {
     const ordered = /^\d/.test(listItems[0]?.[2] ?? '')
     const List = ordered ? 'ol' : 'ul'
-    return <List>{listItems.map((item, index) => <li key={index}>{renderNoteInlineContent(item?.[3] ?? '', `list-${index}`)}</li>)}</List>
+    return <List>{listItems.map((item, index) => (
+      <li key={index}>{renderNoteInlineContent(item?.[3] ?? '', `list-${index}`, lineStarts[index] + lines[index].length - (item?.[3].length ?? 0))}</li>
+    ))}</List>
   }
 
   if (lines.length > 1 && lines.every((line) => line.trim().startsWith('|'))) {
-    const rows = lines.map((line) => line.trim().replace(/^\||\|$/g, '').split('|').map((cell) => cell.trim()))
-    const bodyRows = rows.filter((row, index) => index !== 1 || !row.every((cell) => /^:?-{3,}:?$/.test(cell)))
+    const rows = lines.map((line, lineIndex) => {
+      const trimmed = line.trim()
+      const first = lineStarts[lineIndex] + line.length - line.trimStart().length + (trimmed.startsWith('|') ? 1 : 0)
+      return withOffsets(trimmed.replace(/^\||\|$/g, '').split('|'), first, 1)
+        .map(([raw, start]) => ({ text: raw.trim(), offset: start + raw.length - raw.trimStart().length }))
+    })
+    const bodyRows = rows.filter((row, index) => index !== 1 || !row.every((cell) => /^:?-{3,}:?$/.test(cell.text)))
     return <div className="lecture-table-scroll"><table>
-      <thead><tr>{bodyRows[0]?.map((cell, index) => <th key={index}>{renderNoteInlineContent(cell, `table-heading-${index}`)}</th>)}</tr></thead>
-      <tbody>{bodyRows.slice(1).map((row, rowIndex) => <tr key={rowIndex}>{row.map((cell, cellIndex) => <td key={cellIndex}>{renderNoteInlineContent(cell, `table-${rowIndex}-${cellIndex}`)}</td>)}</tr>)}</tbody>
+      <thead><tr>{bodyRows[0]?.map((cell, index) => <th key={index}>{renderNoteInlineContent(cell.text, `table-heading-${index}`, cell.offset)}</th>)}</tr></thead>
+      <tbody>{bodyRows.slice(1).map((row, rowIndex) => <tr key={rowIndex}>{row.map((cell, cellIndex) => <td key={cellIndex}>{renderNoteInlineContent(cell.text, `table-${rowIndex}-${cellIndex}`, cell.offset)}</td>)}</tr>)}</tbody>
     </table></div>
   }
 
-  return <LectureNoteParagraph text={text} />
+  return <p>{renderNoteInlineContent(text, 'note', offset)}</p>
 }
 
 function LectureNoteContent({ note }: { note: string }) {
-  const blocks = note.split(/(<svg\b[\s\S]*?<\/svg>)/gi).filter((block) => block.trim())
-  return <>{blocks.map((block, index) => {
-    if (/^<svg\b/i.test(block.trim())) return <LectureSvgDiagram key={`diagram-${index}`} source={block.trim()} />
-    return block.split(/\n{2,}/).filter((paragraph) => paragraph.trim()).map((paragraph, paragraphIndex) => (
-      <LectureNoteTextBlock key={`paragraph-${index}-${paragraphIndex}`} text={paragraph} />
-    ))
+  return <>{withOffsets(note.split(/(<svg\b[\s\S]*?<\/svg>)/gi), 0).map(([block, offset], index) => {
+    if (!block.trim()) return null
+    if (/^<svg\b/i.test(block)) return <LectureSvgDiagram key={`diagram-${index}`} source={block} offset={offset} />
+    return withOffsets(block.split(/(\n{2,})/), offset).map(([paragraph, paragraphOffset], paragraphIndex) => {
+      if (!paragraph.trim() || /^\n+$/.test(paragraph)) return null
+      return <LectureNoteTextBlock key={`paragraph-${index}-${paragraphIndex}`} text={paragraph} offset={paragraphOffset} />
+    })
   })}</>
 }
 
@@ -198,6 +229,7 @@ export default function LectureScreen({
   const [promptNotice, setPromptNotice] = useState('')
   const [annotationTool, setAnnotationTool] = useState<AnnotationTool | null>(null)
   const [highlightOptions, setHighlightOptions] = useState<HTMLDivElement | null>(null)
+  const [deletedText, setDeletedText] = useState<{ topic: Topic; note: string } | null>(null)
   const editorRef = useRef<HTMLTextAreaElement>(null)
   const noteDialogRef = useRef<HTMLDialogElement>(null)
   const promptRef = useRef<HTMLDetailsElement>(null)
@@ -264,6 +296,30 @@ export default function LectureScreen({
       console.error('Could not save lecture notes.', error)
       setSaveNotice('Could not save your notes. Check browser storage and try again.')
     }
+  }
+
+  useEffect(() => {
+    if (!deletedText) return undefined
+    const timer = window.setTimeout(() => setDeletedText(null), 10_000)
+    return () => window.clearTimeout(timer)
+  }, [deletedText])
+
+  // Deleting a selection removes exactly that part of the markdown and LaTeX source.
+  function deleteSelection(range: Range) {
+    const paper = paperRef.current
+    const span = paper && selectionSourceRange(paper, range)
+    if (!span) {
+      setSaveNotice('That selection could not be matched to the notes. Edit it in “Edit notes / LaTeX”.')
+      return
+    }
+    setDeletedText({ topic, note })
+    updateNotes(deleteNoteRange(note, span.start, span.end))
+  }
+
+  function undoDelete() {
+    if (!deletedText) return
+    if (deletedText.topic === topic) updateNotes(deletedText.note)
+    setDeletedText(null)
   }
 
   function saveStickyNote(id: string | null, text: string) {
@@ -391,8 +447,14 @@ export default function LectureScreen({
             ? <LectureNoteContent note={note} />
             : <p className="lecture-notebook-empty">Your lecture notes will appear here. Use the AI prompt above to create a first draft, then paste it using “Edit notes / LaTeX”.</p>}
         </div>
-        {note.trim() && <LectureHighlighter key={topic} topic={topic} note={note} paperRef={paperRef} active={annotationTool === 'highlight'} optionsSlot={highlightOptions} onExit={() => setAnnotationTool(null)} onSaveProblem={setSaveNotice} />}
+        {note.trim() && <LectureHighlighter key={topic} topic={topic} note={note} paperRef={paperRef} active={annotationTool === 'highlight'} optionsSlot={highlightOptions} onExit={() => setAnnotationTool(null)} onDeleteSelection={deleteSelection} onSaveProblem={setSaveNotice} />}
       </article>
+      {deletedText?.topic === topic && (
+        <div className="lecture-undo-toast" role="status">
+          <span>Text deleted from your notes.</span>
+          <button className="text-action" type="button" aria-label="Undo delete" onClick={undoDelete}>Undo</button>
+        </div>
+      )}
       <button
         className="secondary-action lecture-back-to-top"
         type="button"
