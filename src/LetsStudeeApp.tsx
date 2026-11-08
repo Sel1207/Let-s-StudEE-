@@ -11,6 +11,7 @@ import { drawQuestion, spokenDuration } from './questionLogic'
 import { loadStudyData, saveStudyData } from './studyStorage'
 import { competitionNameKey, loadCompetitionStorage, saveCompetitionStorage } from './competitionData'
 import GlobalSearch, { SearchButton } from './GlobalSearch'
+import ThemeToggle from './ThemeToggle'
 import CompetitionRoundViewer, { type CompetitionViewerRequest } from './CompetitionRoundViewer'
 import type { SearchTarget } from './searchIndex'
 import {
@@ -964,6 +965,7 @@ function StudyApp() {
             </button>
           ))}
           <SearchButton onOpen={() => setSearchOpen(true)} />
+          <ThemeToggle theme={theme} onChange={setTheme} />
         </nav>
       </header>
 

@@ -705,6 +705,11 @@ interface MockCompetitionScreenProps {
   onViewVersion?: (versionId: string) => void
 }
 
+/** Kept outside the component so the React Compiler doesn't treat the clock read as render work. */
+function currentTime(): number {
+  return Date.now()
+}
+
 export default function MockCompetitionScreen({ voices, studyData, onDeleteStudyQuestion, onSubjectChange, onDailyProgressChange, onViewVersion }: MockCompetitionScreenProps) {
   const [storage, setStorage] = useState<CompetitionStorage>(initialStorage)
   const [dailyProgress, setDailyProgress] = useState<CompetitionDailyProgress>(loadCompetitionDailyProgress)
@@ -1614,7 +1619,7 @@ export default function MockCompetitionScreen({ voices, studyData, onDeleteStudy
   function loadCompetition(source = draft) {
     try {
       const parsed = parseCompetitionInput(source, activeSubject)
-      const now = Date.now()
+      const now = currentTime()
       if (editingVersionId) {
         const editedVersion = storage.versions.find((version) => version.id === editingVersionId)
         if (!editedVersion) throw new Error('This saved competition no longer exists. Select it again before saving edits.')
@@ -1632,6 +1637,7 @@ export default function MockCompetitionScreen({ voices, studyData, onDeleteStudy
         setError('')
         setNotice(`Saved edits to “${parsed.competitionName}”.`)
         setPhase('setup')
+        showSavedVersion(editingVersionId)
         return
       }
       const matchingVersion = storage.versions
@@ -1662,8 +1668,9 @@ export default function MockCompetitionScreen({ voices, studyData, onDeleteStudy
       setError('')
       setNotice(matchingVersion
         ? `Updated “${parsed.competitionName}” instead of adding a duplicate.`
-        : `Loaded “${parsed.competitionName}” as a new competition.`)
+        : `Loaded “${parsed.competitionName}” as a new competition. Press Replay to start it.`)
       setPhase('setup')
+      showSavedVersion(version.id)
     } catch (problem) {
       setError(problem instanceof Error ? problem.message : 'Could not load this competition.')
       setNotice('')
@@ -1732,11 +1739,32 @@ export default function MockCompetitionScreen({ voices, studyData, onDeleteStudy
     setDraft(JSON.stringify(version.competition, null, 2))
     setError('')
     setNotice(`Editing “${version.name}”. Change any question or competition field, then save changes.`)
-    document.getElementById('competition-json')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    // The editor lives in the Settings & import dialog, so open it and bring the text box into view.
+    setCompetitionSettingsOpen(true)
+    window.setTimeout(() => {
+      const editor = document.getElementById('competition-json')
+      editor?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      editor?.focus({ preventScroll: true })
+    }, 80)
+  }
+
+  /** After a load or save, close the dialog and point at the competition in the list. */
+  function showSavedVersion(id: string) {
+    setCompetitionSettingsOpen(false)
+    window.setTimeout(() => {
+      const row = document.querySelector<HTMLElement>(`[data-search-id="version-${CSS.escape(id)}"]`)
+      if (!row) return
+      row.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      row.classList.remove('search-hit')
+      void row.offsetWidth
+      row.classList.add('search-hit')
+      window.setTimeout(() => row.classList.remove('search-hit'), 2500)
+    }, 120)
   }
 
   function cancelEditing() {
     setEditingVersionId(null)
+    setDraft('')
     setError('')
     setNotice('Edit canceled. The saved competition was not changed.')
   }
@@ -2070,7 +2098,7 @@ export default function MockCompetitionScreen({ voices, studyData, onDeleteStudy
       <div className="view-heading">
         <p className="eyebrow">Timed rounds, your question sets</p>
         <h1 id="competition-heading">{showScoreHistory ? 'Score History' : 'Mock Competition'}</h1>
-        <p className="topic-priority-help">{showScoreHistory ? 'Review saved competition scores and open any question to see its answer and solution.' : 'Load an AI-extracted text competition or JSON, then keep named versions here to replay whenever you want.'}</p>
+        <p className="topic-priority-help">{showScoreHistory ? 'Review saved competition scores and open any question to see its answer and solution.' : 'Start a randomized round from your Study bank, or replay one of your saved competitions. Add new ones from Settings & import.'}</p>
         {phase === 'setup' && <button className="secondary-action competition-history-toggle" type="button" aria-expanded={showScoreHistory} aria-controls="score-history-content" onClick={() => setShowScoreHistory((visible) => !visible)}>{showScoreHistory ? 'Back to Mock Competition' : `View Score History (${storage.history.length})`}</button>}
       </div>
 
@@ -2232,16 +2260,11 @@ export default function MockCompetitionScreen({ voices, studyData, onDeleteStudy
           {randomizedError && <p className="form-error" role="alert">{randomizedError}</p>}
         </section>
 
-        {competition && selectedVersionId
-          && storage.versions.some((version) => version.id === selectedVersionId && competitionNameKey(version.subject) === competitionNameKey(activeSubject))
-          && <section className="loaded-competition" aria-label="Selected competition">
-          <div><p className="eyebrow">Ready to replay</p><h2>{competition.competitionName}</h2><p>{competition.rounds.length} rounds · {regularQuestions.length} questions · {maxTotal} possible points</p><div className="round-max-list">{competition.rounds.map((round) => <span key={round.round}>Round {round.round}: {round.questions.reduce((sum, question) => sum + question.points, 0)} points</span>)}</div></div>
-          <button className="primary-action" type="button" onClick={() => beginCompetition(competition)}>Start competition</button>
-        </section>}
-
         <section className="competition-library" aria-labelledby="my-competitions-heading">
           <div className="competition-library-heading"><h2 id="my-competitions-heading">{activeSubject} Competitions</h2><span>{visibleVersions.length} saved</span></div>
-          {!visibleVersions.length && <p className="empty-state">No {activeSubject} competitions yet. Load one above to add it here.</p>}
+          {notice && !competitionSettingsOpen && <p className="manage-message" role="status">{notice}</p>}
+          {error && !competitionSettingsOpen && <p className="form-error" role="alert">{error}</p>}
+          {!visibleVersions.length && <p className="empty-state">No {activeSubject} competitions yet. Open Settings &amp; import to add one.</p>}
           <ul className="competition-version-list">
             {visibleVersions.map((version, index) => {
               const trialCount = storage.history.filter((entry) => entry.sourceVersionId === version.id
@@ -2260,11 +2283,10 @@ export default function MockCompetitionScreen({ voices, studyData, onDeleteStudy
                   <button className="text-action" type="button" disabled={index === visibleVersions.length - 1} aria-label={`Move ${version.name} down`} title="Move down" onClick={() => moveVersion(version.id, 1)}>↓</button>
                 </div>
                 {onViewVersion && <button className="text-action" type="button" onClick={() => onViewVersion(version.id)}>View</button>}
-                <button className="text-action" type="button" onClick={() => editVersion(version)}>Edit</button>
-                <button className="text-action" type="button" onClick={() => { setEditingVersionId(null); setSelectedVersionId(version.id); selectCompetitionSubject(version.subject); setCompetition(version.competition); setDraft(JSON.stringify(version.competition, null, 2)); setNotice(`Selected “${version.name}”.`); setError('') }}>Select</button>
+                <button className="text-action" type="button" title="Fix questions, answers or settings in this competition" onClick={() => editVersion(version)}>Edit</button>
                 <button className="text-action" type="button" onClick={() => { setRenameId(version.id); setRenameDraft(version.name); setError('') }}>Rename</button>
                 <button className="text-action" type="button" onClick={() => deleteVersion(version.id)}>Delete</button>
-                <button className="secondary-action" type="button" onClick={() => beginCompetition(version)}>Replay</button>
+                <button className="secondary-action competition-version-replay" type="button" onClick={() => beginCompetition(version)}>Replay</button>
               </div>
             </li>
             })}

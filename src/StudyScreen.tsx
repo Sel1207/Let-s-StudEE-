@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
-import { applyPreset, questionCounts, topicChances, writtenTestQuestions } from './questionLogic'
-import { EE_FOUNDATION_TOPICS, EE_TOPIC_SECTIONS, TOPIC_GROUPS, TOPICS, type Preset, type Question, type StudyData, type Topic, type TopicGroupName } from './studyTypes'
+import { questionCounts, topicChances, writtenTestQuestions } from './questionLogic'
+import { EE_FOUNDATION_TOPICS, EE_TOPIC_SECTIONS, TOPIC_GROUPS, TOPICS, type Question, type StudyData, type Topic, type TopicGroupName } from './studyTypes'
 import { loadCompetitionStorage, saveCompetitionStorage, type CompetitionFavorite } from './competitionData'
 import { currentDailyStreak, DAILY_CORRECT_GOAL, localDateKey, type CompetitionDailyProgress } from './competitionProgress'
 import { mathToSpeech } from './mathSpeech'
@@ -10,6 +10,7 @@ import { playCorrectChime, preloadCorrectChime } from './correctChime'
 import { useCollapseOnOutsidePress } from './useCollapseOnOutsidePress'
 import { isStuckToTop } from './useAutoHideHeader'
 import LectureNotesPicker from './LectureNotesPicker'
+import TopicPriorityControls from './TopicPriorityControls'
 import LectureScreen from './LectureScreen'
 import { loadLectureNotes } from './lectureNotesStorage'
 import { loadStickyNotes } from './stickyNotesStorage'
@@ -585,14 +586,6 @@ export default function StudyScreen({
     })
   }
 
-  function changePreference(topic: Topic, preference: StudyData['topicPreferences'][Topic]) {
-    onChangeData({ ...data, topicPreferences: { ...data.topicPreferences, [topic]: preference } })
-  }
-
-  function choosePreset(preset: Preset) {
-    onChangeData(applyPreset(data, preset))
-  }
-
   function toggleStudyFavorite(topic: Topic, item: Question, number: number) {
     const favoriteToToggle = createStudyFavorite(topic, item, number)
     const id = favoriteToToggle.id
@@ -609,77 +602,23 @@ export default function StudyScreen({
     setFavoriteNotice(favorites.some((favorite) => favorite.id === id) ? 'Question saved to Favorites.' : 'Question removed from Favorites.')
   }
 
-  function renderTopic(topic: Topic) {
-    const preference = data.topicPreferences[topic]
-    const hasLectureNotes = topicsWithLectureNotes.has(topic)
-    return (
-      <div className="topic-row" key={topic}>
-        <label className="topic-switch">
-          <input
-            type="checkbox"
-            checked={preference.active}
-            onChange={(event) => changePreference(topic, { ...preference, active: event.currentTarget.checked })}
-          />
-          <span className="topic-name">{topic}</span>
-          <span className="topic-count">{counts[topic]}</span>
-        </label>
-        <div className="topic-weight">
-          <label className="visually-hidden" htmlFor={`weight-${TOPICS.indexOf(topic)}`}>{topic} priority</label>
-          <input
-            id={`weight-${TOPICS.indexOf(topic)}`}
-            aria-label={`${topic} priority`}
-            aria-describedby="topic-priority-help"
-            aria-valuetext={preference.weight === 0 ? 'Off' : `${preference.weight} times standard priority`}
-            type="range"
-            min="0"
-            max="5"
-            step="1"
-            value={preference.weight}
-            disabled={!preference.active}
-            onChange={(event) => changePreference(topic, { ...preference, weight: Number(event.currentTarget.value) })}
-          />
-          <span className="weight-value">{preference.weight === 0 ? 'Off' : `${preference.weight}x`}</span>
-          <span className="topic-chance">{Math.round(chances[topic])}%</span>
-        </div>
-        <button
-          className={`topic-open-lecture${hasLectureNotes ? ' has-lecture-notes' : ''}`}
-          type="button"
-          aria-label={`Open ${topic} lecture${hasLectureNotes ? ' (notes available)' : ''}`}
-          onClick={() => {
-            onStop()
-            setLectureTopic(topic)
-          }}
-        >
-          Open lecture
-        </button>
-      </div>
-    )
-  }
-
   const topicControls = (
     <>
-      <div className="topic-list" aria-label={`${visibleGroup.name} topics`}>
-        {visibleGroup.name === 'Electrical Engineering' ? (
-          <>
-            {[{ name: 'Electrical Fundamentals', topics: EE_FOUNDATION_TOPICS }, ...EE_TOPIC_SECTIONS].map((section) => (
-              <details className="topic-list-section" key={section.name} open>
-                <summary>
-                  <h3>{section.name}</h3>
-                  <span className="topic-list-section-count">{section.topics.length}</span>
-                </summary>
-                {section.topics.map(renderTopic)}
-              </details>
-            ))}
-          </>
-        ) : visibleGroup.topics.map(renderTopic)}
-      </div>
+      <TopicPriorityControls
+        data={data}
+        onChangeData={onChangeData}
+        group={visibleGroup}
+        counts={counts}
+        chances={chances}
+        topicsWithLectureNotes={topicsWithLectureNotes}
+        onOpenLecture={(topic) => {
+          onStop()
+          if (weightsDialogRef.current?.open) weightsDialogRef.current.close()
+          setLectureTopic(topic)
+        }}
+      />
       <details className="study-options">
-        <summary>Weights and time filter</summary>
-        <div className="preset-list" aria-label="Topic presets">
-          <button type="button" onClick={() => choosePreset('all-equal')}>All equal</button>
-          <button type="button" onClick={() => choosePreset('only-selected')}>Only selected</button>
-          <button type="button" onClick={() => choosePreset('focus-weakest')}>Focus on weakest</button>
-        </div>
+        <summary>Question time filter</summary>
         <label className="filter-label" htmlFor="time-filter">Question time</label>
         <select
           id="time-filter"
@@ -750,7 +689,7 @@ export default function StudyScreen({
               ? writtenTopic === 'random'
                 ? 'Questions are drawn randomly from all available topics, weighted by their priorities. Nothing is read aloud or timed.'
                 : `Showing ${writtenTopic} questions. Nothing is read aloud or timed.`
-              : 'Priority controls how often a topic is picked: 1x is standard, 5x is five times as likely, and 0 is off. The percentage shows its share of the active pool.'}
+              : 'Tap a topic to switch it on or off. The bars set how often it comes up: one bar is standard, five bars is five times as likely. The percentage is its share of your questions.'}
           </p>
           {writtenTest && (
             <label className="written-topic-picker">
@@ -1156,7 +1095,7 @@ export default function StudyScreen({
           <div>
             <p className="eyebrow">Written test</p>
             <h2 id="written-weights-title">Topic weights</h2>
-            <p>These settings are shared with Oral Practice. Set each topic from off (0) to five times priority (5x).</p>
+            <p>These settings are shared with Oral Practice. Switch topics on or off, and use the bars to make a topic come up up to five times as often.</p>
           </div>
           <button className="text-action" type="button" onClick={closeWeightsDialog}>Close</button>
         </div>
