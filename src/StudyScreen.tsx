@@ -273,7 +273,35 @@ export default function StudyScreen({
   const noteDialogRef = useRef<HTMLDialogElement>(null)
   const notePromptRef = useCollapseOnOutsidePress()
 
+  const [focusMode, setFocusMode] = useState(false)
+  const enteredFullscreen = useRef(false)
   useEffect(preloadCorrectChime, [])
+
+  const focusShown = focusMode && visible && !writtenTest && !lectureTopic
+  useEffect(() => {
+    if (!focusShown) return undefined
+    document.body.classList.add('is-study-focus')
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape' || document.querySelector('dialog[open]')) return
+      event.preventDefault()
+      setFocusMode(false)
+      enteredFullscreen.current = false
+    }
+    // Leaving browser fullscreen (Esc, swipe) also leaves Focus mode.
+    const onFullscreen = () => {
+      if (!document.fullscreenElement && enteredFullscreen.current) {
+        enteredFullscreen.current = false
+        setFocusMode(false)
+      }
+    }
+    document.addEventListener('keydown', onKey)
+    document.addEventListener('fullscreenchange', onFullscreen)
+    return () => {
+      document.body.classList.remove('is-study-focus')
+      document.removeEventListener('keydown', onKey)
+      document.removeEventListener('fullscreenchange', onFullscreen)
+    }
+  }, [focusShown])
   const [visibleAnswers, setVisibleAnswers] = useState<Set<string>>(() => new Set(savedWrittenTest.visibleAnswers))
   const [visibleSolutions, setVisibleSolutions] = useState<Set<string>>(() => new Set(savedWrittenTest.visibleSolutions))
   const [writtenOutcomes, setWrittenOutcomes] = useState<Record<string, Rating>>(savedWrittenTest.outcomes)
@@ -584,6 +612,21 @@ export default function StudyScreen({
       else next.add(key)
       return next
     })
+  }
+
+  /** Focus mode: the question timer fills the screen and everything else steps away. */
+  function enterFocus() {
+    setFocusMode(true)
+    const root = document.documentElement
+    if (root.requestFullscreen && !document.fullscreenElement) {
+      root.requestFullscreen({ navigationUI: 'hide' }).then(() => { enteredFullscreen.current = true }).catch(() => {})
+    }
+  }
+
+  function exitFocus() {
+    setFocusMode(false)
+    if (enteredFullscreen.current && document.fullscreenElement) void document.exitFullscreen().catch(() => {})
+    enteredFullscreen.current = false
   }
 
   function toggleStudyFavorite(topic: Topic, item: Question, number: number) {
@@ -916,7 +959,22 @@ export default function StudyScreen({
           )}
           {favoriteNotice && <p className="session-notice" role="status">{favoriteNotice}</p>}
         </section>
-      ) : <section className="session-panel" aria-label="Question session">
+      ) : <section className={`session-panel${focusShown ? ' is-focus' : ''}`} aria-label="Question session">
+        {focusShown ? (
+          <div className="session-focus-bar">
+            <p className="session-focus-progress"><span aria-hidden="true">✦</span> <strong>{todayCorrect}</strong> / {DAILY_CORRECT_GOAL} today</p>
+            <p className="session-focus-topic">{currentTopic ?? visibleGroup.name}</p>
+            <button className="session-focus-toggle" type="button" onClick={exitFocus} title="Exit focus (Esc)">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5" /></svg>
+              <span>Exit focus</span>
+            </button>
+          </div>
+        ) : (
+          <button className="session-focus-toggle session-focus-enter" type="button" onClick={enterFocus} title="Focus: fill the screen with the question">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" /></svg>
+            <span>Focus</span>
+          </button>
+        )}
         <div className="timer-wrap">
           {currentTopic && currentQuestion && currentStudyFavoriteId && (
             <div className="practice-question-tools">

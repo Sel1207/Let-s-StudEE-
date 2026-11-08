@@ -443,3 +443,47 @@ select, input[type='text'], textarea { min-height: 44px; padding: 8px 10px; bord
   .speed-setting { align-items: stretch; }
   .segmented-control button { flex: 1; }
 }
+
+/* ---------- Study focus mode ---------- */
+.session-panel { position: relative; }
+.session-focus-toggle { min-height: 34px; display: inline-flex; align-items: center; gap: 7px; padding: 0 13px 0 11px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--muted); font-size: 11px; font-weight: 500; cursor: pointer; transition: border-color .18s, color .18s, box-shadow .18s; }
+.session-focus-toggle:hover, .session-focus-toggle:focus-visible { border-color: color-mix(in srgb, var(--accent) 55%, var(--line)); color: var(--ink); box-shadow: 0 2px 10px rgb(0 0 0 / 7%); }
+.session-focus-toggle svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.session-focus-enter { position: absolute; top: 14px; right: 14px; z-index: 2; }
+body.is-study-focus { overflow: hidden; }
+body.is-study-focus .update-banner { z-index: 80; }
+.session-panel.is-focus { position: fixed; inset: 0; z-index: 70; min-height: 100dvh; display: grid; grid-template-rows: auto 1fr; justify-items: center; align-items: center; overflow-y: auto; border: 0; background: radial-gradient(circle at 50% 40%, color-mix(in srgb, var(--accent) 7%, transparent), transparent 60%), var(--paper); animation: focus-in .32s cubic-bezier(.2, .8, .2, 1); }
+@keyframes focus-in { from { opacity: 0; transform: scale(.985); } }
+.session-focus-bar { width: 100%; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; align-self: start; gap: 12px; padding: max(14px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right)) 0 max(20px, env(safe-area-inset-left)); }
+.session-focus-bar p { margin: 0; color: var(--muted); font-size: 12px; }
+.session-focus-progress span { color: var(--accent); }
+.session-focus-progress strong { color: var(--ink); font-variant-numeric: tabular-nums; }
+.session-focus-bar .session-focus-topic { padding: 6px 14px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--ink); font-weight: 600; }
+.session-focus-bar .session-focus-toggle { justify-self: end; }
+.session-panel.is-focus .timer-wrap { width: min(100%, 860px); padding: 24px 28px 48px; }
+.session-panel.is-focus .practice-question-tools { width: 100%; flex-wrap: nowrap; justify-content: space-between; gap: 12px; margin-bottom: 34px; padding-bottom: 18px; border-bottom: 1px solid var(--line); }
+.session-panel.is-focus .practice-question-tools > * { flex: 1 1 0; min-height: 44px; }
+.session-panel.is-focus .practice-question-tools .practice-favorite-button { flex: 0 0 44px; }
+.session-panel.is-focus .session-state { font-size: 13px; letter-spacing: .14em; text-transform: uppercase; }
+.session-panel.is-focus .timer { font-size: clamp(110px, 17vw, 210px); letter-spacing: -.02em; }
+.session-panel.is-focus .timer-track { width: min(420px, 80%); height: 4px; margin-top: 26px; border-radius: 4px; overflow: hidden; }
+.session-panel.is-focus .current-topic { display: none; }
+.session-panel.is-focus .revealed-question { max-width: 760px; margin-top: 32px; font-size: clamp(19px, 2.1vw, 26px); }
+.session-panel.is-focus .study-answer-panel { width: min(100%, 760px); }
+.session-panel.is-focus .action-row, .session-panel.is-focus .action-grid { margin-top: 30px; }
+.session-panel.is-focus .timer-wrap > .primary-action { min-width: 220px; min-height: 60px; font-size: 15px; }
+@media (max-width: 520px) {
+  .session-focus-enter { top: 10px; right: 10px; min-height: 30px; padding: 0 10px; font-size: 10px; }
+  .session-focus-bar { grid-template-columns: auto 1fr auto; padding-inline: 14px; }
+  .session-focus-bar .session-focus-topic { justify-self: center; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; }
+  .session-focus-bar .session-focus-toggle span { display: none; }
+  .session-focus-bar .session-focus-toggle { width: 34px; padding: 0; justify-content: center; }
+  .session-panel.is-focus .timer-wrap { padding: 16px 16px 36px; }
+  .session-panel.is-focus .practice-question-tools { gap: 6px; }
+  .session-panel.is-focus .practice-question-tools > * { min-height: 40px; }
+  .session-panel.is-focus .timer { font-size: clamp(88px, 27vw, 120px); }
+}
+@media (prefers-reduced-motion: reduce) { .session-panel.is-focus { animation: none; } }
+.session-panel.is-focus .study-outcome-actions { gap: 14px; margin-top: 26px; }
+.session-panel.is-focus .study-rating-button { width: 64px; min-width: 64px; height: 52px; min-height: 52px; border-radius: 12px; }
+.session-panel.is-focus .study-rating-button svg { width: 22px; height: 22px; }
