@@ -611,6 +611,12 @@ export default function StudyScreen({
     const layout = studyLayoutRef.current
     const topicPanel = layout?.querySelector<HTMLElement>(':scope > .topic-panel')
     if (layout && topicPanel) layout.style.setProperty('--topic-panel-width', `${topicPanel.offsetWidth}px`)
+    if (layout && !focusMode) {
+      // Size the focused panel to exactly fill the screen below the header and daily bar.
+      const top = layout.getBoundingClientRect().top + window.scrollY
+      layout.style.setProperty('--focus-top', `${Math.round(top)}px`)
+      if (window.scrollY > 0) window.scrollTo({ top: 0, behavior: 'smooth' })
+    }
     setFocusMode((current) => !current)
   }
 
@@ -966,6 +972,7 @@ export default function StudyScreen({
           <span>{focusShown ? 'Show topics' : 'Focus'}</span>
         </button>
         <div className="timer-wrap">
+          <div className="timer-band timer-band-top">
           {currentTopic && currentQuestion && currentStudyFavoriteId && (
             <div className="practice-question-tools">
               <button
@@ -1019,9 +1026,11 @@ export default function StudyScreen({
           <p className={`session-state${timeIsUp ? ' is-alert' : ''}`} aria-live="polite">
             {timeIsUp ? "Time's up!" : phase === 'speaking' ? 'Listen' : phase === 'paused' ? 'Paused' : phase === 'countdown' ? '' : phase === 'revealed' || phase === 'rated' ? 'Question' : 'Ready'}
           </p>
+          </div>
           <div className={`timer${phase === 'countdown' && remainingSeconds <= 5 ? ' timer-urgent' : ''}`} role="timer" aria-live="off" aria-label={`${formatTime(remainingSeconds)} remaining`} style={timeStyle}>
             {formatTime(remainingSeconds)}
           </div>
+          <div className="timer-band timer-band-bottom">
           <div className="timer-track" aria-hidden="true"><span /></div>
           {currentTopic && phase !== 'countdown' && <p className="current-topic">{currentTopic}</p>}
           {questionVisible && currentQuestion && <MathText text={currentQuestion.text} className="revealed-question" />}
@@ -1107,7 +1116,7 @@ export default function StudyScreen({
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg>
             </button>
           </div>}
-
+          </div>
         </div>
       </section>}
       <dialog

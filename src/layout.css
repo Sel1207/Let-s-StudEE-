@@ -276,7 +276,9 @@ select, input[type='text'], textarea { min-height: 44px; padding: 8px 10px; bord
 .primary-action, .secondary-action { min-height: 48px; padding: 0 18px; border: 1px solid var(--accent); border-radius: 0; background: transparent; color: var(--accent); font-size: 12px; font-weight: 600; cursor: pointer; }
 .primary-action { min-width: 180px; background: var(--accent); color: var(--paper); }
 .primary-action:disabled { cursor: not-allowed; opacity: .45; }
-.timer-wrap > .primary-action { min-height: 56px; margin-top: 26px; font-size: 14px; }
+/* The bands only group the panel for Focus mode; normally they don't affect layout. */
+.timer-band { display: contents; }
+.timer-band > .primary-action { min-height: 56px; margin-top: 26px; font-size: 14px; }
 .action-row, .action-grid { width: 100%; display: flex; justify-content: center; gap: 8px; margin-top: 24px; }
 .action-row { flex-wrap: wrap; }
 .action-grid { flex-wrap: wrap; }
@@ -446,9 +448,10 @@ select, input[type='text'], textarea { min-height: 44px; padding: 8px 10px; bord
 
 /* ---------- Study focus mode: the topic controls slide away, the timer takes the width ---------- */
 .study-layout:not(.is-written-test) { transition: grid-template-columns .55s cubic-bezier(.65, 0, .35, 1), gap .55s cubic-bezier(.65, 0, .35, 1); }
-.study-layout > .topic-panel { transition: opacity .35s ease, transform .55s cubic-bezier(.65, 0, .35, 1); }
+.study-layout > .topic-panel { max-height: 20000px; transition: opacity .35s ease, transform .55s cubic-bezier(.65, 0, .35, 1), max-height 0s; }
 .study-layout.is-focus { grid-template-columns: minmax(0px, 0fr) minmax(0, 1.12fr); gap: 0; }
-.study-layout.is-focus > .topic-panel { min-width: 0; overflow: hidden; opacity: 0; transform: translateX(-56px); pointer-events: none; }
+/* Once it has slid away, the hidden panel folds to zero height so it stops stretching the row. */
+.study-layout.is-focus > .topic-panel { min-width: 0; max-height: 0; overflow: hidden; opacity: 0; transform: translateX(-56px); pointer-events: none; transition: opacity .35s ease, transform .55s cubic-bezier(.65, 0, .35, 1), max-height 0s linear .55s; }
 /* Pin the panel's contents at their old width so they slide out whole rather than reflowing. */
 .study-layout.is-focus > .topic-panel > * { width: var(--topic-panel-width, 520px); }
 .session-panel { position: relative; transition: border-color .55s ease; }
@@ -461,14 +464,26 @@ select, input[type='text'], textarea { min-height: 44px; padding: 8px 10px; bord
 .session-focus-chevron { transform-origin: 14px 12px; transition: transform .4s ease; }
 .session-focus-toggle.is-active .session-focus-chevron { transform: scaleX(-1); }
 
-/* With the full width, the stage gets roomier and the question tools spread out. */
-.session-panel .timer-wrap { transition: width .55s cubic-bezier(.65, 0, .35, 1); }
-.study-layout.is-focus .session-panel .timer-wrap { width: min(100%, 900px); }
-.study-layout.is-focus .practice-question-tools { width: 100%; flex-wrap: nowrap; justify-content: space-between; gap: clamp(8px, 1.2vw, 16px); }
+/* Focused panel: exactly one screen tall. Tools across the top, controls along the bottom,
+   timer and question in the centre. */
+/* At least one screen tall; a long answer on a short screen grows the panel instead of hiding the controls. */
+.study-layout.is-focus > .session-panel { min-height: max(520px, calc(100dvh - var(--focus-top, 200px) - 16px)); align-self: start; display: grid; place-items: stretch; }
+.study-layout.is-focus .session-panel .timer-wrap { width: 100%; max-width: none; padding: 56px clamp(16px, 3vw, 40px); }
+/* Three bands with equal outer rows, so the timer itself sits in the exact middle. */
+.study-layout.is-focus .session-panel .timer-wrap { display: grid; grid-template-rows: 1fr auto 1fr; justify-items: center; align-items: stretch; }
+.study-layout.is-focus .timer-band { width: 100%; display: flex; flex-direction: column; align-items: center; }
+.study-layout.is-focus .timer-band-top { justify-content: flex-end; }
+.study-layout.is-focus .timer-band-bottom { justify-content: flex-start; }
+.study-layout.is-focus .practice-question-tools { width: min(100%, 1000px); flex-wrap: nowrap; justify-content: space-between; gap: clamp(8px, 1.2vw, 16px); margin: 0 0 auto; padding-bottom: 16px; border-bottom: 1px solid var(--line); }
 .study-layout.is-focus .practice-question-tools > * { flex: 1 1 0; min-height: 42px; }
 .study-layout.is-focus .practice-question-tools .practice-favorite-button { flex: 0 0 46px; }
-.study-layout.is-focus .revealed-question { max-width: 760px; }
-.study-layout.is-focus .study-answer-panel { width: min(100%, 760px); }
+.study-layout.is-focus .timer-band-bottom > :is(.action-row, .action-grid, .primary-action):not(.study-outcome-actions) { margin-top: auto; }
+.study-layout.is-focus .timer-band-bottom > .study-outcome-actions { margin-top: 12px; }
+.study-layout.is-focus .timer-band-bottom > .primary-action { margin-top: auto; }
+.study-layout.is-focus .timer { font-size: clamp(88px, 8vw, 128px); }
+.study-layout.is-focus .revealed-question { max-width: 820px; margin-top: 22px; }
+.study-layout.is-focus .study-answer-panel { width: min(100%, 820px); }
+.study-layout.is-focus .session-state { min-height: 0; }
 
 @media (max-width: 850px) {
   /* Stacked layout: the controls fold away above and the timer slides into their place. */
@@ -482,6 +497,11 @@ select, input[type='text'], textarea { min-height: 44px; padding: 8px 10px; bord
   .study-layout.is-focus .practice-question-tools { gap: 6px; }
   .study-layout.is-focus .practice-question-tools > * { padding-inline: 4px; font-size: 10px; line-height: 1.2; white-space: normal; }
   .study-layout.is-focus .practice-question-tools .practice-favorite-button { flex-basis: 42px; }
+  /* Too little room on a phone to centre around the timer: stack it simply instead. */
+  .study-layout.is-focus > .session-panel { min-height: 0; }
+  .study-layout.is-focus .session-panel .timer-wrap { grid-template-rows: auto auto auto; padding: 52px 4px 24px; }
+  .study-layout.is-focus .practice-question-tools { margin-bottom: 22px; }
+  .study-layout.is-focus .timer-band-bottom > :is(.action-row, .action-grid, .primary-action):not(.study-outcome-actions) { margin-top: 22px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .study-layout:not(.is-written-test), .study-layout > .topic-panel, .session-panel .timer-wrap { transition: none; }
