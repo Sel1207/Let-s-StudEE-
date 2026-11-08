@@ -212,6 +212,7 @@ export default function TopicPriorityControls({
           <div className="priority-undo" role="status">
             <span>{undo.label}</span>
             <button type="button" onClick={undoBulk}>Undo</button>
+            <button type="button" className="priority-undo-close" aria-label="Close" title="Close" onClick={() => setUndo(null)}>×</button>
           </div>
         )}
 

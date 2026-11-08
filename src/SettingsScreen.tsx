@@ -3,6 +3,7 @@ import { formatDuration } from './questionLogic'
 import { createFullAppBackup, parseFullAppBackup, restoreFullAppBackup } from './appBackup'
 import { ALLOWED_DURATIONS, PREFERRED_VOICE_NAME, type StudyData, type StudySettings } from './studyTypes'
 import type { ThemePreference } from './themePreference'
+import { buildLabel, CURRENT_BUILD, fetchLatestBuild, installLatestVersion } from './appUpdate'
 
 interface SettingsScreenProps {
   data: StudyData
@@ -19,10 +20,25 @@ export default function SettingsScreen({ data, voices, theme, onChangeTheme, onC
   const voiceOptions = englishVoices.length ? englishVoices : voices
   const defaultVoice = voiceOptions.find((voice) => voice.name.includes(PREFERRED_VOICE_NAME)) ?? voiceOptions[0]
 
-  function updateApp() {
-    const url = new URL(window.location.href)
-    url.searchParams.set('__app_update', `settings-${Date.now()}`)
-    window.location.replace(url.toString())
+  const [updateStatus, setUpdateStatus] = useState('')
+  const [updating, setUpdating] = useState(false)
+
+  async function updateApp() {
+    setUpdating(true)
+    setUpdateStatus('Checking for a newer version…')
+    const latest = await fetchLatestBuild()
+    if (latest && latest === CURRENT_BUILD) {
+      setUpdating(false)
+      setUpdateStatus(`You’re already on the latest version (${buildLabel()}).`)
+      return
+    }
+    if (!latest && !navigator.onLine) {
+      setUpdating(false)
+      setUpdateStatus('You’re offline. Connect to the internet, then try again.')
+      return
+    }
+    setUpdateStatus('Updating… the app will reload in a moment.')
+    await installLatestVersion('settings')
   }
 
   function exportFullBackup() {
@@ -157,9 +173,11 @@ export default function SettingsScreen({ data, voices, theme, onChangeTheme, onC
       <section className="app-update-section" aria-labelledby="app-update-heading" data-search-id="setting-update">
         <div>
           <h2 id="app-update-heading">Website update</h2>
-          <p>Load the latest published version. Your bookmark and saved study data will stay in place.</p>
+          <p>Checks for the latest published version and installs it. Your bookmark and saved study data stay in place.</p>
+          <p className="app-update-version">This version: {buildLabel()}</p>
+          {updateStatus && <p className="app-update-status" role="status">{updateStatus}</p>}
         </div>
-        <button className="secondary-action" type="button" onClick={updateApp}>Update app</button>
+        <button className="secondary-action" type="button" disabled={updating} onClick={() => { void updateApp() }}>{updating ? 'Updating…' : 'Update app'}</button>
       </section>
 
     </section>

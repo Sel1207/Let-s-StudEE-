@@ -12,6 +12,7 @@ import { loadStudyData, saveStudyData } from './studyStorage'
 import { competitionNameKey, loadCompetitionStorage, saveCompetitionStorage } from './competitionData'
 import GlobalSearch, { SearchButton } from './GlobalSearch'
 import ThemeToggle from './ThemeToggle'
+import UpdateBanner from './UpdateBanner'
 import { playCorrectChime, preloadCorrectChime } from './correctChime'
 import CompetitionRoundViewer, { type CompetitionViewerRequest } from './CompetitionRoundViewer'
 import type { SearchTarget } from './searchIndex'
@@ -978,6 +979,7 @@ function StudyApp() {
         </nav>
       </header>
 
+      <UpdateBanner />
       <main className="app-main">
         <div hidden={view !== 'study'}>
           <StudyScreen
