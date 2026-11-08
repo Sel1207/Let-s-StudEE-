@@ -4,7 +4,7 @@ import MathText from './MathText'
 import NoteText from './NoteText'
 import { useCollapseOnOutsidePress } from './useCollapseOnOutsidePress'
 import { isStuckToTop } from './useAutoHideHeader'
-import { contestPreparationContext, noteDetailsPrompt, stripOuterCodeFence } from './aiPromptContext'
+import { contestPreparationContext, noteDetailsPrompt, selfCheckInstruction, stripOuterCodeFence } from './aiPromptContext'
 import { speechRate } from './speechRate'
 import { mathToSpeech } from './mathSpeech'
 import FireworksCelebration from './FireworksCelebration'
@@ -188,7 +188,9 @@ SYMBOL-TO-SPEECH GUIDE
 - Before returning, check that every question and every choice has both its display field and a plain spoken field; that no LaTeX command remains in any Read Aloud field; that each symbol is spoken according to its subject context; and that the source order, times, question count, and answer-choice labels are preserved.
 
 SOURCE DOCUMENT
-Read the PDF or Word file attached to the AI chat together with this prompt. Return the complete labeled plain-text competition described above. The user will paste your response into the Mock Competition app. If you cannot read the attachment, clearly ask for a readable upload or extracted text.`
+Read the PDF or Word file attached to the AI chat together with this prompt. Return the complete labeled plain-text competition described above. The user will paste your response into the Mock Competition app. If you cannot read the attachment, clearly ask for a readable upload or extracted text.
+
+${selfCheckInstruction({ spoken: true })}`
 
 function extractionPromptForSubject(subject: string): string {
   if (['ee', 'electrical engineering'].includes(competitionNameKey(subject))) {
@@ -272,7 +274,9 @@ Solution: [complete worked solution]
 Extraction Notes: [uncertain source text or symbol fixes, if any]
 \`\`\`
 
-Return all 15 regular question blocks: questions 1–5 in Round 1, questions 1–5 in Round 2, and questions 1–5 in Round 3. Never treat the examples as extracted content or invent questions to fill missing blocks.`
+Return all 15 regular question blocks: questions 1–5 in Round 1, questions 1–5 in Round 2, and questions 1–5 in Round 3. Never treat the examples as extracted content or invent questions to fill missing blocks.
+
+${selfCheckInstruction({ spoken: true })}`
   }
   if (competitionNameKey(subject) !== 'esas') return COMPETITION_EXTRACTION_PROMPT
   return `${contestPreparationContext('ESAS')}
@@ -356,7 +360,9 @@ Solution: [complete worked solution]
 Extraction Notes: [uncertain source text or symbol fixes, if any]
 \`\`\`
 
-Return all 21 regular question blocks: questions 1–7 in Round 1, questions 1–7 in Round 2, and questions 1–7 in Round 3. Never treat the example as extracted content or invent questions to fill missing blocks.`
+Return all 21 regular question blocks: questions 1–7 in Round 1, questions 1–7 in Round 2, and questions 1–7 in Round 3. Never treat the example as extracted content or invent questions to fill missing blocks.
+
+${selfCheckInstruction({ spoken: true })}`
 }
 
 function wordsForNumber(value: number): string {

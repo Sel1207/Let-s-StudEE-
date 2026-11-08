@@ -59,9 +59,36 @@ COPYABLE OUTPUT
 Write a note in English that captures what I noticed, using the corrected version if I made a mistake. Return it as plain text inside exactly one \`\`\`text code block, and put only the note inside the block. Do not use nested code fences. Keep all LaTeX as raw source with its $...$ or $$...$$ delimiters.
 Format the note so it is easy to scan: short lines, a blank line between ideas, "- " for bullets, and "1. " for steps. Do not use headings, bold, or tables.${titled ? '\nPut a short title of 3 to 8 words on the first line, with no "Title:" label, using $...$ for any math in it. Then leave a blank line and write the note.' : ''}
 
+${selfCheckInstruction({ solutions: false })}
+
 ${lines}
 
 What I noticed: `
+}
+
+export const SVG_SUBSCRIPT_EXAMPLE = '<text x="40" y="30" font-size="14" font-family="sans-serif">I<tspan baseline-shift="sub" font-size="10">L</tspan></text>'
+
+/**
+ * The closing instruction for every AI prompt: the AI reviews and fixes its own draft before
+ * replying. Subscripts get special attention, because AIs often leave raw "I_L" or "N_L" in plain
+ * text and in diagram labels, where it shows up literally instead of as a subscript.
+ */
+export function selfCheckInstruction({ diagrams = false, spoken = false, solutions = true } = {}): string {
+  const checks = [
+    solutions
+      ? '- Accuracy: independently re-solve every calculation and re-derive every formula. Check each number, sign, unit, prefix, and rounding, and confirm every answer matches its solution and the source. If anything disagrees, find the error and correct it.'
+      : '- Accuracy: confirm every fact, formula, number, sign, and unit is correct. If you find a mistake, correct it.',
+    '- Completeness: confirm nothing the instructions require was skipped, merged, or cut short, and nothing was invented.',
+    '- Notation: every variable with a subscript or superscript, every symbol, and every equation outside a diagram must be inside $...$ (write $I_L$, $N_L$, $V_{s}$, $x^2$, never bare I_L, N_L, V_s, or x^2). Check that every $ has a partner, braces are balanced, and the LaTeX renders in KaTeX.',
+    ...(diagrams ? [
+      `- Diagrams: SVG text cannot show LaTeX, so no label may contain _, ^, $, or a backslash. Write each subscript with a tspan instead, for example ${SVG_SUBSCRIPT_EXAMPLE} for I with subscript L. Confirm every component, value, label, current direction, and polarity matches the explanation, labels do not overlap lines or each other, and only the allowed SVG elements are used.`,
+    ] : []),
+    ...(spoken ? ['- Read-aloud fields: no LaTeX, dollar signs, backslashes, underscores, or unexplained symbols; each one says the same thing as its display field.'] : []),
+    '- Format: the output follows the requested format exactly, with every required field and no extra text beyond what the instructions allow.',
+  ]
+  return `DOUBLE-CHECK YOUR WORK BEFORE ANSWERING
+Do not send your first draft. Review the whole draft line by line against the source and these instructions, fix every problem you find, then review the fixes once more. Return only the corrected final version; do not include the review or any commentary about it.
+${checks.join('\n')}`
 }
 
 export function stripOuterCodeFence(value: string): string {

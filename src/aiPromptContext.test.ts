@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { contestPreparationContext, noteDetailsPrompt, shortcutGuidanceInstruction, STUDY_BANK_CHOICE_POLICY, stripOuterCodeFence, topicScopeInstruction } from './aiPromptContext'
+import { contestPreparationContext, noteDetailsPrompt, selfCheckInstruction, shortcutGuidanceInstruction, STUDY_BANK_CHOICE_POLICY, stripOuterCodeFence, topicScopeInstruction } from './aiPromptContext'
 
 describe('question note prompt', () => {
   const prompt = noteDetailsPrompt({ Topic: 'Linear Algebra', Question: 'Find $k$.', Answer: '$k=2$', Solution: 'Dot product.' })
@@ -82,5 +82,24 @@ describe('contest preparation context', () => {
     expect(STUDY_BANK_CHOICE_POLICY).toContain('remove every choice')
     expect(STUDY_BANK_CHOICE_POLICY).toContain('For conceptual, definition, or identification questions')
     expect(STUDY_BANK_CHOICE_POLICY).toContain('Do not include choices just because the source has them')
+  })
+})
+
+describe('self-check instruction', () => {
+  it('makes every note prompt double-check its work', () => {
+    const prompt = noteDetailsPrompt({ Topic: 'AC Circuits' })
+    expect(prompt).toContain('DOUBLE-CHECK YOUR WORK BEFORE ANSWERING')
+    expect(prompt).toContain('never bare I_L, N_L')
+    expect(prompt.endsWith('What I noticed: ')).toBe(true)
+  })
+
+  it('adds diagram and read-aloud checks only when asked', () => {
+    const plain = selfCheckInstruction()
+    expect(plain).not.toContain('tspan')
+    expect(plain).not.toContain('Read-aloud')
+    const full = selfCheckInstruction({ diagrams: true, spoken: true })
+    expect(full).toContain('baseline-shift="sub"')
+    expect(full).toContain('Read-aloud fields')
+    expect(full).toContain('re-solve every calculation')
   })
 })

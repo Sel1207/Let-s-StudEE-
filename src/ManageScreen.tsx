@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ChangeEvent } from 'react'
-import { contestPreparationContext, STUDY_BANK_CHOICE_POLICY, topicScopeInstruction } from './aiPromptContext'
+import { contestPreparationContext, STUDY_BANK_CHOICE_POLICY, topicScopeInstruction, selfCheckInstruction } from './aiPromptContext'
 import { accuracy, formatDuration, parseQuestionLines } from './questionLogic'
 import { loadManageTopic, parseStudyBackup, saveManageTopic } from './studyStorage'
 import { loadCompetitionStorage, saveCompetitionStorage } from './competitionData'
@@ -50,7 +50,9 @@ EXAMPLE
     "solution": "By Ohm's law, $R=V/I=12/5=2.4\\,\\Omega$."
   }
 ]
-\`\`\``
+\`\`\`
+
+${selfCheckInstruction({ spoken: true })}`
   }
   return `${contestPreparationContext(group)}
 
@@ -95,7 +97,9 @@ EXAMPLE
     "solution": "Apply the power rule term by term: $\\frac{d}{dx}(x^2)=2x$ and $\\frac{d}{dx}(3x)=3$. Therefore, $f'(x)=2x+3$."
   }
 ]
-\`\`\``
+\`\`\`
+
+${selfCheckInstruction({ spoken: true })}`
 }
 
 interface ManageScreenProps {
