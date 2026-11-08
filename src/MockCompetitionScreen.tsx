@@ -755,7 +755,7 @@ export default function MockCompetitionScreen({ voices, studyData, onDeleteStudy
   const [savedHistoryId, setSavedHistoryId] = useState<string | null>(restoredSession?.savedHistoryId ?? null)
   const [historyNotice, setHistoryNotice] = useState('')
   const [pausedFrom, setPausedFrom] = useState<'announcing' | 'countdown' | 'answering'>(restoredActive ? 'countdown' : restoredSession?.pausedFrom ?? 'countdown')
-  const [trackerQuestion, setTrackerQuestion] = useState<{ question: CompetitionQuestion; round: number | 'Sudden Death'; earnedPoints: number } | null>(null)
+  const [trackerQuestion, setTrackerQuestion] = useState<{ question: CompetitionQuestion; round: number | 'Sudden Death'; earnedPoints: number | null } | null>(null)
   const trackerDialogRef = useRef<HTMLDialogElement>(null)
   const storageRef = useRef(storage)
   const backupFileInput = useRef<HTMLInputElement>(null)
@@ -1466,7 +1466,7 @@ export default function MockCompetitionScreen({ voices, studyData, onDeleteStudy
   }
 
   const handleCompetitionShortcut = useEffectEvent((event: KeyboardEvent) => {
-    if (!currentQuestion || showRoundCelebration || noteDialogRef.current?.open || deleteStudyQuestionDialogRef.current?.open || competitionSettingsDialogRef.current?.open) return
+    if (!currentQuestion || showRoundCelebration || noteDialogRef.current?.open || deleteStudyQuestionDialogRef.current?.open || competitionSettingsDialogRef.current?.open || trackerDialogRef.current?.open) return
     const target = event.target
     if (target instanceof HTMLElement && target.closest('input, textarea, select, [contenteditable="true"]')) return
     if (event.code === 'Space' && target instanceof HTMLElement && target.closest('button, a')) return
@@ -1949,17 +1949,15 @@ export default function MockCompetitionScreen({ voices, studyData, onDeleteStudy
     setHistoryNotice('Saved score removed from history.')
   }
 
-  // Scored questions in the live trackers open their answer and solution, like the saved scoreboard.
-  // Unscored ones stay plain text so the tracker can't spoil questions that haven't been played yet.
+  // Every question in the live trackers opens its question, answer and solution, like the saved scoreboard.
+  const earnedFor = (question: CompetitionQuestion, outcome: Outcome | undefined) => outcome === 'correct' ? question.points : outcome === 'wrong' ? 0 : null
   const trackerQuestionLabel = (question: CompetitionQuestion, round: number | 'Sudden Death', outcome: Outcome | undefined, compact = false) => {
     const label = compact ? `Q${question.number} ${difficultyCode(question.difficulty)}` : `Q${question.number}: ${difficultyCode(question.difficulty)}`
-    if (!outcome) return <span>{label}</span>
-    return <button className="competition-scoreboard-question-button" type="button" onClick={() => setTrackerQuestion({ question, round, earnedPoints: outcome === 'correct' ? question.points : 0 })}>{label}</button>
+    return <button className="competition-scoreboard-question-button" type="button" onClick={() => setTrackerQuestion({ question, round, earnedPoints: earnedFor(question, outcome) })}>{label}</button>
   }
   const trackerPoints = (question: CompetitionQuestion, round: number | 'Sudden Death', outcome: Outcome | undefined) => {
-    if (!outcome) return <span>—</span>
-    const earnedPoints = outcome === 'correct' ? question.points : 0
-    return <button className="competition-scoreboard-points-button" type="button" aria-label={`${earnedPoints} points for question ${question.number}. View answer and solution`} onClick={() => setTrackerQuestion({ question, round, earnedPoints })}>{earnedPoints}</button>
+    const earnedPoints = earnedFor(question, outcome)
+    return <button className="competition-scoreboard-points-button" type="button" aria-label={`${earnedPoints === null ? 'Not scored yet' : `${earnedPoints} points`} for question ${question.number}. View question, answer and solution`} onClick={() => setTrackerQuestion({ question, round, earnedPoints })}>{earnedPoints ?? '—'}</button>
   }
   const trackerQuestionDialog = <dialog ref={trackerDialogRef} className="competition-history-question-dialog" aria-labelledby="tracker-question-title" onClose={() => setTrackerQuestion(null)} onClick={(event) => {
     if (event.target === event.currentTarget) trackerDialogRef.current?.close()
@@ -1969,7 +1967,7 @@ export default function MockCompetitionScreen({ voices, studyData, onDeleteStudy
         <div><p className="eyebrow">{competition?.competitionName} · {trackerQuestion.round === 'Sudden Death' ? 'Sudden Death' : `Round ${trackerQuestion.round}`} · Question {trackerQuestion.question.number}</p><h2 id="tracker-question-title">{trackerQuestion.question.category || 'Question details'}</h2></div>
         <button className="text-action" type="button" aria-label="Close question details" onClick={() => trackerDialogRef.current?.close()}>Close</button>
       </div>
-      <p className="competition-history-question-meta">{trackerQuestion.question.difficulty} · {trackerQuestion.question.points} {trackerQuestion.question.points === 1 ? 'point' : 'points'} · {trackerQuestion.earnedPoints} earned</p>
+      <p className="competition-history-question-meta">{trackerQuestion.question.difficulty} · {trackerQuestion.question.points} {trackerQuestion.question.points === 1 ? 'point' : 'points'} · {trackerQuestion.earnedPoints === null ? 'Not scored yet' : `${trackerQuestion.earnedPoints} earned`}</p>
       <MathText text={trackerQuestion.question.question} className="competition-history-question-text" />
       {trackerQuestion.question.choices && <ol className="competition-choice-list" type="A">{(Object.entries(trackerQuestion.question.choices) as Array<[string, string]>).map(([letter, choice]) => <li key={letter}><span className="choice-letter">{letter}.</span><MathText text={choice} /></li>)}</ol>}
       <div className="competition-history-question-answer"><strong>Answer</strong><MathText text={trackerQuestion.question.answer} /></div>
@@ -2000,7 +1998,7 @@ export default function MockCompetitionScreen({ voices, studyData, onDeleteStudy
             {competition.rounds.map((round) => <Fragment key={round.round}>
               {round.questions.map((question) => {
                 const outcome = outcomes[question.id]
-                return <td key={question.id} className={`competition-scoreboard-points${outcome ? ` is-${outcome}` : ''}`} aria-label={outcome ? undefined : 'Not scored yet'}>{trackerPoints(question, round.round, outcome)}</td>
+                return <td key={question.id} className={`competition-scoreboard-points${outcome ? ` is-${outcome}` : ''}`}>{trackerPoints(question, round.round, outcome)}</td>
               })}
               <td className="competition-scoreboard-round-total">{totalScore(round.questions, outcomes)} / {round.questions.reduce((sum, question) => sum + question.points, 0)}</td>
             </Fragment>)}
