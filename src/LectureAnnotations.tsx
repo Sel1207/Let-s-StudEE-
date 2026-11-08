@@ -51,7 +51,8 @@ const ERASER_REACH = 8
 const ICONS = {
   select: <path d="M4 3l7 17 2.5-7.5L21 10 4 3z" />,
   pen: <><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" /></>,
-  marker: <><path d="m9 11-6 6v3h9l3-3" /><path d="m22 12-4.6 4.6a2 2 0 0 1-2.8 0l-5.2-5.2a2 2 0 0 1 0-2.8L14 4" /></>,
+  highlight: <><path d="m9 11-6 6v3h9l3-3" /><path d="m22 12-4.6 4.6a2 2 0 0 1-2.8 0l-5.2-5.2a2 2 0 0 1 0-2.8L14 4" /></>,
+  marker: <><path d="m9.06 11.9 8.07-8.06a2.85 2.85 0 1 1 4.03 4.03l-8.06 8.08" /><path d="M7.07 14.94c-1.66 0-3 1.35-3 3.02 0 1.33-2.5 1.52-2 2.02 1.08 1.1 2.49 2.02 4 2.02 2.2 0 4-1.8 4-4.04a3.01 3.01 0 0 0-3-3.02z" /></>,
   text: <><path d="M4 7V4h16v3" /><path d="M9 20h6" /><path d="M12 4v16" /></>,
   eraser: <><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21" /><path d="M22 21H7" /><path d="m5 11 9 9" /></>,
   undo: <><path d="M3 7v6h6" /><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13" /></>,
@@ -95,6 +96,7 @@ export default function LectureAnnotations({
   paperRef,
   tool,
   onToolChange,
+  highlightOptionsRef,
   onSaveProblem,
 }: {
   topic: Topic
@@ -102,6 +104,8 @@ export default function LectureAnnotations({
   paperRef: RefObject<HTMLDivElement | null>
   tool: AnnotationTool | null
   onToolChange: (tool: AnnotationTool | null) => void
+  /** The text highlighter draws its colors into this spot in the toolbar. */
+  highlightOptionsRef: (element: HTMLDivElement | null) => void
   onSaveProblem: (message: string) => void
 }) {
   const [saved] = useState(loadAnnotations)
@@ -468,12 +472,17 @@ export default function LectureAnnotations({
   const draftIsPen = tool === 'pen'
   const tools: Array<{ id: AnnotationTool | null; label: string; icon: ReactNode }> = [
     { id: null, label: 'Select and read', icon: ICONS.select },
+    { id: 'highlight', label: 'Highlight text', icon: ICONS.highlight },
+    { id: 'marker', label: 'Freehand highlighter', icon: ICONS.marker },
     { id: 'pen', label: 'Pen', icon: ICONS.pen },
-    { id: 'marker', label: 'Highlighter marker', icon: ICONS.marker },
     { id: 'text', label: 'Add text', icon: ICONS.text },
     { id: 'eraser', label: 'Eraser', icon: ICONS.eraser },
   ]
-  const hint = tool === 'pen' || tool === 'marker'
+  const hint = tool === 'highlight'
+    ? coarse ? 'Swipe across text to highlight it, or tap a word or formula. Use the brush to highlight anywhere.' : 'Drag across text to highlight it, or click a word or formula. Use the brush to highlight anywhere.'
+    : tool === 'marker'
+      ? coarse ? 'Highlight anywhere with one finger. Use two fingers to scroll.' : 'Highlight anywhere: drag over text, margins or diagrams.'
+    : tool === 'pen'
     ? coarse ? 'Draw with one finger. Use two fingers to scroll.' : 'Draw anywhere on the notes.'
     : tool === 'text'
       ? coarse ? 'Tap anywhere to type. LaTeX like $x^2$ works.' : 'Click anywhere to type. LaTeX like $x^2$ works.'
@@ -546,15 +555,16 @@ export default function LectureAnnotations({
             ))}
           </div>
         )}
+        {tool === 'highlight' && <div ref={highlightOptionsRef} className="lecture-ink-options" role="group" aria-label="Text highlight color" />}
         {tool === 'marker' && (
-          <div className="lecture-ink-options" role="group" aria-label="Marker color and size">
+          <div className="lecture-ink-options" role="group" aria-label="Freehand highlighter color and size">
             {MARKER_COLORS.map((color) => (
               <button
                 key={color.id}
                 className="lecture-ink-swatch"
                 type="button"
                 data-marker={color.id}
-                aria-label={`${color.label} marker`}
+                aria-label={`${color.label} freehand highlighter`}
                 aria-pressed={prefs.markerColor === color.id}
                 title={color.label}
                 onClick={() => updatePrefs({ markerColor: color.id })}
@@ -566,7 +576,7 @@ export default function LectureAnnotations({
                 key={size}
                 className="lecture-ink-size"
                 type="button"
-                aria-label={`${['Thin', 'Medium', 'Thick'][index]} marker`}
+                aria-label={`${['Thin', 'Medium', 'Thick'][index]} freehand highlighter`}
                 aria-pressed={prefs.markerSize === size}
                 title={['Thin', 'Medium', 'Thick'][index]}
                 onClick={() => updatePrefs({ markerSize: size })}
@@ -602,7 +612,7 @@ export default function LectureAnnotations({
           {draftIsPen && <path ref={draftRef} data-ink={prefs.penColor} strokeWidth={prefs.penSize} />}
         </svg>
 
-        {tool && (
+        {tool && tool !== 'highlight' && (
           <div
             className="lecture-ink-capture"
             onPointerDown={pointerDown}

@@ -4,7 +4,8 @@ export const LECTURE_INK_STORAGE_KEY = 'lets-studee-lecture-ink-v1'
 export const LECTURE_INK_TOOL_STORAGE_KEY = 'lets-studee-lecture-ink-tool-v1'
 
 export type InkTool = 'pen' | 'marker'
-export type AnnotationTool = InkTool | 'text' | 'eraser'
+/** `highlight` is the text highlighter that snaps to words; `marker` highlights freehand anywhere. */
+export type AnnotationTool = InkTool | 'highlight' | 'text' | 'eraser'
 
 export const PEN_COLORS = [
   { id: 'ink', label: 'Ink' },

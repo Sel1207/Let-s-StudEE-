@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import type { ReactNode, RefObject } from 'react'
 import { mapNote, snapSpan, spanAtPoint, spanAtScreen, spanRects, wordAt, type NoteMap } from './lectureHighlightDom'
 import {
@@ -53,10 +54,6 @@ const EDGE_SCROLL_ZONE = 48
 const EDGE_SCROLL_STEP = 14
 const SELECTION_SETTLE_MS = 160
 
-const HIGHLIGHTER_PATHS = <>
-  <path d="m9 11-6 6v3h9l3-3" />
-  <path d="m22 12-4.6 4.6a2 2 0 0 1-2.8 0l-5.2-5.2a2 2 0 0 1 0-2.8L14 4" />
-</>
 const ERASER_PATHS = <>
   <path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21" />
   <path d="M22 21H7" />
@@ -84,42 +81,42 @@ export default function LectureHighlighter({
   topic,
   note,
   paperRef,
-  annotating,
-  onPenOn,
+  active,
+  optionsSlot,
+  onExit,
   onSaveProblem,
 }: {
   topic: Topic
   note: string
   paperRef: RefObject<HTMLDivElement | null>
-  /** True while a pen, marker, text or eraser tool is in use; the highlighter steps aside. */
-  annotating: boolean
-  onPenOn: () => void
+  /** True while "Highlight text" is the chosen tool in the notebook toolbar. */
+  active: boolean
+  /** Where the toolbar wants this tool's colors drawn. */
+  optionsSlot: HTMLElement | null
+  onExit: () => void
   onSaveProblem: (message: string) => void
 }) {
   const [saved] = useState(loadHighlights)
   const [highlights, setHighlights] = useState(saved.highlights)
   const [lastColor, setLastColor] = useState(loadHighlighterColor)
-  const [pen, setPen] = useState<Pen | null>(null)
-  const [wasAnnotating, setWasAnnotating] = useState(annotating)
-  if (annotating !== wasAnnotating) {
-    setWasAnnotating(annotating)
-    if (annotating) setPen(null)
+  const [choice, setChoice] = useState<Pen | null>(null)
+  const [wasActive, setWasActive] = useState(active)
+  if (active !== wasActive) {
+    setWasActive(active)
+    if (active) setChoice(null)
   }
-  const [menuOpen, setMenuOpen] = useState(false)
+  const pen: Pen | null = active ? choice ?? lastColor : null
   const [clearArmed, setClearArmed] = useState(false)
   const [popup, setPopup] = useState<Popup | null>(null)
   const [bands, setBands] = useState(NO_BANDS)
   const [strokeBands, setStrokeBands] = useState(NO_BANDS)
   const layerRef = useRef<HTMLDivElement>(null)
-  const toolsRef = useRef<HTMLDivElement>(null)
   const popupRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<NoteMap>({ text: '', segments: [] })
   const bandsRef = useRef(NO_BANDS)
   const list = highlights[topic] ?? NO_HIGHLIGHTS
   const shownCount = new Set(bands.map((band) => band.id)).size
   const hiddenCount = list.length - shownCount
-  const penLabel = HIGHLIGHT_COLORS.find((color) => color.id === pen)?.label ?? 'Eraser'
-  const swatch = HIGHLIGHT_COLORS.find((color) => color.id === (pen === 'erase' || pen === null ? lastColor : pen))?.swatch
 
   const bandsFor = useCallback((span: TextSpan, id: string, color: Pen): Band[] => {
     const origin = layerRef.current?.getBoundingClientRect()
@@ -363,19 +360,12 @@ export default function LectureHighlighter({
     function pressOutside(event: PointerEvent) {
       if (!(event.target instanceof Node)) return
       if (!popupRef.current?.contains(event.target)) setPopup(null)
-      if (!toolsRef.current?.contains(event.target)) {
-        setMenuOpen(false)
-        setClearArmed(false)
-      }
+      if (!optionsSlot?.contains(event.target)) setClearArmed(false)
     }
     function escape(event: KeyboardEvent) {
       if (event.key !== 'Escape' || document.querySelector('dialog[open]')) return
-      if (popup || menuOpen) {
-        setPopup(null)
-        setMenuOpen(false)
-      } else {
-        setPen(null)
-      }
+      if (popup) setPopup(null)
+      else if (active) onExit()
     }
     document.addEventListener('pointerdown', pressOutside)
     document.addEventListener('keydown', escape)
@@ -383,13 +373,11 @@ export default function LectureHighlighter({
       document.removeEventListener('pointerdown', pressOutside)
       document.removeEventListener('keydown', escape)
     }
-  }, [menuOpen, popup])
+  }, [active, onExit, optionsSlot, popup])
 
   function choosePen(next: Pen) {
     if (next !== 'erase') rememberColor(next)
-    setPen(next)
-    onPenOn()
-    setMenuOpen(false)
+    setChoice(next)
     setPopup(null)
   }
 
@@ -414,7 +402,6 @@ export default function LectureHighlighter({
     }
     save([])
     setClearArmed(false)
-    setMenuOpen(false)
   }
 
   return (
@@ -459,64 +446,40 @@ export default function LectureHighlighter({
         </div>
       )}
 
-      <div className="lecture-highlighter">
-        <div ref={toolsRef} className="lecture-highlighter-tools">
-          {menuOpen && (
-            <div className="lecture-highlighter-menu" role="group" aria-label="Highlighter colors">
-              <div className="lecture-highlighter-colors">
-                {HIGHLIGHT_COLORS.map((color) => (
-                  <button
-                    key={color.id}
-                    className="lecture-highlight-swatch"
-                    type="button"
-                    aria-label={color.label}
-                    aria-pressed={pen === color.id}
-                    title={color.label}
-                    style={{ background: color.swatch }}
-                    onClick={() => choosePen(color.id)}
-                  />
-                ))}
-                <button
-                  className="lecture-highlight-tool"
-                  type="button"
-                  aria-label="Eraser"
-                  aria-pressed={pen === 'erase'}
-                  title="Eraser"
-                  onClick={() => choosePen('erase')}
-                >
-                  <Icon paths={ERASER_PATHS} />
-                </button>
-              </div>
-              <p>
-                {window.matchMedia('(pointer: coarse)').matches
-                  ? 'Swipe sideways across text, then keep going down for more lines. Tap a word, formula or diagram to mark it.'
-                  : 'Drag across text, formulas or tables. Click a word, formula or diagram to mark it.'}
-              </p>
-              {list.length > 0 && (
-                <button className={`text-action lecture-highlighter-clear${clearArmed ? ' is-armed' : ''}`} type="button" onClick={clearAll}>
-                  {clearArmed ? 'Press again to clear' : `Clear all highlights (${list.length})`}
-                </button>
-              )}
-              {hiddenCount > 0 && <small>{hiddenCount} hidden because their words were edited.</small>}
-            </div>
-          )}
-          {pen && <button className="lecture-highlighter-done" type="button" onClick={() => setPen(null)}>Done</button>}
+      {active && optionsSlot && createPortal(
+        <>
+          {HIGHLIGHT_COLORS.map((color) => (
+            <button
+              key={color.id}
+              className="lecture-ink-swatch"
+              type="button"
+              aria-label={`Highlight text ${color.label.toLowerCase()}`}
+              aria-pressed={pen === color.id}
+              title={color.label}
+              style={{ background: color.swatch }}
+              onClick={() => choosePen(color.id)}
+            />
+          ))}
+          <span className="lecture-ink-divider" aria-hidden="true" />
           <button
-            className={`lecture-highlighter-button${pen ? ' is-on' : ''}`}
+            className="lecture-ink-tool"
             type="button"
-            aria-label={pen ? `Highlighter on: ${penLabel}. Change color` : 'Highlighter'}
-            aria-expanded={menuOpen}
-            title="Highlighter"
-            onClick={() => {
-              setMenuOpen((open) => !open)
-              setClearArmed(false)
-            }}
+            aria-label="Remove text highlights"
+            aria-pressed={pen === 'erase'}
+            title="Remove highlights"
+            onClick={() => choosePen('erase')}
           >
-            <Icon paths={pen === 'erase' ? ERASER_PATHS : HIGHLIGHTER_PATHS} />
-            <span className="lecture-highlighter-ink" style={{ background: swatch }} />
+            <Icon paths={ERASER_PATHS} />
           </button>
-        </div>
-      </div>
+          {list.length > 0 && (
+            <button className={`text-action lecture-ink-clear${clearArmed ? ' is-armed' : ''}`} type="button" title="Clear all text highlights on this page" onClick={clearAll}>
+              {clearArmed ? 'Press again' : `Clear highlights (${list.length})`}
+            </button>
+          )}
+          {hiddenCount > 0 && <small className="lecture-ink-note">{hiddenCount} hidden because their words were edited.</small>}
+        </>,
+        optionsSlot,
+      )}
     </>
   )
 }
