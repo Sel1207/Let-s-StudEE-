@@ -182,7 +182,8 @@ function LectureNoteTextBlock({ text, offset }: { text: string; offset: number }
         .map(([raw, start]) => ({ text: raw.trim(), offset: start + raw.length - raw.trimStart().length }))
     })
     const bodyRows = rows.filter((row, index) => index !== 1 || !row.every((cell) => /^:?-{3,}:?$/.test(cell.text)))
-    return <div className="lecture-table-scroll"><table>
+    // data-block-* (not data-s/e) so text selection inside cells still maps to the cell text.
+    return <div className="lecture-table-scroll" data-block-s={offset} data-block-e={offset + text.length} title="Click to edit or fix this table"><table>
       <thead><tr>{bodyRows[0]?.map((cell, index) => <th key={index}>{renderNoteInlineContent(cell.text, `table-heading-${index}`, cell.offset)}</th>)}</tr></thead>
       <tbody>{bodyRows.slice(1).map((row, rowIndex) => <tr key={rowIndex}>{row.map((cell, cellIndex) => <td key={cellIndex}>{renderNoteInlineContent(cell.text, `table-${rowIndex}-${cellIndex}`, cell.offset)}</td>)}</tr>)}</tbody>
     </table></div>
@@ -376,13 +377,24 @@ export default function LectureScreen({
     }
   }
 
-  // In reading mode, clicking a diagram opens its SVG source for fixing, since a picture can't be text-selected.
+  // In reading mode, clicking a diagram or a table opens its source for fixing. A table click only
+  // counts when no text is selected, so selecting cell text for Edit/Delete still works.
   function openDiagramEditor(event: React.MouseEvent<HTMLDivElement>) {
     if (annotationTool) return
     const target = event.target
-    if (!(target instanceof HTMLImageElement) || !target.classList.contains('lecture-diagram')) return
-    const start = Number(target.dataset.s)
-    const end = Number(target.dataset.e)
+    if (!(target instanceof Element)) return
+    let start: number
+    let end: number
+    if (target instanceof HTMLImageElement && target.classList.contains('lecture-diagram')) {
+      start = Number(target.dataset.s)
+      end = Number(target.dataset.e)
+    } else {
+      const table = target.closest<HTMLElement>('.lecture-table-scroll[data-block-s]')
+      const selection = window.getSelection()
+      if (!table || (selection && !selection.isCollapsed)) return
+      start = Number(table.dataset.blockS)
+      end = Number(table.dataset.blockE)
+    }
     if (!Number.isFinite(start) || !Number.isFinite(end)) return
     const original = note.slice(start, end)
     setSourceEditNotice('')
@@ -548,7 +560,7 @@ export default function LectureScreen({
           <div className="lecture-editor-dialog-heading">
             <div>
               <p className="eyebrow">{topic}</p>
-              <h2 id="lecture-source-edit-title">{/^\s*<svg\b/i.test(sourceEdit.original) ? 'Edit diagram' : 'Edit selected text'}</h2>
+              <h2 id="lecture-source-edit-title">{/^\s*<svg\b/i.test(sourceEdit.original) ? 'Edit diagram' : /^\s*\|/.test(sourceEdit.original) ? 'Edit table' : 'Edit selected text'}</h2>
             </div>
             <button className="text-action" type="button" onClick={() => sourceEditRef.current?.close()}>Cancel</button>
           </div>

@@ -142,6 +142,8 @@
 .lecture-source-edit-ai .text-action { min-height: 34px; font-size: 10px; }
 .lecture-source-edit-ai > span { color: var(--muted); font-size: 10px; }
 .lecture-notebook-paper:not([data-pen]) .lecture-diagram { cursor: pointer; }
+.lecture-notebook-paper:not([data-pen]) .lecture-table-scroll[data-block-s] { cursor: pointer; border-radius: 4px; transition: box-shadow .15s; }
+.lecture-notebook-paper:not([data-pen]) .lecture-table-scroll[data-block-s]:hover { box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 35%, transparent); }
 .lecture-highlight-delete { color: var(--danger); }
 .lecture-highlight-delete:hover { border-color: var(--danger); color: var(--danger); }
 .lecture-undo-toast { position: fixed; bottom: max(18px, env(safe-area-inset-bottom)); left: 50%; z-index: 40; display: flex; align-items: center; gap: 12px; padding: 8px 10px 8px 14px; transform: translateX(-50%); border: 1px solid var(--line); background: var(--surface); box-shadow: 0 6px 22px rgb(0 0 0 / 16%); color: var(--ink); font-size: 11px; white-space: nowrap; }
