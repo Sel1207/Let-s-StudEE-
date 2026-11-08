@@ -56,6 +56,10 @@ const EDGE_SCROLL_ZONE = 48
 const EDGE_SCROLL_STEP = 14
 const SELECTION_SETTLE_MS = 160
 
+const PENCIL_PATHS = <>
+  <path d="M12 20h9" />
+  <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
+</>
 const TRASH_PATHS = <>
   <path d="M3 6h18" />
   <path d="M8 6V4h8v2" />
@@ -93,6 +97,7 @@ export default function LectureHighlighter({
   optionsSlot,
   onExit,
   onDeleteSelection,
+  onEditSelection,
   onSaveProblem,
 }: {
   topic: Topic
@@ -105,6 +110,8 @@ export default function LectureHighlighter({
   onExit: () => void
   /** Deletes the selected text from the note's source. */
   onDeleteSelection: (range: Range) => void
+  /** Opens the selected text's own markdown and LaTeX for a quick fix. */
+  onEditSelection: (range: Range) => void
   onSaveProblem: (message: string) => void
 }) {
   const [saved] = useState(loadHighlights)
@@ -450,6 +457,21 @@ export default function LectureHighlighter({
               onClick={() => choosePopupColor(color.id)}
             />
           ))}
+          {popup.range && !popup.highlight && (
+            <button
+              className="lecture-highlight-tool"
+              type="button"
+              aria-label="Edit the selected text and its LaTeX"
+              title="Edit text"
+              onClick={() => {
+                if (popup.range) onEditSelection(popup.range)
+                setPopup(null)
+                window.getSelection()?.removeAllRanges()
+              }}
+            >
+              <Icon paths={PENCIL_PATHS} />
+            </button>
+          )}
           {popup.range && !popup.highlight && (
             <button
               className="lecture-highlight-tool lecture-highlight-delete"

@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
-import LectureAnnotations from './LectureAnnotations'
+import LectureAnnotations, { type LectureHistory, type NoteEdit } from './LectureAnnotations'
 import LectureHighlighter from './LectureHighlighter'
 import LectureNotesPicker from './LectureNotesPicker'
 import LectureStickyNotes from './LectureStickyNotes'
 import MathText from './MathText'
 import { raiseScripts, splitBareSubscripts, wrapBareSubscripts } from './noteSubscripts'
-import { contestPreparationContext, selfCheckInstruction, shortcutGuidanceInstruction, SVG_SUBSCRIPT_EXAMPLE, topicScopeInstruction } from './aiPromptContext'
+import { contestPreparationContext, selfCheckInstruction, shortcutGuidanceInstruction, stripOuterCodeFence, SVG_SUBSCRIPT_EXAMPLE, topicScopeInstruction } from './aiPromptContext'
 import { EE_TOPIC_GUIDANCE, TOPIC_GROUPS, type Topic } from './studyTypes'
 import { LECTURE_NOTES_STORAGE_KEY, loadLectureNotes } from './lectureNotesStorage'
 import { deleteNoteRange, selectionSourceRange } from './noteSource'
@@ -119,7 +119,7 @@ function safeSvgSource(source: string): string | null {
 function LectureSvgDiagram({ source, offset }: { source: string; offset: number }) {
   const safeSource = safeSvgSource(source)
   if (!safeSource) return null
-  return <img className="lecture-diagram" data-s={offset} data-e={offset + source.length} data-atom="" src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(safeSource)}`} alt="Diagram for these lecture notes" />
+  return <img className="lecture-diagram" title="Click to edit or fix this diagram" data-s={offset} data-e={offset + source.length} data-atom="" src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(safeSource)}`} alt="Diagram for these lecture notes" />
 }
 
 /** Pairs each consecutive piece of a string with where it starts. */
@@ -191,6 +191,11 @@ function LectureNoteTextBlock({ text, offset }: { text: string; offset: number }
   return <p>{renderNoteInlineContent(text, 'note', offset)}</p>
 }
 
+/** An AI reply pasted back in usually comes wrapped in a ```markdown fence; keep only its inside. */
+function cleanPastedSource(text: string): string {
+  return /^\s*```/.test(text) ? stripOuterCodeFence(text) : text
+}
+
 function LectureNoteContent({ note }: { note: string }) {
   return <>{withOffsets(note.split(/(<svg\b[\s\S]*?<\/svg>)/gi), 0).map(([block, offset], index) => {
     if (!block.trim()) return null
@@ -229,7 +234,12 @@ export default function LectureScreen({
   const [promptNotice, setPromptNotice] = useState('')
   const [annotationTool, setAnnotationTool] = useState<AnnotationTool | null>(null)
   const [highlightOptions, setHighlightOptions] = useState<HTMLDivElement | null>(null)
-  const [deletedText, setDeletedText] = useState<{ topic: Topic; note: string } | null>(null)
+  const [noteEdit, setNoteEdit] = useState<{ topic: Topic; edit: NoteEdit } | null>(null)
+  const [deletedToast, setDeletedToast] = useState<number | null>(null)
+  const [sourceEdit, setSourceEdit] = useState<{ start: number; end: number; original: string; text: string } | null>(null)
+  const sourceEditRef = useRef<HTMLDialogElement>(null)
+  const [sourceEditNotice, setSourceEditNotice] = useState('')
+  const historyRef = useRef<LectureHistory | null>(null)
   const editorRef = useRef<HTMLTextAreaElement>(null)
   const noteDialogRef = useRef<HTMLDialogElement>(null)
   const promptRef = useRef<HTMLDetailsElement>(null)
@@ -299,10 +309,10 @@ export default function LectureScreen({
   }
 
   useEffect(() => {
-    if (!deletedText) return undefined
-    const timer = window.setTimeout(() => setDeletedText(null), 10_000)
+    if (deletedToast === null) return undefined
+    const timer = window.setTimeout(() => setDeletedToast(null), 10_000)
     return () => window.clearTimeout(timer)
-  }, [deletedText])
+  }, [deletedToast])
 
   // Deleting a selection removes exactly that part of the markdown and LaTeX source.
   function deleteSelection(range: Range) {
@@ -312,14 +322,76 @@ export default function LectureScreen({
       setSaveNotice('That selection could not be matched to the notes. Edit it in “Edit notes / LaTeX”.')
       return
     }
-    setDeletedText({ topic, note })
-    updateNotes(deleteNoteRange(note, span.start, span.end))
+    // The deletion joins the notebook toolbar's undo history, alongside drawings and text boxes.
+    setDeletedToast(changeNote(deleteNoteRange(note, span.start, span.end)))
+  }
+
+  /** Saves a change to the note's text as one step in the notebook's undo history. */
+  function changeNote(after: string): number {
+    const edit = { id: Date.now(), before: note, after }
+    setNoteEdit({ topic, edit })
+    updateNotes(after)
+    return edit.id
+  }
+
+  function restoreNote(value: string) {
+    updateNotes(value)
+  }
+
+  // Edit opens only the selected part's own source, so a typo or bad LaTeX can be fixed in place.
+  function editSelection(range: Range) {
+    const paper = paperRef.current
+    const span = paper && selectionSourceRange(paper, range)
+    if (!span) {
+      setSaveNotice('That selection could not be matched to the notes. Edit it in “Edit notes / LaTeX”.')
+      return
+    }
+    const original = note.slice(span.start, span.end)
+    setSourceEditNotice('')
+    setSourceEdit({ ...span, original, text: original })
+  }
+
+  function saveSourceEdit() {
+    if (!sourceEdit) return
+    const text = cleanPastedSource(sourceEdit.text)
+    if (text !== sourceEdit.original) {
+      changeNote(`${note.slice(0, sourceEdit.start)}${text}${note.slice(sourceEdit.end)}`)
+    }
+    sourceEditRef.current?.close()
+  }
+
+  useEffect(() => {
+    const dialog = sourceEditRef.current
+    if (sourceEdit && dialog && !dialog.open) dialog.showModal()
+  }, [sourceEdit])
+
+  async function copySourceBlock() {
+    if (!sourceEdit) return
+    try {
+      await navigator.clipboard.writeText(sourceEdit.text)
+      setSourceEditNotice('Copied. Ask your AI to fix it, then paste its answer into the box above and Save.')
+    } catch (error) {
+      console.error('Could not copy the selected source.', error)
+      setSourceEditNotice('Could not copy. Select the text in the box and copy it instead.')
+    }
+  }
+
+  // In reading mode, clicking a diagram opens its SVG source for fixing, since a picture can't be text-selected.
+  function openDiagramEditor(event: React.MouseEvent<HTMLDivElement>) {
+    if (annotationTool) return
+    const target = event.target
+    if (!(target instanceof HTMLImageElement) || !target.classList.contains('lecture-diagram')) return
+    const start = Number(target.dataset.s)
+    const end = Number(target.dataset.e)
+    if (!Number.isFinite(start) || !Number.isFinite(end)) return
+    const original = note.slice(start, end)
+    setSourceEditNotice('')
+    setSourceEdit({ start, end, original, text: original })
   }
 
   function undoDelete() {
-    if (!deletedText) return
-    if (deletedText.topic === topic) updateNotes(deletedText.note)
-    setDeletedText(null)
+    if (deletedToast !== null) historyRef.current?.undoNoteEdit(deletedToast)
+    setDeletedToast(null)
   }
 
   function saveStickyNote(id: string | null, text: string) {
@@ -441,15 +513,15 @@ export default function LectureScreen({
       <LectureStickyNotes key={topic} topic={topic} group={topicGroup} notes={stickyNotes[topic] ?? []} onSave={saveStickyNote} onDelete={deleteStickyNotes} />
 
       <article className="lecture-notebook" aria-label={`${topic} lecture notebook`}>
-        <LectureAnnotations key={topic} topic={topic} note={note} paperRef={paperRef} tool={annotationTool} onToolChange={setAnnotationTool} highlightOptionsRef={setHighlightOptions} onSaveProblem={setSaveNotice} />
-        <div ref={paperRef} className="lecture-notebook-paper">
+        <LectureAnnotations key={topic} topic={topic} note={note} paperRef={paperRef} tool={annotationTool} onToolChange={setAnnotationTool} highlightOptionsRef={setHighlightOptions} noteEdit={noteEdit?.topic === topic ? noteEdit.edit : null} onRestoreNote={restoreNote} historyRef={historyRef} onSaveProblem={setSaveNotice} />
+        <div ref={paperRef} className="lecture-notebook-paper" onClick={openDiagramEditor}>
           {note.trim()
             ? <LectureNoteContent note={note} />
             : <p className="lecture-notebook-empty">Your lecture notes will appear here. Use the AI prompt above to create a first draft, then paste it using “Edit notes / LaTeX”.</p>}
         </div>
-        {note.trim() && <LectureHighlighter key={topic} topic={topic} note={note} paperRef={paperRef} active={annotationTool === 'highlight'} optionsSlot={highlightOptions} onExit={() => setAnnotationTool(null)} onDeleteSelection={deleteSelection} onSaveProblem={setSaveNotice} />}
+        {note.trim() && <LectureHighlighter key={topic} topic={topic} note={note} paperRef={paperRef} active={annotationTool === 'highlight'} optionsSlot={highlightOptions} onExit={() => setAnnotationTool(null)} onDeleteSelection={deleteSelection} onEditSelection={editSelection} onSaveProblem={setSaveNotice} />}
       </article>
-      {deletedText?.topic === topic && (
+      {deletedToast !== null && (
         <div className="lecture-undo-toast" role="status">
           <span>Text deleted from your notes.</span>
           <button className="text-action" type="button" aria-label="Undo delete" onClick={undoDelete}>Undo</button>
@@ -462,6 +534,54 @@ export default function LectureScreen({
       >
         <span aria-hidden="true">↑</span> Back to top
       </button>
+
+      <dialog
+        ref={sourceEditRef}
+        className="lecture-editor-dialog lecture-source-edit"
+        aria-labelledby="lecture-source-edit-title"
+        onClose={() => setSourceEdit(null)}
+        onClick={(event) => {
+          if (event.target === event.currentTarget) event.currentTarget.close()
+        }}
+      >
+        {sourceEdit && <>
+          <div className="lecture-editor-dialog-heading">
+            <div>
+              <p className="eyebrow">{topic}</p>
+              <h2 id="lecture-source-edit-title">{/^\s*<svg\b/i.test(sourceEdit.original) ? 'Edit diagram' : 'Edit selected text'}</h2>
+            </div>
+            <button className="text-action" type="button" onClick={() => sourceEditRef.current?.close()}>Cancel</button>
+          </div>
+          <p className="lecture-editor-help">Only this part of your notes changes. Fix it here, or copy it to your AI and paste the corrected version back in. LaTeX goes between $...$ for inline math or $$...$$ for display math.</p>
+          <div className="lecture-source-edit-ai">
+            <button className="secondary-action" type="button" onClick={() => { void copySourceBlock() }}>Copy</button>
+            {sourceEdit.text !== sourceEdit.original && <button className="text-action" type="button" onClick={() => setSourceEdit({ ...sourceEdit, text: sourceEdit.original })}>Reset to original</button>}
+            {sourceEditNotice && <span role="status">{sourceEditNotice}</span>}
+          </div>
+          <textarea
+            className="lecture-editor lecture-source-edit-input"
+            aria-label="Selected text and LaTeX"
+            autoFocus
+            value={sourceEdit.text}
+            onChange={(event) => setSourceEdit({ ...sourceEdit, text: event.currentTarget.value })}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
+                event.preventDefault()
+                saveSourceEdit()
+              }
+            }}
+            spellCheck
+          />
+          <div className="lecture-source-edit-preview" aria-label="Preview">
+            <strong>Preview</strong>
+            <div className="lecture-notebook-paper">{cleanPastedSource(sourceEdit.text).trim() ? <LectureNoteContent note={cleanPastedSource(sourceEdit.text)} /> : <p className="lecture-notebook-empty">This part will be removed.</p>}</div>
+          </div>
+          <div className="lecture-editor-dialog-actions">
+            <span>Ctrl+Enter saves. Undo at the top of the notebook reverts it.</span>
+            <button className="primary-action" type="button" onClick={saveSourceEdit}>Save</button>
+          </div>
+        </>}
+      </dialog>
 
       <dialog
         ref={noteDialogRef}

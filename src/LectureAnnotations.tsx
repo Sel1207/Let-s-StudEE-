@@ -43,6 +43,20 @@ type Gesture =
   | { mode: 'pan'; lastY: number }
   | { mode: 'move'; pointerId: number; startX: number; startY: number; from: [number, number] }
 
+/** A change to the note's text, such as deleting a selection, kept in the same undo history. */
+export interface NoteEdit {
+  id: number
+  before: string
+  after: string
+}
+
+export interface LectureHistory {
+  /** Undoes the given note edit, but only if it is still the latest change. */
+  undoNoteEdit: (id: number) => void
+}
+
+type HistoryEntry = { kind: 'ink'; list: Annotation[] } | { kind: 'note'; edit: NoteEdit }
+
 const NO_ANNOTATIONS: Annotation[] = []
 const HISTORY_LIMIT = 60
 const TAP_DISTANCE = 6
@@ -97,6 +111,9 @@ export default function LectureAnnotations({
   tool,
   onToolChange,
   highlightOptionsRef,
+  noteEdit,
+  onRestoreNote,
+  historyRef,
   onSaveProblem,
 }: {
   topic: Topic
@@ -106,14 +123,26 @@ export default function LectureAnnotations({
   onToolChange: (tool: AnnotationTool | null) => void
   /** The text highlighter draws its colors into this spot in the toolbar. */
   highlightOptionsRef: (element: HTMLDivElement | null) => void
+  /** The latest edit to the note's text; each new one joins the undo history. */
+  noteEdit: NoteEdit | null
+  onRestoreNote: (note: string) => void
+  historyRef: RefObject<LectureHistory | null>
   onSaveProblem: (message: string) => void
 }) {
   const [saved] = useState(loadAnnotations)
   const [annotations, setAnnotations] = useState(saved.annotations)
   const [prefs, setPrefs] = useState(loadToolPreferences)
   const [layout, setLayout] = useState<Layout>({ left: 0, width: 1, paperTop: 0, blockTops: [] })
-  const [past, setPast] = useState<Annotation[][]>([])
-  const [future, setFuture] = useState<Annotation[][]>([])
+  const [past, setPast] = useState<HistoryEntry[]>([])
+  const [future, setFuture] = useState<HistoryEntry[]>([])
+  const [seenNoteEdit, setSeenNoteEdit] = useState(noteEdit)
+  if (noteEdit !== seenNoteEdit) {
+    setSeenNoteEdit(noteEdit)
+    if (noteEdit) {
+      setPast((current) => [...current.slice(-(HISTORY_LIMIT - 1)), { kind: 'note', edit: noteEdit }])
+      setFuture([])
+    }
+  }
   const [editing, setEditing] = useState<Editing | null>(null)
   const [erasing, setErasing] = useState<ReadonlySet<string>>(new Set())
   const [clearArmed, setClearArmed] = useState(false)
@@ -186,24 +215,48 @@ export default function LectureAnnotations({
   }, [onSaveProblem, topic])
 
   const commit = useCallback((next: Annotation[]) => {
-    setPast((current) => [...current.slice(-(HISTORY_LIMIT - 1)), list])
+    setPast((current) => [...current.slice(-(HISTORY_LIMIT - 1)), { kind: 'ink', list }])
     setFuture([])
     persist(next)
   }, [list, persist])
 
   const undo = useCallback(() => {
-    if (past.length === 0) return
+    const entry = past[past.length - 1]
+    if (!entry) return
     setPast(past.slice(0, -1))
-    setFuture([list, ...future])
-    persist(past[past.length - 1])
-  }, [future, list, past, persist])
+    if (entry.kind === 'note') {
+      setFuture([entry, ...future])
+      onRestoreNote(entry.edit.before)
+    } else {
+      setFuture([{ kind: 'ink', list }, ...future])
+      persist(entry.list)
+    }
+  }, [future, list, onRestoreNote, past, persist])
 
   const redo = useCallback(() => {
-    if (future.length === 0) return
+    const entry = future[0]
+    if (!entry) return
     setFuture(future.slice(1))
-    setPast([...past, list])
-    persist(future[0])
-  }, [future, list, past, persist])
+    if (entry.kind === 'note') {
+      setPast([...past, entry])
+      onRestoreNote(entry.edit.after)
+    } else {
+      setPast([...past, { kind: 'ink', list }])
+      persist(entry.list)
+    }
+  }, [future, list, onRestoreNote, past, persist])
+
+  useEffect(() => {
+    historyRef.current = {
+      undoNoteEdit: (id) => {
+        const latest = past[past.length - 1]
+        if (latest?.kind === 'note' && latest.edit.id === id) undo()
+      },
+    }
+    return () => {
+      historyRef.current = null
+    }
+  }, [historyRef, past, undo])
 
   function updatePrefs(change: Partial<ToolPreferences>) {
     const next = { ...prefs, ...change }

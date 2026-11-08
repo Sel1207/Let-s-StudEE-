@@ -132,6 +132,16 @@
 .lecture-ink-editor-actions { display: flex; align-items: center; gap: 4px; justify-self: start; padding: 3px; border: 1px solid var(--line); background: var(--surface); box-shadow: 0 4px 14px rgb(0 0 0 / 12%); }
 .lecture-ink-editor-actions .lecture-ink-tool { width: 30px; height: 30px; min-height: 30px; }
 .lecture-ink-done { min-height: 30px; padding: 0 10px; border: 1px solid var(--accent); background: var(--accent); color: var(--surface); font-size: 10px; font-weight: 600; cursor: pointer; }
+.lecture-source-edit { width: min(720px, calc(100% - 28px)); }
+.lecture-source-edit .lecture-source-edit-input { min-height: 120px; height: 140px; font-family: ui-monospace, Consolas, monospace; }
+.lecture-source-edit-preview { display: grid; gap: 6px; margin-top: 12px; padding: 10px 14px; border: 1px solid var(--line); background: var(--paper); }
+.lecture-source-edit-preview > strong { color: var(--muted); font-size: 9px; letter-spacing: .08em; text-transform: uppercase; }
+.lecture-source-edit-preview .lecture-notebook-paper { min-height: 0; padding: 0; }
+.lecture-source-edit-ai { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-bottom: 10px; }
+.lecture-source-edit-ai .secondary-action { min-height: 34px; padding-inline: 12px; font-size: 10px; }
+.lecture-source-edit-ai .text-action { min-height: 34px; font-size: 10px; }
+.lecture-source-edit-ai > span { color: var(--muted); font-size: 10px; }
+.lecture-notebook-paper:not([data-pen]) .lecture-diagram { cursor: pointer; }
 .lecture-highlight-delete { color: var(--danger); }
 .lecture-highlight-delete:hover { border-color: var(--danger); color: var(--danger); }
 .lecture-undo-toast { position: fixed; bottom: max(18px, env(safe-area-inset-bottom)); left: 50%; z-index: 40; display: flex; align-items: center; gap: 12px; padding: 8px 10px 8px 14px; transform: translateX(-50%); border: 1px solid var(--line); background: var(--surface); box-shadow: 0 6px 22px rgb(0 0 0 / 16%); color: var(--ink); font-size: 11px; white-space: nowrap; }
