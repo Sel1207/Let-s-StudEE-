@@ -500,3 +500,47 @@ describe('written test question selection', () => {
     })
   })
 })
+
+describe('topic picking ignores how many questions a topic has', () => {
+  function bank(topic: Topic, count: number): Question[] {
+    return Array.from({ length: count }, (_, index) => ({ id: `${topic}-${index}`, text: `Q${index}`, seconds: 30 as const }))
+  }
+
+  function setup(weights: { big: number; small: number }) {
+    const data = createInitialStudyData()
+    const [big, small] = TOPIC_GROUPS[0].topics
+    for (const topic of TOPIC_GROUPS[0].topics) data.topicPreferences[topic] = { active: false, weight: 1 }
+    data.topicPreferences[big] = { active: true, weight: weights.big }
+    data.topicPreferences[small] = { active: true, weight: weights.small }
+    data.questionBanks[big] = bank(big, 500)
+    data.questionBanks[small] = bank(small, 10)
+    return { data, big, small }
+  }
+
+  function share(weights: { big: number; small: number }) {
+    const { data, small } = setup(weights)
+    let smallPicks = 0
+    const trials = 20000
+    // Each trial is a fresh first draw, so neither topic has run out of unused questions.
+    for (let trial = 0; trial < trials; trial += 1) {
+      if (drawQuestion(data, 'Math')?.topic === small) smallPicks += 1
+    }
+    return smallPicks / trials
+  }
+
+  it('gives a 10-question topic the same chance as a 500-question topic at 1x each', () => {
+    const smallShare = share({ big: 1, small: 1 })
+    expect(smallShare).toBeGreaterThan(0.47)
+    expect(smallShare).toBeLessThan(0.53)
+    const { data, big, small } = setup({ big: 1, small: 1 })
+    const chances = topicChances(data, 'Math')
+    expect(chances[big]).toBe(50)
+    expect(chances[small]).toBe(50)
+  })
+
+  it('follows the priority, not the bank size, at 1x vs 3x', () => {
+    const smallShare = share({ big: 1, small: 3 })
+    expect(smallShare).toBeGreaterThan(0.72)
+    expect(smallShare).toBeLessThan(0.78)
+  })
+})

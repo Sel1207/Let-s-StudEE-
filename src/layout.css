@@ -49,7 +49,7 @@
 .study-topic-toolbar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
 .study-topic-toolbar .topic-group-toggle, .study-topic-toolbar .study-mode-toggle { margin-top: 0; }
 /* Subject buttons match the compact Open notes / Oral Practice buttons beside them. */
-.study-topic-toolbar .topic-group-toggle { gap: 6px; align-self: stretch; }
+.study-topic-toolbar .topic-group-toggle { display: grid; grid-auto-columns: minmax(58px, 1fr); grid-auto-flow: column; gap: 6px; align-self: stretch; }
 .study-topic-toolbar .topic-group-toggle button { min-width: 0; min-height: 32px; padding: 0 14px; color: var(--ink); font-size: 10px; white-space: nowrap; }
 .study-mode-tools { display: flex; align-items: stretch; gap: 6px; }
 .study-mode-tools > button, .study-mode-toggle button { white-space: nowrap; }
